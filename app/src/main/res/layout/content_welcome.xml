@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/uzzap_white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/tv_welcome_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/uzzap_special_red"
+            android:textSize="18sp"
+            android:text="Welcome unknown-user!"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="12dp"
+            android:textColor="@color/uzzap_text"
+            android:textSize="16sp"
+            android:text="@string/welcome_intro"/>
+
+        <include layout="@layout/item_welcome_tip" android:id="@+id/tip_im"/>
+        <include layout="@layout/item_welcome_tip" android:id="@+id/tip_add"/>
+        <include layout="@layout/item_welcome_tip" android:id="@+id/tip_chat"/>
+        <include layout="@layout/item_welcome_tip" android:id="@+id/tip_matching"/>
+
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/uzzap_white"
+    android:gravity="center_horizontal">
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+    <ImageView
+        android:layout_width="220dp"
+        android:layout_height="74dp"
+        android:src="@drawable/d_logo_large"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/uzzap_beta"/>
+
+    <TextView
+        android:id="@+id/tv_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:textSize="18sp"
+        android:textColor="@color/uzzap_black"
+        android:text="@string/status_connecting"/>
+
+    <ImageView
+        android:id="@+id/iv_spinner"
+        android:layout_width="60dp"
+        android:layout_height="34dp"
+        android:layout_marginTop="14dp"
+        android:visibility="gone"
+        android:contentDescription="@null"/>
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1.3"/>
+</LinearLayout>

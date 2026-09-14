@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <application android:name=".UzzapApplication" android:allowBackup="false" android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:roundIcon="@mipmap/ic_launcher" android:theme="@style/Theme.Uzzap" android:supportsRtl="true">
+        <activity android:name=".ui.SplashMenuActivity" android:exported="true" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity>
+        <activity android:name=".ui.ResetPasswordActivity" android:exported="true" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="uzzap" android:host="auth" android:path="/reset" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".ui.ConnectingActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
+        <activity android:name=".ui.AppGridActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
+        <activity android:name=".ui.WelcomeActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
+        <activity android:name=".ui.SimpleTextActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
+        <activity android:name=".ui.ChatHostActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.UzzapParityActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.LegacySettingsActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.PrivateChatActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
+    </application>
+</manifest>

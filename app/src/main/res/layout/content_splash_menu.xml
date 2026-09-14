@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/uzzap_white">
+
+    <Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1.3"/>
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:src="@drawable/d_logo_large"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/uzzap_beta"/>
+
+    <Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1.6"/>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/uzzap_divider"/>
+
+    <LinearLayout
+        android:id="@+id/menu_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"/>
+
+    <Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="3"/>
+</LinearLayout>

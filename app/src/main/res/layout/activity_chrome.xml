@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/chrome_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/uzzap_black"
+    android:fitsSystemWindows="false">
+
+    <!-- Fills the area behind the status bar with the same black as the
+         rest of the chrome so there is no light gap up top on edge-to-edge
+         devices. Height is set at runtime to match the status bar inset. -->
+    <View
+        android:id="@+id/status_bar_spacer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="@color/uzzap_black" />
+
+    <include layout="@layout/view_titlebar" />
+
+    <LinearLayout
+        android:id="@+id/tab_strip_container"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:background="@drawable/bar_functionbar"
+        android:orientation="horizontal"
+        android:paddingStart="6dp"
+        android:paddingTop="4dp"
+        android:visibility="gone" />
+
+    <FrameLayout
+        android:id="@+id/content_frame"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/uzzap_white" />
+
+    <include layout="@layout/view_softkeybar" />
+
+    <!-- Fills the area behind the gesture/nav bar with black so the softkey
+         bar reaches the true bottom of the screen edge-to-edge, matching
+         the original J2ME chrome look. Height is set at runtime. -->
+    <View
+        android:id="@+id/nav_bar_spacer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="@color/uzzap_black" />
+</LinearLayout>

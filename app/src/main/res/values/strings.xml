@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Uzzap</string>
+    <string name="uzzap_beta">Uzzap BETA</string>
+
+    <string name="menu_login">Login to Network</string>
+    <string name="menu_register">Register a New Account</string>
+    <string name="menu_forgot">Forgotten Password</string>
+    <string name="menu_help">Help</string>
+    <string name="menu_about">About Uzzap</string>
+    <string name="menu_exit">Exit Application</string>
+
+    <string name="softkey_options">Options</string>
+    <string name="softkey_exit">Exit</string>
+    <string name="softkey_menu">Menu</string>
+    <string name="softkey_back">Back</string>
+    <string name="softkey_select">Select</string>
+    <string name="softkey_cancel">Cancel</string>
+    <string name="softkey_close">Close</string>
+    <string name="softkey_buddies">Buddies</string>
+
+    <string name="status_connecting">Connecting..</string>
+    <string name="status_authenticating">Authenticating..</string>
+    <string name="status_initializing">Initializing..</string>
+    <string name="status_getting_categories">Getting Categories..</string>
+
+    <string name="extended_messaging">Extended Messaging</string>
+
+    <string name="default_username">unknown-user</string>
+
+    <string name="logout_confirm">Are you sure you want to log out of the current session?</string>
+    <string name="softkey_yes">Yes</string>
+    <string name="softkey_no">No</string>
+
+    <string name="em_buddy_list_title">EM - Buddy List</string>
+    <string name="chat_rooms_title">Chat Rooms</string>
+
+    <string name="grp_all_buddies">All Buddies</string>
+    <string name="grp_most_frequent">Most Frequent</string>
+    <string name="grp_my_friends">My Friends</string>
+    <string name="grp_other_contacts">Other Contacts</string>
+    <string name="grp_pending_buddies">Pending Buddies</string>
+
+    <string name="menu_new_group">New Group</string>
+    <string name="menu_add_invite">Add/Invite Buddies</string>
+    <string name="menu_clear_history">Clear Message History</string>
+    <string name="menu_uzzap_help">Uzzap Help</string>
+    <string name="menu_rename_group">Rename Group</string>
+    <string name="menu_return_defaults">Return Groups to Defaults</string>
+
+    <string name="status_message_ellipsis">Status Message..</string>
+    <string name="status_available">Available</string>
+    <string name="status_not_available">Not Available</string>
+    <string name="status_invisible">Invisible</string>
+    <string name="settings_ellipsis">Settings..</string>
+
+    <string name="menu_send_message">Send Message</string>
+    <string name="menu_edit_message">Edit Message</string>
+    <string name="menu_add_emoticon">Add Emoticon</string>
+    <string name="menu_list_participants">List Participants</string>
+    <string name="menu_invite_participants">Invite Participants</string>
+    <string name="menu_leave_chatroom">Leave Chatroom</string>
+    <string name="leave_room_confirm">Are you sure you want to leave this chat room?</string>
+
+    <string name="welcome_title">Welcome %1$s!</string>
+    <string name="welcome_intro">Here are some things to try:</string>
+</resources>

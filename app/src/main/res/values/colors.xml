@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="uzzap_black">#000000</color>
+    <color name="uzzap_bar_top">#3a3a3a</color>
+    <color name="uzzap_bar_bottom">#050505</color>
+    <color name="uzzap_menu_selected">#B6B6B6</color>
+    <color name="uzzap_text">#000000</color>
+    <color name="uzzap_special_red">#AF0C0D</color>
+    <color name="uzzap_special_blue">#0D0CAF</color>
+    <color name="uzzap_tabbar_bg">#FFFFFF</color>
+    <color name="uzzap_popup_bg">#FFFFFF</color>
+    <color name="uzzap_bar_font">#FFFFFF</color>
+    <color name="uzzap_scroll_fill">#868686</color>
+    <color name="uzzap_scroll_bg">#DFDFDF</color>
+    <color name="uzzap_editor_bg">#DFDFDF</color>
+    <color name="uzzap_editor_border">#868686</color>
+    <color name="uzzap_white">#FFFFFF</color>
+    <color name="uzzap_divider">#E2E2E2</color>
+    <color name="uzzap_green_theme">#8EEF04</color>
+</resources>

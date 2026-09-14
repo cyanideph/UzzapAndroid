@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/uzzap_black">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="14dp">
+
+        <ImageView android:id="@+id/icon_u" style="@style/GridIcon" android:src="@drawable/d_n000_smart_large" android:contentDescription="Uzzap"/>
+        <ImageView android:id="@+id/icon_matching" style="@style/GridIcon" android:src="@drawable/d_n001_abm_large" android:contentDescription="Buddy Matching"/>
+        <ImageView android:id="@+id/icon_addbuddy" style="@style/GridIcon" android:src="@drawable/d_n002_buddies_large" android:contentDescription="Add Buddies"/>
+        <ImageView android:id="@+id/icon_settings" style="@style/GridIcon" android:src="@drawable/d_n003_settings_large" android:contentDescription="Settings"/>
+        <ImageView android:id="@+id/icon_ringtone" style="@style/GridIcon" android:src="@drawable/d_n008_ringtone_large" android:contentDescription="Sound"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="14dp">
+
+        <ImageView android:id="@+id/icon_themes" style="@style/GridIcon" android:src="@drawable/d_n005_themes_large" android:contentDescription="Themes"/>
+        <ImageView android:id="@+id/icon_help" style="@style/GridIcon" android:src="@drawable/d_n006_help_large" android:contentDescription="Help"/>
+        <ImageView android:id="@+id/icon_battery" style="@style/GridIcon" android:src="@drawable/d_n007_batteryinfo_large" android:contentDescription="Battery Info"/>
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"/>
+
+    <TextView
+        android:id="@+id/tv_footer_feature_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#DFDFDF"
+        android:gravity="center"
+        android:padding="8dp"
+        android:textColor="#000000"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:text="@string/extended_messaging"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/uzzap_white"
+        android:orientation="horizontal"
+        android:gravity="center_horizontal"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp">
+
+        <ImageView android:id="@+id/icon_em" style="@style/GridIconSmall" android:src="@drawable/d_d000_em_small" android:contentDescription="Extended Messaging (Buddies)"/>
+        <ImageView android:id="@+id/icon_im" style="@style/GridIconSmall" android:src="@drawable/d_d001_im_small" android:contentDescription="Instant Messaging"/>
+        <ImageView android:id="@+id/icon_chat" style="@style/GridIconSmall" android:src="@drawable/d_d002_chat_small" android:contentDescription="Chat Rooms"/>
+        <ImageView android:id="@+id/icon_profile" style="@style/GridIconSmall" android:src="@drawable/d_d003_status_small" android:contentDescription="Profile"/>
+    </LinearLayout>
+</LinearLayout>

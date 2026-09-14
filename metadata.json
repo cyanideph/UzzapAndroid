@@ -1,0 +1,8 @@
+{
+  "name": "Uzzap",
+  "description": "Android port of Uzzap J2ME mobile messenger and chat client",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

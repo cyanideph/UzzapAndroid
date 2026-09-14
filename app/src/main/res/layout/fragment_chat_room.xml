@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/uzzap_white">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/room_messages"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:overScrollMode="ifContentScrolls" />
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/uzzap_divider"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="6dp">
+
+        <TextView
+            android:id="@+id/tv_to_room"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/uzzap_special_blue"
+            android:textSize="15sp"
+            android:text="To: Main Lobby"/>
+
+        <ImageView
+            android:id="@+id/iv_emoticon_picker"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:src="@drawable/d_emoticon_wink"
+            android:padding="2dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="Add Emoticon"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp">
+
+        <EditText
+            android:id="@+id/et_message"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg_editor"
+            android:textSize="15sp"
+            android:hint="Type a message"
+            android:maxLines="3"/>
+
+        <TextView
+            android:id="@+id/btn_send"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:background="@drawable/bg_menu_row_selector"
+            android:textColor="@color/uzzap_special_blue"
+            android:textSize="15sp"
+            android:text="Send"/>
+    </LinearLayout>
+</LinearLayout>
