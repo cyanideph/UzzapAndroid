@@ -64,7 +64,7 @@ class ChatHostActivity : BaseChromeActivity() {
 
     override fun onResume() { super.onResume(); monitoring = true; handler.removeCallbacks(notificationPoll); handler.post(notificationPoll) }
     override fun onPause() { monitoring = false; handler.removeCallbacks(notificationPoll); PresenceClient.heartbeat(false); super.onPause() }
-    override fun onDestroy() { monitoring = false; handler.removeCallbacksAndMessages(null); PresenceClient.heartbeat(false); super.onDestroy() }
+    override fun onDestroy() { monitoring = false; handler.removeCallbacksAndMessages(null); PresenceClient.heartbeat(false); joinedRooms.forEach { SupabaseClient.leaveRoom(it, AppState.nickname) }; super.onDestroy() }
 
     fun confirmLeaveRoom() = confirmLeaveSelectedRoom()
     private fun confirmLeaveSelectedRoom() {

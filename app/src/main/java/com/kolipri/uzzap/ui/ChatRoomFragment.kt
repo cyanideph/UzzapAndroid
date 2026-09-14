@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.RoomPresenceClient
+import com.kolipri.uzzap.data.SafetyClient
 import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.model.ChatMessage
 import com.kolipri.uzzap.ui.dialogs.EmoticonPickerDialog
@@ -144,7 +145,32 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         }
     }
 
-    private fun showOptionsMenu() { J2mePopup.show(requireContext(), listOf(PopupItem("Send Message"), PopupItem("Send Whisper"), PopupItem("Room Members"), PopupItem("Room Info"), PopupItem("Invite Buddy"), PopupItem("Report"), PopupItem("Leave Room"))) { index -> when (index) { 0 -> etMessage.requestFocus(); 1 -> whisperDialog(); 2 -> startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_MEMBERS, roomName)); 3 -> AlertDialog.Builder(requireContext()).setTitle(roomName).setMessage("Province chatroom\nLive Supabase room\nMessages: ${AppState.messagesFor(roomName).size}").setPositiveButton("OK", null).show(); 4 -> startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_ACTIONS, roomName)); 5 -> Toast.makeText(requireContext(), "Report flow ready for moderation backend.", Toast.LENGTH_SHORT).show(); 6 -> host.confirmLeaveRoom() } } }
+    private fun showOptionsMenu() { J2mePopup.show(requireContext(), listOf(PopupItem("Send Message"), PopupItem("Send Whisper"), PopupItem("Room Members"), PopupItem("Room Info"), PopupItem("Invite Buddy"), PopupItem("Report"), PopupItem("Leave Room"))) { index -> when (index) { 0 -> etMessage.requestFocus(); 1 -> whisperDialog(); 2 -> startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_MEMBERS, roomName)); 3 -> AlertDialog.Builder(requireContext()).setTitle(roomName).setMessage("Province chatroom\nLive Supabase room\nMessages: ${AppState.messagesFor(roomName).size}").setPositiveButton("OK", null).show(); 4 -> startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_ACTIONS, roomName)); 5 -> showReportDialog(); 6 -> host.confirmLeaveRoom() } } }
+    private fun showReportDialog() {
+        SupabaseClient.fetchParticipants(roomName) { members ->
+            if (!isAdded) return@fetchParticipants
+            val targets = (members ?: emptyList()).filter { !it.equals(AppState.nickname, true) }
+            if (targets.isEmpty()) {
+                val input = EditText(requireContext()).apply { hint = "Enter username to report" }
+                AlertDialog.Builder(requireContext()).setTitle("Report User in $roomName").setView(input).setPositiveButton("Next") { _, _ ->
+                    val target = input.text.toString().trim()
+                    if (target.isNotEmpty()) promptReportReason(target)
+                }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
+                return@fetchParticipants
+            }
+            AlertDialog.Builder(requireContext()).setTitle("Report User in $roomName").setItems(targets.toTypedArray()) { _, which ->
+                promptReportReason(targets[which])
+            }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
+        }
+    }
+    private fun promptReportReason(target: String) {
+        val reasons = arrayOf("Spam", "Harassment", "Inappropriate Content", "Other")
+        AlertDialog.Builder(requireContext()).setTitle("Report $target").setItems(reasons) { _, which ->
+            SafetyClient.report(target, reasons[which], "Reported from chatroom: $roomName") { ok ->
+                if (isAdded) Toast.makeText(requireContext(), if (ok) "Report submitted for moderation." else "Report submission failed.", Toast.LENGTH_SHORT).show()
+            }
+        }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
+    }
     private fun whisperDialog() { SupabaseClient.fetchParticipants(roomName) { members -> val targets = (members ?: emptyList()).filter { !it.equals(AppState.nickname, true) }; if (!isAdded) return@fetchParticipants; if (targets.isEmpty()) { Toast.makeText(requireContext(), "No other room members are online.", Toast.LENGTH_SHORT).show(); return@fetchParticipants }; AlertDialog.Builder(requireContext()).setTitle("Whisper to").setItems(targets.toTypedArray()) { _, which -> startActivity(PrivateChatActivity.intent(requireContext(), targets[which])) }.setNegativeButton("Cancel", null).show() } }
     override fun onDestroyView() { super.onDestroyView(); isPollingActive = false; handler.removeCallbacksAndMessages(null) }
     companion object { private const val ARG_ROOM = "arg_room"; fun newInstance(roomName: String) = ChatRoomFragment().apply { arguments = Bundle().apply { putString(ARG_ROOM, roomName) } } }
