@@ -2,39 +2,42 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/uzzap_white">
-
+    android:background="@drawable/legacy_background">
     <TextView
         android:id="@+id/tv_loading"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:textSize="17sp"
+        android:layout_height="28dp"
+        android:layout_gravity="top|center_horizontal"
+        android:gravity="center"
+        android:textSize="13sp"
+        android:includeFontPadding="false"
         android:textColor="@color/uzzap_text"
         android:text="@string/status_getting_categories"/>
-
     <LinearLayout
         android:id="@+id/content_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:visibility="gone">
-
         <TextView
             android:id="@+id/tv_header"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="14dp"
+            android:layout_height="28dp"
+            android:gravity="center_vertical"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
             android:textColor="@color/uzzap_special_blue"
-            android:textSize="16sp"
+            android:textSize="13sp"
+            android:includeFontPadding="false"
             android:text="Categories (1/1)"/>
-
         <ListView
             android:id="@+id/list_rooms"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
+            android:background="@drawable/legacy_background"
             android:divider="@color/uzzap_divider"
-            android:dividerHeight="1dp"/>
+            android:dividerHeight="1dp"
+            android:padding="0dp"/>
     </LinearLayout>
 </FrameLayout>
