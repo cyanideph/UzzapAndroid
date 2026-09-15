@@ -85,13 +85,13 @@ class UzzapParityActivity : BaseChromeActivity() {
         val handle = TextView(this).apply { text = "@${AppState.username}"; textSize = 14f; gravity = Gravity.CENTER; setTextColor(Color.GRAY) }
         root.addView(handle, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 18 })
         section(root, "PRESENCE")
-        val presence = TextView(this).apply { text = "●  ${AppState.presence.label}"; textSize = 16f; setPadding(16, 15, 16, 15); background = activeTheme.cardBackground(); elevation = 2f; setTextColor(activeTheme.text); setOnClickListener { choosePresence() }; contentDescription = "Change presence" }
+        val presence = TextView(this).apply { text = "●  ${AppState.presence.label}"; textSize = 16f; setPadding(16, 15, 16, 15); background = LegacyThemeManager.cardBackground(activeTheme); elevation = 2f; setTextColor(activeTheme.text); setOnClickListener { choosePresence() }; contentDescription = "Change presence" }
         root.addView(presence, rowParams())
         section(root, "ABOUT ME")
-        val status = EditText(this).apply { hint = "What are you doing?"; setText(AppState.statusMessage); minLines = 2; maxLines = 4; setPadding(16, 12, 16, 12); background = activeTheme.cardBackground(); setTextColor(activeTheme.text); setHintTextColor(Color.GRAY); contentDescription = "Status message" }
+        val status = EditText(this).apply { hint = "What are you doing?"; setText(AppState.statusMessage); minLines = 2; maxLines = 4; setPadding(16, 12, 16, 12); background = LegacyThemeManager.cardBackground(activeTheme); setTextColor(activeTheme.text); setHintTextColor(Color.GRAY); contentDescription = "Status message" }
         root.addView(status, rowParams().apply { bottomMargin = 12 })
         section(root, "ACCOUNT")
-        val account = TextView(this).apply { text = "Username\n${AppState.username}\n\nNickname\n${AppState.nickname}"; textSize = 14f; setPadding(16, 14, 16, 14); background = activeTheme.cardBackground(); setTextColor(activeTheme.text) }
+        val account = TextView(this).apply { text = "Username\n${AppState.username}\n\nNickname\n${AppState.nickname}"; textSize = 14f; setPadding(16, 14, 16, 14); background = LegacyThemeManager.cardBackground(activeTheme); setTextColor(activeTheme.text) }
         root.addView(account, rowParams()); root.tag = status
     }
 
