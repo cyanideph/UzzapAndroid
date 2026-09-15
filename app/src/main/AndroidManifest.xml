@@ -16,5 +16,6 @@
         <activity android:name=".ui.PrivateChatActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.ModeratorActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.ModeratorManagementActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
+        <activity android:name=".ui.RoomInvitationsActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
     </application>
 </manifest>
