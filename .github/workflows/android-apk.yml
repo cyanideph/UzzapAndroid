@@ -36,6 +36,16 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
+      - name: Run unit tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          ./gradlew :app:testDebugUnitTest \
+            -PSUPABASE_URL="${SUPABASE_URL}" \
+            -PSUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" \
+            --stacktrace
+
       - name: Build debug APK
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
