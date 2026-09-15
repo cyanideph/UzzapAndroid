@@ -27,6 +27,7 @@ class DiagnosticsActivity : BaseChromeActivity() {
     private lateinit var healthView: TextView
     private lateinit var logView: TextView
     private lateinit var filterView: TextView
+    private lateinit var logScroll: ScrollView
     private val handler = Handler(Looper.getMainLooper())
     private var autoRefresh = false
     private var filter = "ALL"
@@ -116,21 +117,39 @@ class DiagnosticsActivity : BaseChromeActivity() {
         addButton(filterRow, "START") { setFilter("STARTED") }
         root.addView(filterRow)
 
-        root.addView(text("FUNCTION STATUS", 12f, true).apply { setPadding(dp(4), dp(8), dp(4), dp(5)) })
-        healthView = text("", 13f).apply {
-            typeface = Typeface.MONOSPACE; setPadding(dp(12), dp(12), dp(12), dp(12))
-            setBackgroundColor(Color.rgb(28, 34, 40)); setLineSpacing(0f, 1.1f)
-        }
-        val healthScroll = ScrollView(this).apply { addView(healthView) }
-        root.addView(healthScroll, LinearLayout.LayoutParams(-1, dp(230)))
-
-        root.addView(text("EVENT LOG", 12f, true).apply { setPadding(dp(4), dp(10), dp(4), dp(5)) })
+        // Put the full event log first and give it most of the available height.
+        // This makes the actual timestamped, scrolling diagnostic stream immediately visible.
+        root.addView(text("EVENT LOG • LIVE / SCROLLABLE", 12f, true).apply {
+            setPadding(dp(4), dp(8), dp(4), dp(5))
+        })
         logView = text("", 11f).apply {
-            typeface = Typeface.MONOSPACE; setTextIsSelectable(true)
-            setPadding(dp(12), dp(12), dp(12), dp(24)); setLineSpacing(0f, 1.15f)
+            typeface = Typeface.MONOSPACE
+            setTextIsSelectable(true)
+            setPadding(dp(12), dp(12), dp(12), dp(24))
+            setLineSpacing(0f, 1.15f)
         }
-        val logScroll = ScrollView(this).apply { addView(logView) }
+        logScroll = ScrollView(this).apply {
+            isFillViewport = true
+            isVerticalScrollBarEnabled = true
+            addView(logView, ViewGroup.LayoutParams(-1, -2))
+        }
         root.addView(logScroll, LinearLayout.LayoutParams(-1, 0, 1f))
+
+        root.addView(text("FUNCTION STATUS • LATEST RESULT", 12f, true).apply {
+            setPadding(dp(4), dp(8), dp(4), dp(5))
+        })
+        healthView = text("", 13f).apply {
+            typeface = Typeface.MONOSPACE
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            setBackgroundColor(Color.rgb(28, 34, 40))
+            setLineSpacing(0f, 1.1f)
+        }
+        val healthScroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(healthView, ViewGroup.LayoutParams(-1, -2))
+        }
+        root.addView(healthScroll, LinearLayout.LayoutParams(-1, dp(145)))
+
         contentFrame.addView(root, ViewGroup.LayoutParams(-1, -1))
         AppDiagnostics.activity(this, "DiagnosticsActivity", "opened")
         render()
@@ -194,6 +213,7 @@ class DiagnosticsActivity : BaseChromeActivity() {
         healthView.text = AppDiagnostics.healthSummary(this).ifBlank { "No tracked functions yet." }
         val events = filteredEvents()
         logView.text = if (crash == null) events else "$events\n\n===== LAST CRASH REPORT =====\n$crash"
+        logView.post { logScroll.fullScroll(ScrollView.FOCUS_DOWN) }
         showConnectedBall(SupabaseClient.isOnline)
     }
 
