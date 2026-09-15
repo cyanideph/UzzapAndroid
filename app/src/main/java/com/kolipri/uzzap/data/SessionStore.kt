@@ -8,7 +8,6 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.SecretKeySpec
 
 /** Small encrypted session store. Passwords are never persisted. */
 object SessionStore {
@@ -18,6 +17,7 @@ object SessionStore {
     private const val REFRESH = "refresh_token"
     private const val EXPIRES_AT = "expires_at"
     private const val EMAIL = "email"
+    private const val USERNAME = "username"
     private const val NICKNAME = "nickname"
     private const val ROLE = "role"
 
@@ -62,13 +62,23 @@ object SessionStore {
         String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8)
     }.getOrNull()
 
-    fun save(accessToken: String, refreshToken: String?, expiresAtMs: Long, email: String, nickname: String, role: String = "user") {
+    /** username is the canonical account/login name; nickname is display-only. */
+    fun save(
+        accessToken: String,
+        refreshToken: String?,
+        expiresAtMs: Long,
+        email: String,
+        nickname: String,
+        role: String = "user",
+        username: String = ""
+    ) {
         ensureReady()
         prefs.edit()
             .putString(ACCESS, encrypt(accessToken))
             .putString(REFRESH, refreshToken?.let(::encrypt))
             .putLong(EXPIRES_AT, expiresAtMs)
             .putString(EMAIL, email)
+            .putString(USERNAME, username)
             .putString(NICKNAME, nickname)
             .putString(ROLE, role)
             .apply()
@@ -78,6 +88,7 @@ object SessionStore {
     fun refreshToken(): String? = if (::prefs.isInitialized) prefs.getString(REFRESH, null)?.let(::decrypt) else null
     fun expiresAtMs(): Long = if (::prefs.isInitialized) prefs.getLong(EXPIRES_AT, 0L) else 0L
     fun email(): String = if (::prefs.isInitialized) prefs.getString(EMAIL, "").orEmpty() else ""
+    fun username(): String = if (::prefs.isInitialized) prefs.getString(USERNAME, "").orEmpty() else ""
     fun nickname(): String = if (::prefs.isInitialized) prefs.getString(NICKNAME, "").orEmpty() else ""
     fun role(): String = if (::prefs.isInitialized) prefs.getString(ROLE, "user").orEmpty() else "user"
 
