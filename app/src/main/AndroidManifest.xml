@@ -21,5 +21,6 @@
         <activity android:name=".ui.UzzapParityActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.LegacySettingsActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.PrivateChatActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.ModeratorActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
     </application>
 </manifest>
