@@ -12,8 +12,8 @@ android {
         applicationId = "com.kolipri.uzzap"
         minSdk = 23
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.0-beta.3"
+        versionCode = 4
+        versionName = "1.0-beta.4"
 
         // Client-side Supabase configuration.
         // Only the publishable/anon key belongs in an Android client.
@@ -26,33 +26,39 @@ android {
         }
 
         val defaultSupabaseUrl = "https://hrjgblvxhtbopuyzyasu.supabase.co"
-        val defaultSupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyamdibHZ4aHRib3B1eXp5YXN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMzMzOTcsImV4cCI6MjEwNDkwOTM5N30.Ms5NsNsJCykVjr7CiX-IwigAYoHfG1nxysTA_oRb9MA"
+        val defaultSupabaseAnonKey = ""
 
-        // Priority: -P Gradle property > environment variable > .env files > fallback.
+        // Prefer the current Supabase publishable key. Keep ANON_KEY as a
+        // backwards-compatible fallback for older local/CI configurations.
         val projectSupabaseUrl = providers.gradleProperty("SUPABASE_URL").orNull
+        val projectSupabasePublishableKey = providers.gradleProperty("SUPABASE_PUBLISHABLE_KEY").orNull
         val projectSupabaseAnonKey = providers.gradleProperty("SUPABASE_ANON_KEY").orNull
         val envSupabaseUrl = System.getenv("SUPABASE_URL")
-        val envSupabaseAnonKey = System.getenv("SUPABASE_ANON_KEY")
         val envSupabasePublishableKey = System.getenv("SUPABASE_PUBLISHABLE_KEY")
+        val envSupabaseAnonKey = System.getenv("SUPABASE_ANON_KEY")
         val fileSupabaseUrl = envProps.getProperty("SUPABASE_URL")
-        val fileSupabaseAnonKey = envProps.getProperty("SUPABASE_ANON_KEY")
         val fileSupabasePublishableKey = envProps.getProperty("SUPABASE_PUBLISHABLE_KEY")
+        val fileSupabaseAnonKey = envProps.getProperty("SUPABASE_ANON_KEY")
 
         val supabaseUrl = (projectSupabaseUrl ?: envSupabaseUrl ?: fileSupabaseUrl ?: defaultSupabaseUrl)
             .trim().trimEnd('/').ifBlank { defaultSupabaseUrl }
-        val supabaseAnonKey = (projectSupabaseAnonKey
-            ?: envSupabaseAnonKey
+        val supabaseKey = (projectSupabasePublishableKey
             ?: envSupabasePublishableKey
             ?: fileSupabasePublishableKey
+            ?: projectSupabaseAnonKey
+            ?: envSupabaseAnonKey
             ?: fileSupabaseAnonKey
             ?: defaultSupabaseAnonKey)
-            .trim().ifBlank { defaultSupabaseAnonKey }
+            .trim()
 
         fun quoteBuildConfig(value: String): String =
             "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
         buildConfigField("String", "SUPABASE_URL", quoteBuildConfig(supabaseUrl))
-        buildConfigField("String", "SUPABASE_ANON_KEY", quoteBuildConfig(supabaseAnonKey))
+        // Existing source code uses SUPABASE_ANON_KEY; populate it with the
+        // preferred publishable key so the whole app uses the new credential.
+        buildConfigField("String", "SUPABASE_ANON_KEY", quoteBuildConfig(supabaseKey))
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoteBuildConfig(supabaseKey))
     }
 
     // Release signing is supplied only by CI/local environment variables.
