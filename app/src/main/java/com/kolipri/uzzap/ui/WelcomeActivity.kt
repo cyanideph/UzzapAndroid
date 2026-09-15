@@ -5,6 +5,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
+import com.kolipri.uzzap.data.SupabaseClient
 
 class WelcomeActivity : BaseChromeActivity() {
 
@@ -16,8 +17,16 @@ class WelcomeActivity : BaseChromeActivity() {
         showConnectedBall(true)
         setSoftkeys(null, getString(R.string.softkey_close), onRight = { finish() })
 
-        findViewById<TextView>(R.id.tv_welcome_title).text =
-            "Welcome to Uzzap, ${AppState.username}!"
+        updateWelcomeTitle()
+
+        // Refresh identity from the authenticated Supabase profile so an old locally
+        // cached nickname can never replace the canonical account username.
+        val token = SupabaseClient.userAccessToken
+        if (!token.isNullOrBlank()) {
+            SupabaseClient.verifySession(token) { ok, _, _ ->
+                if (ok && !isFinishing) updateWelcomeTitle()
+            }
+        }
 
         bindTip(
             R.id.tip_im,
@@ -39,6 +48,12 @@ class WelcomeActivity : BaseChromeActivity() {
             R.drawable.d_n001_abm_large,
             "Stay safe and connected. Use Report and Block when necessary. Authorized moderators can review reports and manage room safety."
         )
+    }
+
+    private fun updateWelcomeTitle() {
+        val accountName = AppState.username.ifBlank { AppState.nickname }.ifBlank { "Uzzap user" }
+        findViewById<TextView>(R.id.tv_welcome_title).text =
+            "Welcome to Uzzap, $accountName!"
     }
 
     private fun bindTip(containerId: Int, iconRes: Int, text: String) {
