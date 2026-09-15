@@ -101,9 +101,10 @@ class UzzapParityActivity : BaseChromeActivity() {
         if (nickname.any { it.isWhitespace() || (!it.isLetterOrDigit() && it != '_' && it != '-') }) { legacyError("* Nickname must not contain special symbols"); return }
         if (first.isBlank()) { legacyError("* Firstname is too short."); return }
         if (last.isBlank()) { legacyError("* Lastname is too short."); return }
+        if (email.isBlank()) { legacyError("* Incorrect data\n\nPlease make sure to fill out all fields as instructed:\n\nEmail is too short."); return }
         if (email.length < 3 || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { legacyError("* Incorrect data\n\nPlease make sure to fill out all fields as instructed:\n\nEmail address has an invalid Entry"); return }
         AppState.nickname = nickname; AppState.email = email; AppState.syncProfileToSupabase()
-        J2mePopup.showMessage(this, "Update profile", "Update complete. Your profile has been successfully updated.")
+        J2mePopup.showMessage(this, "Update profile", "Update complete. Your profile has been successfully updated.\n")
     }
 
     private fun legacyError(message: String) = J2mePopup.showMessage(this, "Error", message)
@@ -117,15 +118,40 @@ class UzzapParityActivity : BaseChromeActivity() {
         list.setOnItemClickListener { _, _, position, _ -> val selected = themeList[position]; LegacyThemeManager.select(this, selected.id); AppState.themeName = selected.id; recreate() }
     }
 
-    private fun choosePresence() { J2mePopup.show(this, listOf(PopupItem("Available"), PopupItem("Not Available"), PopupItem("Invisible"), PopupItem("Status Message.."))) { index -> when (index) { 0 -> setPresence(Presence.AVAILABLE); 1 -> setPresence(Presence.NOT_AVAILABLE); 2 -> setPresence(Presence.INVISIBLE); 3 -> statusMessage() } } }
-    private fun statusMessage() { val input = EditText(this).apply { setText(AppState.statusMessage); hint = "Status Message"; textSize = 13f }; J2mePopup.showMessage(this, "Status Message", "Current: ${input.text}") }
-    private fun setPresence(presence: Presence) { AppState.presence = presence; AppState.syncProfileToSupabase(); PresenceClient.heartbeat(presence != Presence.INVISIBLE); toast("Status: ${presence.label}") }
+    private fun choosePresence() {
+        J2mePopup.show(this, listOf(PopupItem("Status Message.."), PopupItem("Available"), PopupItem("Not Available"), PopupItem("Invisible"))) { index ->
+            when (index) { 0 -> statusMessage(); 1 -> setPresence(Presence.AVAILABLE); 2 -> setPresence(Presence.NOT_AVAILABLE); 3 -> setPresence(Presence.INVISIBLE) }
+        }
+    }
+
+    private fun statusMessage() {
+        J2mePopup.showInput(this, "Status Message..", AppState.statusMessage, "Your status message") { message ->
+            AppState.statusMessage = message.trim()
+            AppState.syncProfileToSupabase()
+            J2mePopup.showMessage(this, "Status Message..", if (AppState.statusMessage.isBlank()) "Status message cleared." else "Status message updated.\n")
+        }
+    }
+
+    private fun setPresence(presence: Presence) {
+        AppState.presence = presence; AppState.syncProfileToSupabase(); PresenceClient.heartbeat(presence != Presence.INVISIBLE); toast("Status: ${presence.label}")
+    }
 
     private fun roomOptions(room: String) = showRows("Room Options", listOf("Join Room", "Select Category", "Refresh Room List", "Refresh Category List", "Room Actions", "Back"), listOf({ toast("Already joined $room") }, { finish() }, { toast("Room list refreshed.") }, { toast("Category list refreshed.") }, { open(MODE_ROOM_ACTIONS, room = room) }, { finish() }))
     private fun roomActions(room: String) = showRows("Room Actions", listOf("List Participants", "Room Info", "Send Whisper", "Invite Participants", "Leave Chatroom", "Back"), listOf({ open(MODE_ROOM_MEMBERS, room = room) }, { J2mePopup.showMessage(this, room, "Chatroom\n$room") }, { open(MODE_ROOM_MEMBERS, room = room) }, { inviteBuddy(room) }, { setResult(RESULT_OK, Intent().putExtra("leave_room", room)); finish() }, { finish() }))
     private fun roomMembers(room: String) { setScreenTitle("Participants - $room"); showConnectedBall(true); setSoftkeys("Options", "Back", onLeft = { showTopOptions() }, onRight = { finish() }); SupabaseClient.fetchParticipants(room) { members -> if (isFinishing) return@fetchParticipants; val result = (members ?: emptyList()).toMutableList(); if (!result.contains(AppState.nickname)) result.add(0, AppState.nickname); list.adapter = legacyAdapter(if (result.isEmpty()) listOf("No participants") else result); list.setOnItemClickListener { _, _, position, _ -> result.getOrNull(position)?.takeIf { it != AppState.nickname }?.let { privateChat(it) } } } }
     private fun privateChat(buddy: String) { if (buddy.isBlank()) { finish(); return }; startActivity(PrivateChatActivity.intent(this, buddy)); finish() }
-    private fun inviteBuddy(room: String) { val input = EditText(this).apply { hint = "Buddy nickname"; textSize = 13f }; J2mePopup.showMessage(this, "Invite Participants", "Enter buddy nickname from the participant list.") }
+
+    private fun inviteBuddy(room: String) {
+        J2mePopup.showInput(this, "Invite Participants", "", "Buddy nickname") { nickname ->
+            val invitee = nickname.trim()
+            if (invitee.isBlank()) { legacyError("* Buddy nickname is required."); return@showInput }
+            RoomInvitationClient.send(room, AppState.username, invitee) { ok ->
+                if (ok) J2mePopup.showMessage(this, "Invite Participants", "Invitation sent to $invitee.\n")
+                else J2mePopup.showMessage(this, "Invite Participants", "Failed to send invitation. Please try again later.")
+            }
+        }
+    }
+
     private fun showTopOptions() { J2mePopup.show(this, listOf(PopupItem("Settings"), PopupItem("Themes"), PopupItem("Notifications"), PopupItem("Back"))) { index -> when (index) { 0 -> open(MODE_SETTINGS); 1 -> open(MODE_THEMES); 2 -> open(MODE_NOTIFICATIONS); else -> finish() } } }
     private fun open(mode: String, room: String? = null, buddy: String? = null) = startActivity(intent(this, mode, room, buddy))
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
