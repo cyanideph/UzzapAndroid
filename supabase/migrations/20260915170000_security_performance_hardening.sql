@@ -13,6 +13,7 @@ create index if not exists moderator_roles_created_by_idx on public.moderator_ro
 create index if not exists room_sanctions_created_by_idx on public.room_sanctions(created_by);
 create index if not exists user_reports_message_id_idx on public.user_reports(message_id);
 create index if not exists user_reports_reviewed_by_idx on public.user_reports(reviewed_by);
+create index if not exists room_invitations_inviter_idx on public.room_invitations(inviter_id, created_at desc);
 
 -- Remove the duplicate unique index; the remaining unique constraint already
 -- enforces (room_name, username).
