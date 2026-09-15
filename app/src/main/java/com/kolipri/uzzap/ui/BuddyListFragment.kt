@@ -39,6 +39,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
     private lateinit var tvUsername: TextView
     private val handler = Handler(Looper.getMainLooper())
     private var monitoring = false
+    private var buddyRequestFetchInFlight = false
     private var cachedUnreadCounts: Map<String, Int> = emptyMap()
     private var pendingRequests: List<BuddyRequest> = emptyList()
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -75,7 +76,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
         checkBuddyRequests(showDialog = true)
         monitoring = true
         handler.removeCallbacks(monitor)
-        handler.post(monitor)
+        handler.postDelayed(monitor, 8_000L)
     }
 
     override fun onPause() {
@@ -94,7 +95,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
             checkBuddyRequests(showDialog = true)
             monitoring = true
             handler.removeCallbacks(monitor)
-            handler.post(monitor)
+            handler.postDelayed(monitor, 8_000L)
         } else {
             monitoring = false
             handler.removeCallbacks(monitor)
@@ -112,7 +113,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
         host.setScreenTitle(getString(R.string.em_buddy_list_title))
         host.showConnectedBall(true)
         host.setSoftkeys(getString(R.string.softkey_options), getString(R.string.softkey_menu), onLeft = { showOptionsMenu() }, onRight = { showOptionsMenu() })
-        tvUsername.takeIf { ::tvUsername.isInitialized }?.text = AppState.username
+        if (::tvUsername.isInitialized) tvUsername.text = AppState.username
     }
 
     fun syncBuddiesFromSupabase() {
@@ -124,11 +125,15 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
             }
             adapter.notifyDataSetChanged()
         }
-        checkBuddyRequests(showDialog = false)
     }
 
     private fun checkBuddyRequests(showDialog: Boolean) {
-        BuddyRequestClient.fetchPending(AppState.username) { requests ->
+        if (!isAdded || buddyRequestFetchInFlight) return
+        val username = AppState.username.trim()
+        if (username.isBlank()) return
+        buddyRequestFetchInFlight = true
+        BuddyRequestClient.fetchPending(username) { requests ->
+            buddyRequestFetchInFlight = false
             if (!isAdded || requests == null) return@fetchPending
             val previousIds = pendingRequests.map { it.id }.toSet()
             pendingRequests = requests
@@ -160,6 +165,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
             if (ok) {
                 pendingRequests = pendingRequests.filterNot { it.id == request.id }
                 syncBuddiesFromSupabase()
+                checkBuddyRequests(showDialog = false)
             }
         }
     }
