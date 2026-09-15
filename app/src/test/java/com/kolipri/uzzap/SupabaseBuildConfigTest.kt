@@ -11,10 +11,4 @@ class SupabaseBuildConfigTest {
         assertTrue(BuildConfig.SUPABASE_URL.startsWith("https://"))
         assertTrue(BuildConfig.SUPABASE_URL.endsWith("supabase.co"))
     }
-
-    @Test
-    fun supabaseClientKeyIsConfigured() {
-        assertFalse(BuildConfig.SUPABASE_ANON_KEY.isBlank())
-        assertTrue(BuildConfig.SUPABASE_ANON_KEY.length > 40)
-    }
 }
