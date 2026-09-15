@@ -1,0 +1,91 @@
+package com.kolipri.uzzap.ui
+
+import android.graphics.Typeface
+import android.os.Bundle
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import android.widget.Toast
+import com.kolipri.uzzap.R
+import com.kolipri.uzzap.data.AppDiagnostics
+import com.kolipri.uzzap.data.AppState
+import com.kolipri.uzzap.data.CrashDiagnostics
+import com.kolipri.uzzap.data.SupabaseClient
+
+/** Developer-facing local diagnostics page. Logs stay on the device and contain no auth tokens. */
+class DiagnosticsActivity : BaseChromeActivity() {
+    private lateinit var logView: TextView
+    private lateinit var statusView: TextView
+
+    override fun contentLayoutRes(): Int = 0
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setScreenTitle("App Diagnostics")
+        showConnectedBall(SupabaseClient.isOnline)
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(18, 12, 18, 18)
+        }
+        statusView = TextView(this).apply { setTypeface(typeface, Typeface.BOLD); textSize = 15f }
+        root.addView(statusView, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT))
+
+        val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        fun button(text: String, action: () -> Unit) = Button(this).apply { this.text = text; setOnClickListener { action() } }
+        buttons.addView(button("Run checks") { runChecks() }, LinearLayout.LayoutParams(0, -2, 1f))
+        buttons.addView(button("Refresh") { render() }, LinearLayout.LayoutParams(0, -2, 1f))
+        buttons.addView(button("Clear") { AppDiagnostics.clear(this); render() }, LinearLayout.LayoutParams(0, -2, 1f))
+        root.addView(buttons)
+
+        val crashButton = button("Clear last crash") {
+            CrashDiagnostics.clear(this)
+            Toast.makeText(this, "Crash report cleared", Toast.LENGTH_SHORT).show()
+            render()
+        }
+        root.addView(crashButton)
+
+        val scroll = ScrollView(this)
+        logView = TextView(this).apply {
+            textSize = 12f
+            typeface = Typeface.MONOSPACE
+            setTextIsSelectable(true)
+            setPadding(6, 12, 6, 24)
+        }
+        scroll.addView(logView, ViewGroup.LayoutParams(-1, -1))
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        setContentView(root)
+        AppDiagnostics.activity(this, "DiagnosticsActivity", "opened")
+        render()
+    }
+
+    private fun render() {
+        val crash = CrashDiagnostics.read(this)
+        statusView.text = buildString {
+            append("Session: ").append(if (SupabaseClient.userAccessToken.isNullOrBlank()) "NOT AUTHENTICATED" else "AUTHENTICATED")
+            append("  •  Supabase: ").append(if (SupabaseClient.isOnline) "ONLINE" else "UNKNOWN/OFFLINE")
+            append("\nUser: ").append(AppState.username.ifBlank { "<none>" })
+            append("  •  ").append(AppDiagnostics.deviceSummary())
+            if (crash != null) append("\n⚠️ LAST CRASH CAPTURED")
+        }
+        val events = AppDiagnostics.read(this).ifBlank { "No diagnostic events yet." }
+        logView.text = if (crash == null) events else events + "\n\n===== LAST CRASH REPORT =====\n" + crash
+    }
+
+    private fun runChecks() {
+        AppDiagnostics.info(this, "HealthCheck", "Started")
+        statusView.text = "Running Supabase health check…"
+        SupabaseClient.checkHealth { online, tables, status ->
+            if (online) AppDiagnostics.ok(this, "Supabase", status) else AppDiagnostics.error(this, "Supabase", status)
+            if (tables) AppDiagnostics.ok(this, "Database", "room_messages endpoint is reachable")
+            else AppDiagnostics.warn(this, "Database", "room_messages endpoint is not confirmed")
+            AppDiagnostics.ok(this, "Auth", if (SupabaseClient.userAccessToken.isNullOrBlank()) "No active session" else "Session token is present")
+            AppDiagnostics.ok(this, "Identity", "AppState username=${AppState.username.ifBlank { "<none>" }}")
+            AppDiagnostics.info(this, "HealthCheck", "Completed")
+            runOnUiThread { showConnectedBall(online); render() }
+        }
+    }
+}
