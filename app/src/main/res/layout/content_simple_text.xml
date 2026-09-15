@@ -2,14 +2,46 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/uzzap_white">
+    android:background="@color/uzzap_white"
+    android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/tv_body"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:textSize="15sp"
-        android:lineSpacingExtra="4dp"
-        android:textColor="@color/uzzap_text"/>
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="22dp">
+
+        <ImageView
+            android:id="@+id/iv_help_icon"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_gravity="center_horizontal"
+            android:src="@drawable/d_help"
+            android:scaleType="fitCenter"
+            android:contentDescription="Help" />
+
+        <TextView
+            android:id="@+id/tv_help_intro"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="14dp"
+            android:background="@drawable/bg_welcome_card"
+            android:gravity="center"
+            android:padding="10dp"
+            android:text="Uzzap Help • Learn how chatrooms, buddies, private chat, safety and moderation work."
+            android:textColor="@color/uzzap_text"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tv_body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:lineSpacingExtra="4dp"
+            android:textColor="@color/uzzap_text"/>
+    </LinearLayout>
 </ScrollView>
