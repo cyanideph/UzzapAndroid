@@ -22,9 +22,7 @@ object DirectMessageClient {
     private fun req(path: String): Request.Builder = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", "Bearer ${SupabaseClient.userAccessToken.orEmpty()}").header("Content-Type", "application/json")
 
     private fun currentUserId(): String? = SupabaseClient.userAccessToken?.let { token -> runCatching { val p = token.split('.').getOrNull(1) ?: return@runCatching null; val bytes = Base64.decode(p, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING); JSONObject(String(bytes, StandardCharsets.UTF_8)).optString("sub").ifBlank { null } }.getOrNull() }
-
     private data class UserRef(val id: String, val username: String)
-
     private fun normalizeUsername(username: String): String = username.trim().lowercase().replace(" ", "_")
 
     private fun resolveUser(username: String, cb: (UserRef?) -> Unit) {
@@ -32,16 +30,7 @@ object DirectMessageClient {
         val path = "/rest/v1/profiles?username=eq.$u&select=owner_id,username&limit=1"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { cb(null) } }
-            override fun onResponse(call: Call, response: Response) { response.use {
-                if (!it.isSuccessful) { main.post { cb(null) }; return }
-                val value = runCatching {
-                    val o = JSONArray(it.body?.string().orEmpty()).optJSONObject(0) ?: return@runCatching null
-                    val id = o.optString("owner_id").ifBlank { return@runCatching null }
-                    val canonical = o.optString("username").ifBlank { return@runCatching null }
-                    UserRef(id, canonical)
-                }.getOrNull()
-                main.post { cb(value) }
-            } }
+            override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { main.post { cb(null) }; return }; val value = runCatching { val o = JSONArray(it.body?.string().orEmpty()).optJSONObject(0) ?: return@runCatching null; val id = o.optString("owner_id").ifBlank { return@runCatching null }; val canonical = o.optString("username").ifBlank { return@runCatching null }; UserRef(id, canonical) }.getOrNull(); main.post { cb(value) } } }
         })
     }
 
@@ -50,50 +39,30 @@ object DirectMessageClient {
         val path = "/rest/v1/profiles?owner_id=eq.$id&select=owner_id,username&limit=1"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { cb(null) } }
-            override fun onResponse(call: Call, response: Response) { response.use {
-                if (!it.isSuccessful) { main.post { cb(null) }; return }
-                val value = runCatching {
-                    val o = JSONArray(it.body?.string().orEmpty()).optJSONObject(0) ?: return@runCatching null
-                    val canonical = o.optString("username").ifBlank { return@runCatching null }
-                    UserRef(o.optString("owner_id").ifBlank { myId }, canonical)
-                }.getOrNull()
-                main.post { cb(value) }
-            } }
+            override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { main.post { cb(null) }; return }; val value = runCatching { val o = JSONArray(it.body?.string().orEmpty()).optJSONObject(0) ?: return@runCatching null; val canonical = o.optString("username").ifBlank { return@runCatching null }; UserRef(o.optString("owner_id").ifBlank { myId }, canonical) }.getOrNull(); main.post { cb(value) } } }
         })
     }
 
     private fun responseError(response: Response): String {
         val body = response.body?.string().orEmpty()
-        val detail = runCatching {
-            val o = JSONObject(body)
-            listOf(o.optString("message"), o.optString("details"), o.optString("hint"))
-                .filter { it.isNotBlank() }.joinToString(" — ")
-        }.getOrDefault(body)
+        val detail = runCatching { val o = JSONObject(body); listOf(o.optString("message"), o.optString("details"), o.optString("hint")).filter { it.isNotBlank() }.joinToString(" — ") }.getOrDefault(body)
         return "Private message rejected (${response.code}): ${detail.ifBlank { response.message.ifBlank { "Unknown server error" } }}"
     }
 
-    private fun parse(o: JSONObject, me: String, buddy: String): DirectMessage {
-        val sender = o.optString("sender").ifBlank { me }
-        val recipient = o.optString("recipient").ifBlank { buddy }
-        return DirectMessage(o.optLong("id"), sender, recipient, o.optString("body"), o.optString("created_at"), o.optBoolean("is_read"))
-    }
+    private fun parse(o: JSONObject, me: String, buddy: String): DirectMessage = DirectMessage(o.optLong("id"), o.optString("sender").ifBlank { me }, o.optString("recipient").ifBlank { buddy }, o.optString("body"), o.optString("created_at"), o.optBoolean("is_read"))
 
     fun fetchConversation(me: String, buddy: String, afterId: Long = 0, onResult: (List<DirectMessage>?) -> Unit) {
+        AppDiagnostics.started(AppState.appContext, "PrivateMessaging.fetchConversation", "buddy=${buddy.take(40)} afterId=$afterId")
         val myId = currentUserId()
-        if (myId.isNullOrBlank() || buddy.isBlank()) { main.post { onResult(null) }; return }
+        if (myId.isNullOrBlank() || buddy.isBlank()) { AppDiagnostics.failed(AppState.appContext, "PrivateMessaging.fetchConversation", "Missing session or recipient"); main.post { onResult(null) }; return }
         resolveUser(buddy) { other ->
-            if (other == null || other.id == myId) { main.post { onResult(null) }; return@resolveUser }
+            if (other == null || other.id == myId) { AppDiagnostics.failed(AppState.appContext, "PrivateMessaging.fetchConversation", "Recipient could not be resolved"); main.post { onResult(null) }; return@resolveUser }
             val after = if (afterId > 0) "&id=gt.$afterId" else ""
             val or = "(and(sender_id.eq.$myId,recipient_id.eq.${other.id}),and(sender_id.eq.${other.id},recipient_id.eq.$myId))"
             val path = "/rest/v1/direct_messages?or=${URLEncoder.encode(or, "UTF-8")}&select=id,sender,recipient,body,is_read,created_at&order=id.asc&limit=100$after"
             http.newCall(req(path).get().build()).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) { main.post { onResult(null) } }
-                override fun onResponse(call: Call, response: Response) { response.use {
-                    if (!it.isSuccessful) { main.post { onResult(null) }; return }
-                    runCatching { val a = JSONArray(it.body?.string().orEmpty()); List(a.length()) { i -> parse(a.getJSONObject(i), me, buddy) } }
-                        .onSuccess { messages -> main.post { onResult(messages) } }
-                        .onFailure { main.post { onResult(null) } }
-                } }
+                override fun onFailure(call: Call, e: IOException) { AppDiagnostics.failed(AppState.appContext, "PrivateMessaging.fetchConversation", e.message ?: "network error"); main.post { onResult(null) } }
+                override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { val err = responseError(it); AppDiagnostics.failed(AppState.appContext, "PrivateMessaging.fetchConversation", err); main.post { onResult(null) }; return }; runCatching { val a = JSONArray(it.body?.string().orEmpty()); List(a.length()) { i -> parse(a.getJSONObject(i), me, buddy) } }.onSuccess { messages -> AppDiagnostics.success(AppState.appContext, "PrivateMessaging.fetchConversation", "Loaded ${messages.size} messages"); main.post { onResult(messages) } }.onFailure { e -> AppDiagnostics.failed(AppState.appContext, "PrivateMessaging.fetchConversation", e.message ?: "parse error"); main.post { onResult(null) } } } }
             })
         }
     }
@@ -103,53 +72,24 @@ object DirectMessageClient {
     }
 
     fun sendMessage(me: String, buddy: String, body: String, onResult: (DirectMessage?) -> Unit, onError: (String) -> Unit) {
-        val clean = body.trim()
-        val myId = currentUserId()
-        if (myId.isNullOrBlank()) { main.post { onError("Your session has expired. Please sign in again.") }; return }
-        if (clean.isEmpty()) { main.post { onError("Message is empty.") }; return }
-        if (clean.length > 2000) { main.post { onError("Message is too long (maximum 2000 characters).") }; return }
-        if (buddy.isBlank()) { main.post { onError("Recipient is missing.") }; return }
+        val function = "PrivateMessaging.sendMessage"
+        AppDiagnostics.started(AppState.appContext, function, "recipient=${buddy.take(40)} chars=${body.length}")
+        val clean = body.trim(); val myId = currentUserId()
+        fun fail(message: String) { AppDiagnostics.failed(AppState.appContext, function, message); main.post { onError(message) } }
+        if (myId.isNullOrBlank()) { fail("Your session has expired. Please sign in again."); return }
+        if (clean.isEmpty()) { fail("Message is empty."); return }
+        if (clean.length > 2000) { fail("Message is too long (maximum 2000 characters)."); return }
+        if (buddy.isBlank()) { fail("Recipient is missing."); return }
 
         resolveCurrentUser(myId) { senderProfile ->
-            if (senderProfile == null) {
-                main.post { onError("Your account profile could not be resolved. Please sign out and sign in again.") }
-                return@resolveCurrentUser
-            }
+            if (senderProfile == null) { fail("Your account profile could not be resolved."); return@resolveCurrentUser }
             resolveUser(buddy) { recipientProfile ->
-                if (recipientProfile == null) {
-                    main.post { onError("The recipient account could not be found.") }
-                    return@resolveUser
-                }
-                if (recipientProfile.id == myId) {
-                    main.post { onError("You cannot send a private message to yourself.") }
-                    return@resolveUser
-                }
-
-                val jsonBody = JSONObject()
-                    .put("sender_id", senderProfile.id)
-                    .put("recipient_id", recipientProfile.id)
-                    .put("sender", senderProfile.username)
-                    .put("recipient", recipientProfile.username)
-                    .put("body", clean)
-                    .put("is_read", false)
-
-                http.newCall(req("/rest/v1/direct_messages")
-                    .header("Prefer", "return=representation")
-                    .post(jsonBody.toString().toRequestBody(json))
-                    .build()).enqueue(object : Callback {
-                    override fun onFailure(call: Call, e: IOException) {
-                        main.post { onError("Could not reach the message server: ${e.message ?: "network error"}") }
-                    }
-                    override fun onResponse(call: Call, response: Response) { response.use {
-                        if (!it.isSuccessful) {
-                            val error = responseError(it)
-                            main.post { onError(error) }
-                            return
-                        }
-                        runCatching { JSONArray(it.body?.string().orEmpty()).optJSONObject(0) ?: error("Empty response") }
-                            .onSuccess { o -> main.post { onResult(parse(o, senderProfile.username, recipientProfile.username)) } }
-                            .onFailure { e -> main.post { onError("Message was accepted but the server returned an invalid response: ${e.message ?: "unknown response"}") } }
-                    } }
+                if (recipientProfile == null) { fail("The recipient account could not be found."); return@resolveUser }
+                if (recipientProfile.id == myId) { fail("You cannot send a private message to yourself."); return@resolveUser }
+                val jsonBody = JSONObject().put("sender_id", senderProfile.id).put("recipient_id", recipientProfile.id).put("sender", senderProfile.username).put("recipient", recipientProfile.username).put("body", clean).put("is_read", false)
+                http.newCall(req("/rest/v1/direct_messages").header("Prefer", "return=representation").post(jsonBody.toString().toRequestBody(json)).build()).enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) { fail("Could not reach the message server: ${e.message ?: "network error"}") }
+                    override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { fail(responseError(it)); return }; runCatching { JSONArray(it.body?.string().orEmpty()).optJSONObject(0) ?: error("Empty response") }.onSuccess { o -> AppDiagnostics.success(AppState.appContext, function, "Message id=${o.optLong("id")}"); main.post { onResult(parse(o, senderProfile.username, recipientProfile.username)) } }.onFailure { e -> fail("Server returned invalid response: ${e.message ?: "unknown response"}") } } }
                 })
             }
         }
