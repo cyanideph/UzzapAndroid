@@ -15,7 +15,8 @@ import java.util.concurrent.TimeUnit
 data class UnreadPrivateMessage(
     val count: Int,
     val senders: List<String>,
-    val countsBySender: Map<String, Int> = emptyMap()
+    val countsBySender: Map<String, Int> = emptyMap(),
+    val messageIds: List<Long> = emptyList()
 )
 
 object PrivateMessageStateClient {
@@ -30,16 +31,28 @@ object PrivateMessageStateClient {
     fun fetchUnread(username: String, onResult: (UnreadPrivateMessage?) -> Unit) {
         val me = currentUserId()
         if (me.isNullOrBlank()) { main.post { onResult(null) }; return }
-        val path = "/rest/v1/direct_messages?recipient_id=eq.$me&is_read=is.false&select=sender&order=id.asc&limit=500"
+        val path = "/rest/v1/direct_messages?recipient_id=eq.$me&is_read=is.false&select=id,sender&order=id.asc&limit=500"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { onResult(null) } }
             override fun onResponse(call: Call, response: Response) { response.use {
                 if (!it.isSuccessful) { main.post { onResult(null) }; return }
                 runCatching {
                     val array = JSONArray(it.body?.string().orEmpty())
-                    val senders = mutableListOf<String>(); val counts = mutableMapOf<String, Int>()
-                    for (i in 0 until array.length()) { val sender = array.getJSONObject(i).optString("sender").trim(); if (sender.isNotBlank()) { senders += sender; val key = sender.lowercase(); counts[key] = (counts[key] ?: 0) + 1 } }
-                    UnreadPrivateMessage(senders.size, senders.distinct(), counts)
+                    val senders = mutableListOf<String>()
+                    val counts = mutableMapOf<String, Int>()
+                    val ids = mutableListOf<Long>()
+                    for (i in 0 until array.length()) {
+                        val item = array.getJSONObject(i)
+                        val sender = item.optString("sender").trim()
+                        val id = item.optLong("id", -1L)
+                        if (sender.isNotBlank()) {
+                            senders += sender
+                            val key = sender.lowercase()
+                            counts[key] = (counts[key] ?: 0) + 1
+                        }
+                        if (id > 0) ids += id
+                    }
+                    UnreadPrivateMessage(senders.size, senders.distinct(), counts, ids)
                 }.onSuccess { result -> main.post { onResult(result) } }.onFailure { main.post { onResult(null) } }
             } }
         })
