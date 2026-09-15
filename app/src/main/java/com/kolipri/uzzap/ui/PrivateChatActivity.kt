@@ -52,6 +52,9 @@ class PrivateChatActivity : BaseChromeActivity() {
     private var buddy = ""
     private var lastId = 0L
     private var keyboardVisible = false
+    // The initial conversation is loaded once from onCreate. onResume must not
+    // immediately start the same afterId=0 request a second time.
+    private var initialConversationLoadStarted = false
 
     private val realtimeListener: (DirectMessage) -> Unit = { dm ->
         val me = AppState.username
@@ -115,6 +118,7 @@ class PrivateChatActivity : BaseChromeActivity() {
         }
         ViewCompat.requestApplyInsets(chatRoot)
 
+        initialConversationLoadStarted = true
         loadConversation()
         loadPresence()
     }
@@ -439,7 +443,10 @@ class PrivateChatActivity : BaseChromeActivity() {
         AppState.activeChatBuddy = buddy
         polling = true
         handler.removeCallbacks(poll)
-        handler.post(poll)
+        // Do not immediately re-fetch the conversation here: onCreate already
+        // starts the initial afterId=0 load. Begin incremental polling after
+        // the normal polling interval so the initial request cannot duplicate.
+        handler.postDelayed(poll, 2500L)
         loadPresence()
     }
 
