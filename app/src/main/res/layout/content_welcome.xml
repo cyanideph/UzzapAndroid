@@ -9,64 +9,61 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingStart="20dp"
-        android:paddingTop="24dp"
-        android:paddingEnd="20dp"
-        android:paddingBottom="28dp">
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="18dp">
 
-        <LinearLayout
+        <ImageView
+            android:id="@+id/iv_welcome_logo"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_gravity="center_horizontal"
+            android:src="@drawable/d_logo_large"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/app_name" />
+
+        <TextView
+            android:id="@+id/tv_welcome_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_horizontal"
-            android:orientation="vertical">
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:text="Welcome to Uzzap!"
+            android:textColor="@color/uzzap_special_red"
+            android:textSize="22sp"
+            android:textStyle="bold" />
 
-            <ImageView
-                android:id="@+id/iv_welcome_logo"
-                android:layout_width="72dp"
-                android:layout_height="72dp"
-                android:contentDescription="Uzzap"
-                android:scaleType="centerInside" />
-
-            <TextView
-                android:id="@+id/tv_welcome_title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="center"
-                android:text="Welcome to Uzzap!"
-                android:textColor="@color/uzzap_special_red"
-                android:textSize="24sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tv_welcome_subtitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:gravity="center"
-                android:text="Your quick introduction and help guide"
-                android:textColor="@color/uzzap_text"
-                android:textSize="15sp" />
-        </LinearLayout>
+        <TextView
+            android:id="@+id/tv_welcome_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:gravity="center"
+            android:text="Your quick introduction and help guide"
+            android:textColor="@color/uzzap_text"
+            android:textSize="15sp" />
 
         <TextView
             android:id="@+id/tv_welcome_intro"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="22dp"
-            android:layout_marginBottom="14dp"
+            android:layout_marginTop="18dp"
+            android:layout_marginBottom="12dp"
+            android:padding="12dp"
+            android:background="@drawable/bg_welcome_card"
             android:text="@string/welcome_intro"
             android:textColor="@color/uzzap_text"
-            android:textSize="16sp"
+            android:textSize="15sp"
             android:lineSpacingExtra="3dp" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="4dp"
-            android:text="What you can do on Uzzap"
-            android:textColor="@color/uzzap_special_red"
-            android:textSize="18sp"
+            android:layout_marginBottom="6dp"
+            android:text="WHAT YOU CAN DO ON UZZAP"
+            android:textColor="@color/uzzap_special_blue"
+            android:textSize="13sp"
             android:textStyle="bold" />
 
         <!-- Existing feature icons are intentionally preserved. -->
@@ -78,9 +75,11 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="14dp"
+            android:padding="12dp"
+            android:background="@drawable/bg_welcome_card"
             android:gravity="center"
-            android:text="You can open Help anytime from the Uzzap menu."
+            android:text="Tip: Open Help anytime from the Uzzap menu for the complete guide to chatrooms, private messages, invitations, reports and moderation."
             android:textColor="@color/uzzap_text"
             android:textSize="14sp" />
 
