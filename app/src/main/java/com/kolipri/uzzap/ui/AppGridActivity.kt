@@ -43,6 +43,8 @@ class AppGridActivity : BaseChromeActivity() {
         findViewById<ImageView>(R.id.icon_im).setOnLongClickListener { footer.text = "Message Receipts"; startActivity(Intent(this, DeliveryReadReceiptsActivity::class.java)); true }
         findViewById<ImageView>(R.id.icon_chat).setOnClickListener { footer.text = "Chat Rooms"; startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_CHAT)) }
         findViewById<ImageView>(R.id.icon_profile).setOnClickListener { footer.text = "Change Status"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_STATUS) ) }
+        // Refresh the authoritative role on every app-grid creation. A failed lookup is user-only.
+        AppState.role = "user"
         ModeratorRoleClient.refresh { role -> if (role == "moderator" || role == "admin") footer.text = if (role == "admin") "Moderator Management" else "Moderator Console" }
         if (!AppState.firstLoginShown) { AppState.firstLoginShown = true; handler.postDelayed({ openWelcome() }, 300) }
     }
@@ -54,17 +56,24 @@ class AppGridActivity : BaseChromeActivity() {
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     private fun toggleSilentMode() { val prefs = getSharedPreferences("uzzap_prefs", MODE_PRIVATE); val enabled = !prefs.getBoolean("silent_mode", false); prefs.edit().putBoolean("silent_mode", enabled).apply(); toast("Silent Mode: ${if (enabled) "ON" else "OFF"}") }
     private fun showOptionsMenu() {
-        val isMod = AppState.isModerator; val isAdmin = AppState.role == "admin"; val items = mutableListOf<PopupItem>()
+        val isMod = AppState.isModerator
+        val isAdmin = AppState.role == "admin"
+        val items = mutableListOf<PopupItem>()
         if (isMod) { items.add(PopupItem("🛡️ Moderator Console")); items.add(PopupItem("📋 Moderation Audit Log")) }
         if (isAdmin) items.add(PopupItem("👑 Moderator Management"))
-        items.add(PopupItem("🧪 App Diagnostics"))
+        // Diagnostics is deliberately absent for normal users.
+        if (isMod) items.add(PopupItem("🧪 App Diagnostics"))
         items.addAll(listOf(PopupItem("✉️ Room Invitations"), PopupItem("Lock Keypad"), PopupItem("Log Off"), PopupItem("Intro Help Screen"), PopupItem("About Uzzap"), PopupItem("Exit Application")))
         J2mePopup.show(this, items) { index ->
             var i = index
-            if (isMod) { if (i == 0) { startActivity(ModeratorActivity.intent(this)); return@show }; if (i == 1) { startActivity(ModerationAuditActivity.intent(this)); return@show }; i -= 2 }
+            if (isMod) {
+                if (i == 0) { startActivity(ModeratorActivity.intent(this)); return@show }
+                if (i == 1) { startActivity(ModerationAuditActivity.intent(this)); return@show }
+                i -= 2
+                if (i == 0) { startActivity(Intent(this, DiagnosticsActivity::class.java)); return@show }
+                i--
+            }
             if (isAdmin) { if (i == 0) { startActivity(ModeratorManagementActivity.intent(this)); return@show }; i-- }
-            if (i == 0) { startActivity(Intent(this, DiagnosticsActivity::class.java)); return@show }
-            i--
             when (i) { 0 -> startActivity(Intent(this, RoomInvitationsActivity::class.java)); 1 -> showLockKeypad(); 2 -> confirmLogout(); 3 -> openWelcome(); 4 -> showAbout(); 5 -> showExitMenu() }
         }
     }
