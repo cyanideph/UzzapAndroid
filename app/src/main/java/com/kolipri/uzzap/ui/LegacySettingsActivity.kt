@@ -1,8 +1,5 @@
 package com.kolipri.uzzap.ui
 
-import android.graphics.Color
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
@@ -27,7 +24,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
-/** Modern Uzzap settings screens using the same black/white/black shared chrome. */
+/** Legacy Java/J2ME-style Settings screens. Java Uzzap is the visual source of truth. */
 class LegacySettingsActivity : BaseChromeActivity() {
     private val http = OkHttpClient()
     private val jsonType = "application/json; charset=utf-8".toMediaType()
@@ -57,8 +54,8 @@ class LegacySettingsActivity : BaseChromeActivity() {
         }
     }
 
-    private fun prepareScreen(screenTitle: String, left: String? = "Options", right: String? = "Back", onLeft: (() -> Unit)? = { showTopOptions() }, onRight: (() -> Unit)? = { finish() }) {
-        setScreenTitle(screenTitle)
+    private fun prepareScreen(title: String, left: String? = "Options", right: String? = "Back", onLeft: (() -> Unit)? = { showTopOptions() }, onRight: (() -> Unit)? = { finish() }) {
+        setScreenTitle(title)
         setSoftkeys(left, right, onLeft = onLeft, onRight = onRight)
         showConnectedBall(true)
         contentFrame.removeAllViews()
@@ -67,11 +64,13 @@ class LegacySettingsActivity : BaseChromeActivity() {
 
     private fun container(): LinearLayout = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(14), dp(10), dp(14), dp(18))
+        setPadding(dp(2), dp(2), dp(2), dp(2))
+        setBackgroundColor(activeTheme.background)
     }
 
     private fun scroll(root: View): ScrollView = ScrollView(this).apply {
         isFillViewport = true
+        setBackgroundColor(activeTheme.background)
         addView(root, LinearLayout.LayoutParams(-1, -2))
     }
 
@@ -82,12 +81,11 @@ class LegacySettingsActivity : BaseChromeActivity() {
 
     private fun row(title: String, subtitle: String? = null, onClick: (() -> Unit)? = null): TextView = TextView(this).apply {
         text = if (subtitle.isNullOrBlank()) title else "$title\n$subtitle"
-        textSize = 16f
-        setTextColor(Color.rgb(25, 25, 25))
-        setPadding(dp(16), dp(14), dp(16), dp(if (subtitle.isNullOrBlank()) 14 else 13))
-        background = rounded(Color.WHITE, 14f)
-        elevation = dp(2).toFloat()
-        minHeight = dp(54)
+        textSize = if (subtitle.isNullOrBlank()) 13f else 12f
+        setTextColor(activeTheme.text)
+        setPadding(dp(4), dp(2), dp(4), dp(if (subtitle.isNullOrBlank()) 2 else 3))
+        background = LegacyThemeManager.cardBackground(activeTheme)
+        minHeight = dp(if (subtitle.isNullOrBlank()) 24 else 30)
         gravity = Gravity.CENTER_VERTICAL
         contentDescription = title
         isClickable = onClick != null
@@ -95,87 +93,53 @@ class LegacySettingsActivity : BaseChromeActivity() {
     }
 
     private fun addRow(root: LinearLayout, view: View) {
-        root.addView(view, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+        root.addView(view, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(1) })
     }
 
     private fun section(root: LinearLayout, label: String) {
         root.addView(TextView(this).apply {
             text = label
-            textSize = 12f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(13, 12, 175))
-            setPadding(dp(4), dp(12), dp(4), dp(7))
-        })
+            textSize = 11f
+            setTextColor(activeTheme.secondary)
+            setPadding(dp(3), dp(3), dp(3), dp(2))
+        }, LinearLayout.LayoutParams(-1, dp(20)))
     }
 
     private fun rows(title: String, values: List<String>, handlers: List<() -> Unit>, subtitles: List<String?> = emptyList()) {
         prepareScreen(title)
         val root = container()
-        section(root, title.uppercase())
+        section(root, title)
         values.forEachIndexed { index, label -> addRow(root, row(label, subtitles.getOrNull(index), handlers[index])) }
         showContent(scroll(root))
     }
 
+    /** Exact top-level Settings ordering confirmed from old Java aa.java. */
     private fun settingsScreen() {
-        val labels = listOf("Edit My Profile", "Change Status", "Change Password", "Change Mobile Number", "Offline Settings", "Chatroom Tones", "Battery Saving", "Extended Messaging", "Instant Messaging", "Privacy", "Theme", "Subscription", "Delete Account", "Back")
-        val subtitles = listOf("Nickname, presence and about me", "Available / Not Available / Invisible", "Update your account password", "Update the mobile number on your account", "Offline message and status behavior", "Chatroom, PM and buddy notification sounds", "Reduce background activity", "Buddy list and messaging tools", "Private messaging entry point", "Invitation and presence controls", "Choose the Uzzap appearance", "Account subscription information", "Permanently delete account and chat history", "Return to Uzzap")
-        rows("Settings", labels, labels.map { label ->
-            {
-                when (label) {
-                    "Edit My Profile" -> startActivity(UzzapParityActivity.intent(this, UzzapParityActivity.MODE_PROFILE))
-                    "Change Status" -> open(MODE_STATUS)
-                    "Change Password" -> open(MODE_PASSWORD)
-                    "Change Mobile Number" -> open(MODE_MOBILE)
-                    "Offline Settings" -> open(MODE_OFFLINE)
-                    "Chatroom Tones" -> open(MODE_TONES)
-                    "Battery Saving" -> open(MODE_BATTERY)
-                    "Extended Messaging" -> open(MODE_EM)
-                    "Instant Messaging" -> open(MODE_IM)
-                    "Privacy" -> open(MODE_PRIVACY)
-                    "Theme" -> startActivity(UzzapParityActivity.intent(this, UzzapParityActivity.MODE_THEMES))
-                    "Subscription" -> open(MODE_SUBSCRIPTION)
-                    "Delete Account" -> confirmDeleteAccount()
-                    else -> finish()
-                }
-            }
-        }, subtitles)
-    }
-
-    private fun confirmDeleteAccount() {
-        AlertDialog.Builder(this)
-            .setTitle("Delete Account")
-            .setMessage("Are you sure you want to permanently delete your account?\n\nThis will remove your profile, buddy list, and message history. This action cannot be undone.")
-            .setPositiveButton("Delete Permanently") { _, _ ->
-                performAccountDeletion()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun performAccountDeletion() {
-        val progress = AlertDialog.Builder(this)
-            .setTitle("Deleting Account")
-            .setMessage("Please wait while your account is deleted...")
-            .setCancelable(false)
-            .show()
-
-        SupabaseClient.deleteAccount { success ->
-            progress.dismiss()
-            Toast.makeText(this, if (success) "Account deleted successfully." else "Local account session cleared.", Toast.LENGTH_SHORT).show()
-            AppState.resetSession()
-            SessionStore.clear()
-            val intent = Intent(this, SplashMenuActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
-            startActivity(intent)
-            finish()
-        }
+        val labels = listOf(
+            "Edit My Profile",
+            "Change Status",
+            "Change Password",
+            "Change Mobile Number",
+            "Offline Settings",
+            "Chatroom Tones"
+        )
+        rows("Settings", labels, listOf(
+            { startActivity(UzzapParityActivity.intent(this, UzzapParityActivity.MODE_PROFILE)) },
+            { open(MODE_STATUS) },
+            { open(MODE_PASSWORD) },
+            { open(MODE_MOBILE) },
+            { open(MODE_OFFLINE) },
+            { open(MODE_TONES) }
+        ))
     }
 
     private fun statusScreen() {
-        rows("Change Status", listOf("Status Message", "Available", "Not Available", "Invisible"), listOf(
-            { statusMessageDialog() }, { setPresence(Presence.AVAILABLE) }, { setPresence(Presence.NOT_AVAILABLE) }, { setPresence(Presence.INVISIBLE) }
-        ), listOf("Set your personal status message", "Show me as available", "Show me as not available", "Hide my online presence"))
+        rows("Change Status", listOf("Status Message..", "Available", "Not Available", "Invisible"), listOf(
+            { statusMessageDialog() },
+            { setPresence(Presence.AVAILABLE) },
+            { setPresence(Presence.NOT_AVAILABLE) },
+            { setPresence(Presence.INVISIBLE) }
+        ))
     }
 
     private fun setPresence(presence: Presence) {
@@ -186,42 +150,68 @@ class LegacySettingsActivity : BaseChromeActivity() {
     }
 
     private fun statusMessageDialog() {
-        val input = EditText(this).apply { setText(AppState.statusMessage); hint = "Status message" }
-        AlertDialog.Builder(this).setTitle("Status Message").setView(input)
-            .setPositiveButton("Save") { _, _ -> AppState.statusMessage = input.text.toString(); AppState.syncProfileToSupabase() }
-            .setNegativeButton("Cancel", null).show()
+        val input = EditText(this).apply {
+            setText(AppState.statusMessage)
+            hint = "Status message"
+            textSize = 13f
+            setTextColor(activeTheme.text)
+            setHintTextColor(activeTheme.secondary)
+            setPadding(dp(4), dp(2), dp(4), dp(2))
+        }
+        J2mePopup.show(this, listOf(PopupItem("Save"), PopupItem("Cancel"))) { index ->
+            if (index == 0) {
+                AppState.statusMessage = input.text.toString()
+                AppState.syncProfileToSupabase()
+            }
+        }
     }
 
     private fun passwordScreen() {
         prepareScreen("Change Password", "Save", "Back", onLeft = {
-            val a = currentForm?.getChildAt(1) as? EditText
-            val b = currentForm?.getChildAt(2) as? EditText
-            val pa = a?.text?.toString().orEmpty(); val pb = b?.text?.toString().orEmpty()
+            val a = currentForm?.findViewWithTag<EditText>("new")
+            val b = currentForm?.findViewWithTag<EditText>("confirm")
+            val pa = a?.text?.toString().orEmpty()
+            val pb = b?.text?.toString().orEmpty()
             when {
                 pa.length < 6 -> toast("Password must be at least 6 characters")
                 pa != pb -> toast("Passwords do not match")
                 else -> updateAuthUser(JSONObject().put("password", pa))
             }
-        }, onRight = { finish() })
+        })
         val root = container()
-        section(root, "ACCOUNT SECURITY")
-        val newPassword = EditText(this).apply { hint = "New password"; tag = "new"; inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD; setPadding(dp(16), dp(12), dp(16), dp(12)); background = rounded(Color.rgb(245,245,245), 14f); minHeight = dp(54) }
-        val confirm = EditText(this).apply { hint = "Confirm new password"; tag = "confirm"; inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD; setPadding(dp(16), dp(12), dp(16), dp(12)); background = rounded(Color.rgb(245,245,245), 14f); minHeight = dp(54) }
-        addRow(root, newPassword); addRow(root, confirm)
+        section(root, "Change Password")
+        val newPassword = editField("New password", "new", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        val confirm = editField("Confirm password", "confirm", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        addRow(root, newPassword)
+        addRow(root, confirm)
         currentForm = root
         showContent(scroll(root))
     }
 
     private fun mobileScreen() {
         prepareScreen("Change Mobile Number", "Save", "Back", onLeft = {
-            val input = currentForm?.getChildAt(1) as? EditText
+            val input = currentForm?.findViewWithTag<EditText>("mobile")
             val phone = input?.text?.toString()?.trim().orEmpty()
-            if (phone.length < 7) toast("Enter a valid mobile number") else updateAuthUser(JSONObject().put("phone", phone))
+            if (phone.length < 7) toast("Enter a valid mobile number")
+            else updateAuthUser(JSONObject().put("phone", phone))
         })
-        val root = container(); section(root, "PHONE")
-        val input = EditText(this).apply { hint = "+63 mobile number"; inputType = InputType.TYPE_CLASS_PHONE; setPadding(dp(16), dp(12), dp(16), dp(12)); background = rounded(Color.rgb(245,245,245), 14f); minHeight = dp(54) }
-        addRow(root, input); currentForm = root
+        val root = container()
+        section(root, "Change Mobile Number")
+        addRow(root, editField("Mobile number", "mobile", InputType.TYPE_CLASS_PHONE))
+        currentForm = root
         showContent(scroll(root))
+    }
+
+    private fun editField(hintText: String, fieldTag: String, type: Int): EditText = EditText(this).apply {
+        hint = hintText
+        tag = fieldTag
+        inputType = type
+        textSize = 13f
+        setTextColor(activeTheme.text)
+        setHintTextColor(activeTheme.secondary)
+        setPadding(dp(4), 0, dp(4), 0)
+        setBackgroundColor(activeTheme.editorBackground)
+        minHeight = dp(28)
     }
 
     private fun toggleScreen(title: String, labels: List<String>, prefix: String) {
@@ -233,7 +223,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
                 prefs.edit().putBoolean(key, next).apply()
                 toast("$label: ${if (next) "ON" else "OFF"}")
             }
-        }, labels.map { "Tap to toggle" })
+        })
     }
 
     private fun offlineScreen() = toggleScreen("Offline Settings", listOf("Receive messages while offline", "Store offline messages", "Show offline status"), "offline")
@@ -242,52 +232,89 @@ class LegacySettingsActivity : BaseChromeActivity() {
     private fun batteryScreen() {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
         val enabled = prefs.getBoolean("battery_saving", false)
-        prepareScreen("Battery Saving", null, "Back", onLeft = null, onRight = { finish() })
-        val root = container(); section(root, "BATTERY")
-        addRow(root, row("Background activity", if (enabled) "Battery Saving is ON" else "Battery Saving is OFF") {
-            prefs.edit().putBoolean("battery_saving", !enabled).apply()
-            toast("Battery Saving: ${if (!enabled) "ON" else "OFF"}")
-        })
-        addRow(root, row("What it does", "Reduces background polling and presence checks."))
-        showContent(scroll(root))
+        rows("Battery Saving", listOf("Background activity", "What it does"), listOf(
+            {
+                prefs.edit().putBoolean("battery_saving", !enabled).apply()
+                toast("Battery Saving: ${if (!enabled) "ON" else "OFF"}")
+            },
+            { toast("Reduces background polling and presence checks.") }
+        ), listOf(if (enabled) "ON" else "OFF", "Reduces background polling and presence checks."))
     }
 
     private fun extendedMessagingScreen() = rows("Extended Messaging", listOf("Buddy List", "Add Buddy", "Groups", "Unread Messages"), listOf(
-        { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }, { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }, { toast("Groups are available from the Buddy List") }, { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }
-    ), listOf("Open your buddies", "Add a contact", "Manage buddy groups", "View unread private messages"))
+        { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) },
+        { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) },
+        { toast("Groups are available from the Buddy List") },
+        { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }
+    ))
 
-    private fun instantMessagingScreen() = rows("Instant Messaging", listOf("Choose a buddy", "Back"), listOf({ startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }, { finish() }), listOf("Open the private messaging list", "Return to Settings"))
+    private fun instantMessagingScreen() = rows("Instant Messaging", listOf("Choose a buddy", "Back"), listOf(
+        { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) },
+        { finish() }
+    ))
 
     private fun privacyScreen() = toggleScreen("Privacy", listOf("Allow buddy invitations", "Allow room invitations", "Show my online presence"), "privacy")
 
-    private fun subscriptionScreen() {
-        prepareScreen("Subscription", null, "Back", onLeft = null, onRight = { finish() })
-        val root = container(); section(root, "ACCOUNT")
-        addRow(root, row("Uzzap Subscription", "Classic carrier subscription is not required for this modern Supabase build."))
-        showContent(scroll(root))
+    private fun subscriptionScreen() = rows("Subscription", listOf("Uzzap Subscription", "Back"), listOf(
+        { toast("Classic carrier subscription is not required for this Supabase build.") },
+        { finish() }
+    ))
+
+    private fun confirmDeleteAccount() {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Account")
+            .setMessage("Are you sure you want to permanently delete your account?")
+            .setPositiveButton("Delete") { _, _ -> performAccountDeletion() }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun performAccountDeletion() {
+        val progress = AlertDialog.Builder(this)
+            .setTitle("Deleting Account")
+            .setMessage("Please wait...")
+            .setCancelable(false)
+            .show()
+        SupabaseClient.deleteAccount { success ->
+            progress.dismiss()
+            Toast.makeText(this, if (success) "Account deleted successfully." else "Local account session cleared.", Toast.LENGTH_SHORT).show()
+            AppState.resetSession()
+            SessionStore.clear()
+            startActivity(Intent(this, SplashMenuActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            })
+            finish()
+        }
     }
 
     private fun updateAuthUser(payload: JSONObject) {
-        val token = com.kolipri.uzzap.data.SupabaseClient.userAccessToken
+        val token = SupabaseClient.userAccessToken
         if (token.isNullOrBlank()) { toast("You are not signed in"); return }
-        val request = Request.Builder().url("${BuildConfig.SUPABASE_URL.trimEnd('/')}/auth/v1/user").header("apikey", BuildConfig.SUPABASE_ANON_KEY).header("Authorization", "Bearer $token").header("Content-Type", "application/json").patch(payload.toString().toRequestBody(jsonType)).build()
+        val request = Request.Builder()
+            .url("${BuildConfig.SUPABASE_URL.trimEnd('/')}/auth/v1/user")
+            .header("apikey", BuildConfig.SUPABASE_ANON_KEY)
+            .header("Authorization", "Bearer $token")
+            .header("Content-Type", "application/json")
+            .patch(payload.toString().toRequestBody(jsonType))
+            .build()
         http.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) { runOnUiThread { toast("Update failed") } }
-            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) { response.use { runOnUiThread { toast(if (it.isSuccessful) "Updated successfully" else "Update rejected: HTTP ${it.code}") } } }
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) = runOnUiThread { toast("Update failed") }
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                response.use { runOnUiThread { toast(if (it.isSuccessful) "Updated successfully" else "Update rejected: HTTP ${it.code}") } }
+            }
         })
     }
 
     private fun open(mode: String) = startActivity(intent(this, mode))
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
-    private fun rounded(color: Int, radius: Float): GradientDrawable = GradientDrawable().apply { setColor(color); cornerRadius = dp(radius.toInt()).toFloat() }
 
     private fun showTopOptions() {
-        com.kolipri.uzzap.ui.dialogs.J2mePopup.show(this, listOf(
-            com.kolipri.uzzap.ui.dialogs.PopupItem("Settings"),
-            com.kolipri.uzzap.ui.dialogs.PopupItem("Themes"),
-            com.kolipri.uzzap.ui.dialogs.PopupItem("Notifications"),
-            com.kolipri.uzzap.ui.dialogs.PopupItem("Back")
+        J2mePopup.show(this, listOf(
+            PopupItem("Settings"),
+            PopupItem("Themes"),
+            PopupItem("Notifications"),
+            PopupItem("Back")
         )) { index ->
             when (index) {
                 0 -> open(MODE_SETTINGS)
@@ -312,6 +339,6 @@ class LegacySettingsActivity : BaseChromeActivity() {
         const val MODE_IM = "im"
         const val MODE_PRIVACY = "privacy"
         const val MODE_SUBSCRIPTION = "subscription"
-        fun intent(context: android.content.Context, mode: String) = android.content.Intent(context, LegacySettingsActivity::class.java).apply { putExtra(EXTRA_MODE, mode) }
+        fun intent(context: android.content.Context, mode: String) = Intent(context, LegacySettingsActivity::class.java).apply { putExtra(EXTRA_MODE, mode) }
     }
 }
