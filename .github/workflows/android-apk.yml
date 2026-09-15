@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/uzzap-parity
+      - feature/legacy-java-theming
       - fix/keyboard-chatroom-composer
       - fix/gradle-source-patching
   pull_request:
