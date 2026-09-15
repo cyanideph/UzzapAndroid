@@ -29,32 +29,66 @@ android {
             }
         }
 
-        // These are safe client-side values. They are deliberately kept as a
-        // deterministic fallback so a CI/local build cannot produce an APK
-        // with empty Supabase configuration when .env files are absent.
-        val defaultSupabaseUrl = "https://hrjgblvxhtbopuyzyasu.supabase.co"
-        val defaultSupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyamdibHZ4aHRib3B1eXp5YXN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMzMzOTcsImV4cCI6MjEwNDkwOTM5N30.Ms5NsNsJCykVjr7CiX-IwigAYoHfG1nxysTA_oRb9MA"
+        val defaultSupabaseUrl =
+            "https://hrjgblvxhtbopuyzyasu.supabase.co"
+        val defaultSupabaseAnonKey =
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyamdibHZ4aHRib3B1eXp5YXN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMzMzOTcsImV4cCI6MjEwNDkwOTM5N30.Ms5NsNsJCykVjr7CiX-IwigAYoHfG1nxysTA_oRb9MA"
 
-        val supabaseUrl = (System.getenv("SUPABASE_URL")
-            ?: envProps.getProperty("SUPABASE_URL", defaultSupabaseUrl))
-            .orEmpty().trimEnd('/').ifBlank { defaultSupabaseUrl }
-        val supabasePublishableKey = System.getenv("SUPABASE_PUBLISHABLE_KEY")
-            ?: envProps.getProperty("SUPABASE_PUBLISHABLE_KEY", "")
-        val supabaseAnonKey = System.getenv("SUPABASE_ANON_KEY")
-            ?: envProps.getProperty("SUPABASE_ANON_KEY", defaultSupabaseAnonKey)
-        val supabaseClientKey = supabasePublishableKey.ifBlank { supabaseAnonKey }.ifBlank { defaultSupabaseAnonKey }
+        // Priority: -P Gradle property > environment variable > .env files > fallback.
+        val projectSupabaseUrl =
+            providers.gradleProperty("SUPABASE_URL").orNull
+        val projectSupabaseAnonKey =
+            providers.gradleProperty("SUPABASE_ANON_KEY").orNull
+
+        val envSupabaseUrl = System.getenv("SUPABASE_URL")
+        val envSupabaseAnonKey = System.getenv("SUPABASE_ANON_KEY")
+        val envSupabasePublishableKey = System.getenv("SUPABASE_PUBLISHABLE_KEY")
+
+        val fileSupabaseUrl = envProps.getProperty("SUPABASE_URL")
+        val fileSupabaseAnonKey = envProps.getProperty("SUPABASE_ANON_KEY")
+        val fileSupabasePublishableKey = envProps.getProperty("SUPABASE_PUBLISHABLE_KEY")
+
+        val supabaseUrl =
+            (projectSupabaseUrl
+                ?: envSupabaseUrl
+                ?: fileSupabaseUrl
+                ?: defaultSupabaseUrl)
+                .trim()
+                .trimEnd('/')
+                .ifBlank { defaultSupabaseUrl }
+
+        val supabaseAnonKey =
+            (projectSupabaseAnonKey
+                ?: envSupabaseAnonKey
+                ?: envSupabasePublishableKey
+                ?: fileSupabasePublishableKey
+                ?: fileSupabaseAnonKey
+                ?: defaultSupabaseAnonKey)
+                .trim()
+                .ifBlank { defaultSupabaseAnonKey }
 
         fun quoteBuildConfig(value: String): String =
             "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
-        buildConfigField("String", "SUPABASE_URL", quoteBuildConfig(supabaseUrl))
-        buildConfigField("String", "SUPABASE_ANON_KEY", quoteBuildConfig(supabaseClientKey))
+        buildConfigField(
+            "String",
+            "SUPABASE_URL",
+            quoteBuildConfig(supabaseUrl)
+        )
+        buildConfigField(
+            "String",
+            "SUPABASE_ANON_KEY",
+            quoteBuildConfig(supabaseAnonKey)
+        )
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 
