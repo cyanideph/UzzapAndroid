@@ -42,15 +42,24 @@ object SafetyClient {
     fun block(username: String, onResult: (Boolean) -> Unit) = setBlock(username, true, onResult)
     fun unblock(username: String, onResult: (Boolean) -> Unit) = setBlock(username, false, onResult)
     private fun setBlock(username: String, blocked: Boolean, result: (Boolean) -> Unit) {
+        val me = currentId()
         val clean = username.trim().lowercase().replace(" ", "_")
-        if (clean.isBlank()) { main.post { result(false) }; return }
-        rpc("set_blocked_user", JSONObject().put("p_other_username", clean).put("p_blocked", blocked), simple(result))
+        if (me.isNullOrBlank() || clean.isBlank()) { main.post { result(false) }; return }
+        val encoded = URLEncoder.encode(clean, "UTF-8")
+        val request = if (blocked) {
+            val body = JSONObject().put("owner_id", me).put("blocked_username", clean)
+            req("/rest/v1/blocked_users").header("Prefer", "return=minimal").post(body.toString().toRequestBody(mediaType)).build()
+        } else {
+            req("/rest/v1/blocked_users?owner_id=eq.$me&blocked_username=eq.$encoded").delete().build()
+        }
+        http.newCall(request).enqueue(simple(result))
     }
 
     fun report(username: String, reason: String, details: String, onResult: (Boolean) -> Unit) {
+        val me = currentId()
         val clean = username.trim().lowercase().replace(" ", "_")
-        if (clean.isBlank()) { main.post { onResult(false) }; return }
-        val body = JSONObject().put("reported_username", clean).put("reason", reason.take(100)).put("details", details.take(2000))
+        if (me.isNullOrBlank() || clean.isBlank()) { main.post { onResult(false) }; return }
+        val body = JSONObject().put("reporter_id", me).put("reported_username", clean).put("reason", reason.take(100)).put("details", details.take(2000))
         http.newCall(req("/rest/v1/user_reports").header("Prefer", "return=minimal").post(body.toString().toRequestBody(mediaType)).build()).enqueue(simple(onResult))
     }
 
@@ -109,10 +118,19 @@ object SafetyClient {
         if (roomName.isNullOrBlank() || username.isBlank()) { main.post { onResult(false, null) }; return }
         val u = URLEncoder.encode(username.trim().lowercase().replace(" ", "_"), "UTF-8")
         val r = URLEncoder.encode(roomName.trim(), "UTF-8")
-        val path = "/rest/v1/room_sanctions?username=eq.$u&room_name=eq.$r&sanction=eq.mute&active=is.true&or=(expires_at.is.null,expires_at.gt.${URLEncoder.encode(java.time.Instant.now().toString(), "UTF-8")})&select=expires_at&limit=1"
+        val path = "/rest/v1/room_sanctions?username=eq.$u&room_name=eq.$r&sanction=eq.mute&active=is.true&select=expires_at&limit=20"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { onResult(false, null) } }
-            override fun onResponse(call: Call, response: Response) { response.use { val active = it.isSuccessful && runCatching { JSONArray(it.body?.string().orEmpty()).length() > 0 }.getOrDefault(false); main.post { onResult(active, if (active) "Muted by a moderator" else null) } } }
+            override fun onResponse(call: Call, response: Response) { response.use {
+                val active = if (!it.isSuccessful) false else runCatching {
+                    val a = JSONArray(it.body?.string().orEmpty())
+                    (0 until a.length()).any { i ->
+                        val expiry = a.getJSONObject(i).optString("expires_at").ifBlank { null }
+                        expiry == null || runCatching { java.time.Instant.parse(expiry).isAfter(java.time.Instant.now()) }.getOrDefault(false)
+                    }
+                }.getOrDefault(false)
+                main.post { onResult(active, if (active) "Muted by a moderator" else null) }
+            } }
         })
     }
 }
