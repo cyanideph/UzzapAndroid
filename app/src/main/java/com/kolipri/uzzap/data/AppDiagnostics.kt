@@ -13,8 +13,13 @@ object AppDiagnostics {
     private const val MAX_LINES = 800
     private const val MAX_MESSAGE = 600
     private val lock = Any()
+    private var applicationContext: Context? = null
 
     enum class Level { INFO, OK, WARN, ERROR, STARTED, FAILED }
+
+    fun init(context: Context) { applicationContext = context.applicationContext }
+
+    private fun context(): Context? = applicationContext
 
     fun log(context: Context, level: Level, area: String, message: String) {
         val cleanArea = area.replace("|", "/").take(100)
@@ -38,41 +43,32 @@ object AppDiagnostics {
     fun success(context: Context, function: String, details: String = "") = log(context, Level.OK, function, "SUCCESS${if (details.isBlank()) "" else ": $details"}")
     fun failed(context: Context, function: String, error: String) = log(context, Level.FAILED, function, "FAILED: ${sanitizeError(error)}")
 
-    fun <T> tracked(context: Context, function: String, block: () -> T): T = runCatching {
-        started(context, function)
-        block().also { success(context, function) }
-    }.getOrElse { e -> failed(context, function, e.message ?: e.javaClass.simpleName); throw e }
+    fun started(function: String, details: String = "") { context()?.let { started(it, function, details) } }
+    fun success(function: String, details: String = "") { context()?.let { success(it, function, details) } }
+    fun failed(function: String, error: String) { context()?.let { failed(it, function, error) } }
+
+    fun exception(context: Context, area: String, throwable: Throwable) = failed(context, area, "${throwable.javaClass.simpleName}: ${throwable.message ?: "no message"}")
 
     private fun sanitizeError(error: String): String = error
         .replace(Regex("(?i)bearer\\s+[A-Za-z0-9._-]+"), "Bearer <redacted>")
         .replace(Regex("(?i)(access[_-]?token|refresh[_-]?token|password)=?[^&\\s]+"), "$1=<redacted>")
         .take(MAX_MESSAGE)
 
-    fun exception(context: Context, area: String, throwable: Throwable) {
-        failed(context, area, "${throwable.javaClass.simpleName}: ${throwable.message ?: "no message"}")
-    }
-
-    fun activity(context: Context, activityName: String, event: String) {
-        info(context, "Activity", "$activityName $event")
-    }
+    fun activity(context: Context, activityName: String, event: String) = info(context, "Activity", "$activityName $event")
 
     fun read(context: Context): String = synchronized(lock) {
         runCatching { File(context.applicationContext.filesDir, FILE_NAME).readText(Charsets.UTF_8) }.getOrDefault("")
     }
 
-    /** Returns the latest status for each tracked function. */
     fun healthSummary(context: Context): String {
         val latest = linkedMapOf<String, String>()
         read(context).lineSequence().forEach { line ->
             val parts = line.split('|', limit = 4)
-            if (parts.size == 4 && (parts[1] == Level.STARTED.name || parts[1] == Level.OK.name || parts[1] == Level.FAILED.name)) {
-                latest[parts[2]] = "${parts[1]} — ${parts[3]}"
-            }
+            if (parts.size == 4 && (parts[1] == Level.STARTED.name || parts[1] == Level.OK.name || parts[1] == Level.FAILED.name)) latest[parts[2]] = "${parts[1]} — ${parts[3]}"
         }
         return latest.entries.joinToString("\n") { (name, status) -> "$name → $status" }
     }
 
-    fun clear(context: Context) { synchronized(lock) { runCatching { File(context.applicationContext.filesDir, FILE_NAME).delete() } } }
-
+    fun clear(context: Context) = synchronized(lock) { runCatching { File(context.applicationContext.filesDir, FILE_NAME).delete() } }
     fun deviceSummary(): String = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) • ${Build.MANUFACTURER} ${Build.MODEL}"
 }
