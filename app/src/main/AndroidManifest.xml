@@ -21,6 +21,7 @@
         <activity android:name=".ui.ModerationAuditActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
         <activity android:name=".ui.RoomInvitationsActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
         <activity android:name=".ui.DeliveryReadReceiptsActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
+        <activity android:name=".ui.DiagnosticsActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
         <service
             android:name=".data.UzzapFirebaseMessagingService"
             android:exported="false">
