@@ -9,7 +9,6 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.DirectMessageClient
 import com.kolipri.uzzap.data.PresenceClient
@@ -44,8 +43,7 @@ class PrivateChatActivity : BaseChromeActivity() {
     }
     private fun buildUi() {
         root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(activeTheme.background) }; contentFrame.addView(root, FrameLayout.LayoutParams(-1, -1))
-        val header = TextView(this).apply { text = "$buddy  •  Private Message"; textSize = 13f; setTextColor(activeTheme.text); gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), 0, dp(4), 0); background = LegacyThemeManager.cardBackground(activeTheme) }
-        root.addView(header, LinearLayout.LayoutParams(-1, dp(24)))
+        val header = TextView(this).apply { text = "$buddy  •  Private Message"; textSize = 13f; setTextColor(activeTheme.text); gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), 0, dp(4), 0); background = LegacyThemeManager.cardBackground(activeTheme) }; root.addView(header, LinearLayout.LayoutParams(-1, dp(24)))
         status = TextView(this).apply { textSize = 11f; setTextColor(activeTheme.secondary); setPadding(dp(4), 0, dp(4), 0) }; root.addView(status, LinearLayout.LayoutParams(-1, dp(18)))
         val scroll = androidx.core.widget.NestedScrollView(this).apply { isFillViewport = true; setBackgroundColor(activeTheme.background) }
         messages = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(2), dp(2), dp(2), dp(2)) }; scroll.addView(messages, FrameLayout.LayoutParams(-1, -2)); root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -63,7 +61,7 @@ class PrivateChatActivity : BaseChromeActivity() {
     private fun loadPresence() { PresenceClient.fetch(buddy) { p -> status.text = if (p?.isOnline == true) "Online" else "Offline" } }
     private fun showOptions() { J2mePopup.show(this, listOf(PopupItem("Send Message"), PopupItem("Send Emoticon"), PopupItem("View Profile"), PopupItem("Block User"), PopupItem("Report User"), PopupItem("Close"))) { index -> when (index) { 0 -> input.requestFocus(); 1 -> EmoticonPickerDialog.show(this) { code -> input.append(" $code") }; 2 -> viewProfile(); 3 -> blockUser(); 4 -> reportUser(); else -> finish() } } }
     private fun viewProfile() { PresenceClient.fetch(buddy) { p -> J2mePopup.showMessage(this, buddy, "Nickname: $buddy\nStatus: ${p?.status ?: "Unknown"}\nPresence: ${if (p?.isOnline == true) "Online" else "Offline"}") } }
-    private fun blockUser() { AlertDialog.Builder(this).setTitle("Block $buddy?").setMessage("Block private messages from this user?").setPositiveButton("Block") { _, _ -> SafetyClient.block(buddy) { ok -> if (ok) finish() else Toast.makeText(this, "Could not block user", Toast.LENGTH_SHORT).show() } }.setNegativeButton("Cancel", null).show() }
+    private fun blockUser() { J2mePopup.show(this, listOf(PopupItem("Block $buddy"), PopupItem("Cancel"))) { index -> if (index == 0) SafetyClient.block(buddy) { ok -> if (ok) finish() else Toast.makeText(this, "Could not block user", Toast.LENGTH_SHORT).show() } } }
     private fun reportUser() { J2mePopup.show(this, listOf(PopupItem("Spam"), PopupItem("Harassment"), PopupItem("Impersonation"), PopupItem("Other"))) { index -> val reasons = arrayOf("Spam", "Harassment", "Impersonation", "Other"); SafetyClient.report(buddy, reasons[index], "Reported from private chat") { ok -> Toast.makeText(this, if (ok) "Report submitted" else "Report failed", Toast.LENGTH_SHORT).show() } } }
     private fun markRead() { PrivateMessageStateClient.markConversationRead(AppState.username, buddy) { PrivateMessageStateClient.fetchUnread(AppState.username) { state -> if (state == null || state.count <= 0) UzzapNotificationManager.clearPrivateMessageNotification(this) else UzzapNotificationManager.notifyPrivateMessages(this, state.count, state.senders) } } }
     override fun onDestroy() { SupabaseRealtimeClient.removeDirectMessageListener(listener); super.onDestroy() }
