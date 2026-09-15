@@ -12,9 +12,10 @@ import android.widget.Toast
 import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.CrashDiagnostics
+import com.kolipri.uzzap.data.ModeratorRoleClient
 import com.kolipri.uzzap.data.SupabaseClient
 
-/** Developer-facing local diagnostics page. Logs stay on the device and contain no auth tokens. */
+/** Developer-facing local diagnostics page. Moderator/admin access only. */
 class DiagnosticsActivity : BaseChromeActivity() {
     private lateinit var logView: TextView
     private lateinit var statusView: TextView
@@ -23,6 +24,19 @@ class DiagnosticsActivity : BaseChromeActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Never trust a stale process-local role when opening a privileged screen.
+        AppState.role = "user"
+        ModeratorRoleClient.refresh { role ->
+            if (role == "moderator" || role == "admin") {
+                showDiagnostics()
+            } else {
+                Toast.makeText(this, "App Diagnostics is for moderators only.", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
+    }
+
+    private fun showDiagnostics() {
         setScreenTitle("App Diagnostics")
         showConnectedBall(SupabaseClient.isOnline)
 
@@ -35,7 +49,6 @@ class DiagnosticsActivity : BaseChromeActivity() {
         buttons.addView(button("Run checks") { runChecks() }, LinearLayout.LayoutParams(0, -2, 1f))
         buttons.addView(button("Refresh") { render() }, LinearLayout.LayoutParams(0, -2, 1f))
         buttons.addView(button("Clear") { AppDiagnostics.clear(this); render() }, LinearLayout.LayoutParams(0, -2, 1f))
-        root.addView(buttons)
         root.addView(button("Clear last crash") { CrashDiagnostics.clear(this); Toast.makeText(this, "Crash report cleared", Toast.LENGTH_SHORT).show(); render() })
 
         val scroll = ScrollView(this)
@@ -48,9 +61,11 @@ class DiagnosticsActivity : BaseChromeActivity() {
     }
 
     private fun render() {
+        if (!::statusView.isInitialized || !::logView.isInitialized) return
         val crash = CrashDiagnostics.read(this)
         statusView.text = buildString {
-            append("Session: ").append(if (SupabaseClient.userAccessToken.isNullOrBlank()) "NOT AUTHENTICATED" else "AUTHENTICATED")
+            append("Access: MODERATOR/ADMIN")
+            append("\nSession: ").append(if (SupabaseClient.userAccessToken.isNullOrBlank()) "NOT AUTHENTICATED" else "AUTHENTICATED")
             append("  •  Supabase: ").append(if (SupabaseClient.isOnline) "ONLINE" else "UNKNOWN/OFFLINE")
             append("\nUser: ").append(AppState.username.ifBlank { "<none>" })
             append("\n\n===== FUNCTION HEALTH =====\n")
