@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/uzzap-parity
+      - feature/deep-implementation-fixes
       - fix/keyboard-chatroom-composer
       - fix/gradle-source-patching
       - fix/unified-supabase-functions
