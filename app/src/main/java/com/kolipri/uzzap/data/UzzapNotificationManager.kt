@@ -5,18 +5,22 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.ContentResolver
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.ui.PrivateChatActivity
 
 object UzzapNotificationManager {
     private const val CHANNEL_ID = "uzzap_messages_v2"
     private const val PREFS = "uzzap_notification_state"
+    private const val KEY_NOTIFIED_IDS = "notified_message_ids"
     private const val NOTIFICATION_ID = 1001
+    private const val MAX_TRACKED_IDS = 500
 
     fun getAlertSoundUri(context: Context): Uri {
         return Uri.parse("${ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/${R.raw.alert}")
@@ -41,6 +45,22 @@ object UzzapNotificationManager {
         }
     }
 
+    private fun readNotifiedIds(context: Context): MutableSet<Long> {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getStringSet(KEY_NOTIFIED_IDS, emptySet())
+            .orEmpty()
+            .mapNotNull { it.toLongOrNull() }
+            .toMutableSet()
+    }
+
+    private fun saveNotifiedIds(context: Context, ids: Set<Long>) {
+        val trimmed = ids.toList().sortedDescending().take(MAX_TRACKED_IDS).map(Long::toString).toSet()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putStringSet(KEY_NOTIFIED_IDS, trimmed)
+            .apply()
+    }
+
     fun playAlertSound(context: Context) {
         runCatching {
             val mp = MediaPlayer.create(context.applicationContext, R.raw.alert)
@@ -58,10 +78,8 @@ object UzzapNotificationManager {
     ) {
         if (count <= 0) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
-            // Still play in-app sound if permission is not granted
-            playAlertSound(context)
             return
         }
 
@@ -69,9 +87,17 @@ object UzzapNotificationManager {
         val cleanSenders = senders.map { it.trim() }.filter { it.isNotBlank() }.distinct()
         val sender = cleanSenders.firstOrNull() ?: "Uzzap"
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val signature = "$count:${cleanSenders.sorted().joinToString(",")}:${messageIds.sorted().joinToString(",")}:$customBody"
-        if (prefs.getString("last_signature", "") == signature) return
-        prefs.edit().putString("last_signature", signature).apply()
+        val notifiedIds = readNotifiedIds(context)
+        val newMessageIds = messageIds.filter { it > 0L && !notifiedIds.contains(it) }
+
+        // The unread poll runs repeatedly. Do not alert again for the same unread messages.
+        // A new notification is only raised when at least one previously unseen message ID appears.
+        if (messageIds.isNotEmpty() && newMessageIds.isEmpty()) return
+
+        if (messageIds.isNotEmpty()) {
+            notifiedIds.addAll(newMessageIds)
+            saveNotifiedIds(context, notifiedIds)
+        }
 
         val pending = PendingIntent.getActivity(
             context,
@@ -98,8 +124,12 @@ object UzzapNotificationManager {
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .build()
 
-        runCatching { (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(NOTIFICATION_ID, notification) }
-        playAlertSound(context)
+        runCatching {
+            (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .notify(NOTIFICATION_ID, notification)
+        }
+        // Do not manually play the sound here. The Android notification channel handles
+        // the alert, preventing a second sound on every unread polling cycle.
     }
 
     fun sendTestNotification(
@@ -107,7 +137,7 @@ object UzzapNotificationManager {
         sender: String = "uzzapbot",
         messageText: String = "Kamusta cy! Welcome to Uzzap. This is a test message with alert sound :)"
     ) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("last_signature").apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
         notifyPrivateMessages(
             context = context,
             count = 1,
@@ -119,6 +149,6 @@ object UzzapNotificationManager {
 
     fun clearPrivateMessageNotification(context: Context) {
         (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(NOTIFICATION_ID)
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("last_signature").apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
     }
 }
