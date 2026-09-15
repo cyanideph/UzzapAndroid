@@ -12,7 +12,7 @@ class WelcomeActivity : BaseChromeActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setScreenTitle("")
+        setScreenTitle("Welcome & Help")
         showConnectedBall(true)
         setSoftkeys(null, getString(R.string.softkey_close), onRight = { finish() })
 
