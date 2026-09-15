@@ -85,13 +85,14 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         super.onViewCreated(view, savedInstanceState)
         messageList = view.findViewById(R.id.room_messages)
         messageAdapter = RoomMessageAdapter(requireContext())
+        messageAdapter.onMessageLongClickListener = { message ->
+            if (AppState.isModerator && message.id > 0L) showModeratorMessageActions(message)
+        }
         layoutManager = LinearLayoutManager(requireContext())
         messageList.layoutManager = layoutManager
         messageList.adapter = messageAdapter
         messageList.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
-            if (bottom < oldBottom && messageAdapter.itemCount > 0) {
-                messageList.post { scrollToLatest() }
-            }
+            if (bottom < oldBottom && messageAdapter.itemCount > 0) messageList.post { scrollToLatest() }
         }
         messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
@@ -114,6 +115,48 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
             if (!ok) { AlertDialog.Builder(requireContext()).setTitle("Room Full").setMessage(message ?: "This room cannot accept another participant.").setPositiveButton("OK") { _, _ -> host.leaveRoom(roomName) }.setOnCancelListener { host.leaveRoom(roomName) }.show(); return@join }
             joinedSuccessfully = true
             refreshHistory()
+        }
+    }
+
+    private fun showModeratorMessageActions(message: ChatMessage) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Moderator: Message #${message.id}")
+            .setMessage("${message.sender}:\n${message.body}")
+            .setItems(arrayOf("Delete Message", "Mute ${message.sender}", "Kick ${message.sender}", "Report ${message.sender}")) { _, which ->
+                when (which) {
+                    0 -> confirmDeleteMessage(message)
+                    1 -> applyQuickModeration("mute", message.sender)
+                    2 -> applyQuickModeration("kick", message.sender)
+                    3 -> promptReportReason(message.sender)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun confirmDeleteMessage(message: ChatMessage) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Delete message?")
+            .setMessage("Delete this message from $roomName? This action is recorded by the backend.")
+            .setPositiveButton("Delete") { _, _ ->
+                SafetyClient.deleteRoomMessage(message.id) { success ->
+                    if (!isAdded) return@deleteRoomMessage
+                    if (success) {
+                        AppState.messagesFor(roomName).removeAll { it.id == message.id }
+                        messageAdapter.removeById(message.id)
+                        Toast.makeText(requireContext(), "Message deleted", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(requireContext(), "Message deletion failed", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun applyQuickModeration(action: String, target: String) {
+        SafetyClient.applyModerationAction(target, action, roomName, "Moderator action from $roomName", if (action == "mute") 30 else null) { success ->
+            if (isAdded) Toast.makeText(requireContext(), if (success) "${action.uppercase()} applied to $target" else "Moderation action failed", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -140,10 +183,9 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         SupabaseClient.fetchMessagesBefore(roomName, beforeId, 50) { older ->
             if (!isAdded) return@fetchMessagesBefore
             isLoadingHistory = false
-            if (older == null) { return@fetchMessagesBefore }
+            if (older == null) return@fetchMessagesBefore
             if (older.isEmpty()) { hasMoreHistory = false; return@fetchMessagesBefore }
-            current.addAll(0, older)
-            messageAdapter.insertAtTop(older)
+            current.addAll(0, older); messageAdapter.insertAtTop(older)
             layoutManager.scrollToPositionWithOffset(oldFirstVisible + older.size, oldTop)
             if (older.size < 50) hasMoreHistory = false
         }
@@ -177,15 +219,10 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
             val targets = (members ?: emptyList()).filter { !it.equals(AppState.nickname, true) }
             if (targets.isEmpty()) {
                 val input = EditText(requireContext()).apply { hint = "Enter username to report" }
-                AlertDialog.Builder(requireContext()).setTitle("Report User in $roomName").setView(input).setPositiveButton("Next") { _, _ ->
-                    val target = input.text.toString().trim()
-                    if (target.isNotEmpty()) promptReportReason(target)
-                }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
+                AlertDialog.Builder(requireContext()).setTitle("Report User in $roomName").setView(input).setPositiveButton("Next") { _, _ -> val target = input.text.toString().trim(); if (target.isNotEmpty()) promptReportReason(target) }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
                 return@fetchParticipants
             }
-            AlertDialog.Builder(requireContext()).setTitle("Report User in $roomName").setItems(targets.toTypedArray()) { _, which ->
-                promptReportReason(targets[which])
-            }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
+            AlertDialog.Builder(requireContext()).setTitle("Report User in $roomName").setItems(targets.toTypedArray()) { _, which -> promptReportReason(targets[which]) }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
         }
     }
     private fun promptReportReason(target: String) {
