@@ -3,14 +3,14 @@ package com.kolipri.uzzap.ui
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import com.kolipri.uzzap.BuildConfig
 import com.kolipri.uzzap.R
 
-class AboutUzzapActivity : AppCompatActivity() {
+class AboutUzzapActivity : BaseChromeActivity() {
     private val features = listOf(
         "Login", "Signup", "Logout", "Password recovery", "Profile creation", "Profile editing", "Avatar", "Online/offline presence",
         "Philippine region/category selection", "Province chat rooms", "Room joining", "Room leaving", "Room messages", "Realtime message refresh", "Message deletion",
@@ -21,17 +21,32 @@ class AboutUzzapActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = "About Uzzap"
-        setContentView(buildContent())
+        setScreenTitle("About Uzzap")
+        showConnectedBall(true)
+        setSoftkeys(null, getString(R.string.softkey_close), onRight = { finish() })
+        contentFrame.addView(
+            buildContent(),
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
     }
 
     private fun buildContent(): ScrollView {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(20), dp(20), dp(28))
+            setPadding(dp(16), dp(14), dp(16), dp(24))
         }
+
+        ImageView(this).apply {
+            setImageResource(R.drawable.d_logo_large)
+            contentDescription = getString(R.string.app_name)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            layoutParams = LinearLayout.LayoutParams(dp(72), dp(72)).apply {
+                gravity = android.view.Gravity.CENTER_HORIZONTAL
+            }
+        }.also { root.addView(it) }
+
         addHeading(root, "Uzzap")
-        addText(root, "Modern Android Uzzap client\nCreated by CY", 16, true)
+        addText(root, "Modern Android Uzzap client • Created by CY", 16, true)
         addText(root, "Version ${BuildConfig.VERSION_NAME}  •  Build ${BuildConfig.VERSION_CODE}", 15, false)
         addText(root, "Current release: Beta", 14, false)
 
@@ -69,7 +84,8 @@ class AboutUzzapActivity : AppCompatActivity() {
             this.text = text
             textSize = 20f
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(0, dp(24), 0, dp(8))
+            setTextColor(resources.getColor(R.color.uzzap_special_red, theme))
+            setPadding(0, dp(22), 0, dp(8))
         }
         parent.addView(view)
     }
@@ -79,6 +95,7 @@ class AboutUzzapActivity : AppCompatActivity() {
             this.text = text
             textSize = size.toFloat()
             if (bold) typeface = Typeface.DEFAULT_BOLD
+            setTextColor(resources.getColor(R.color.uzzap_text, theme))
             setPadding(0, dp(3), 0, dp(7))
         }
         parent.addView(view)
