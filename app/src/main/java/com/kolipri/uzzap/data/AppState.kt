@@ -33,6 +33,11 @@ object AppState {
     // Philippine region categories -> province chatrooms.
     var categories: List<ChatRoomCategory> = emptyList()
 
+    // Track active joined rooms in the current process
+    val joinedRooms: MutableSet<String> = mutableSetOf()
+
+    fun isRoomJoined(roomName: String): Boolean = joinedRooms.contains(roomName)
+
     // Messages are cached only for the lifetime of the current process.
     val roomMessages: MutableMap<String, MutableList<ChatMessage>> = mutableMapOf()
 
@@ -74,6 +79,7 @@ object AppState {
         // Give the backend one final authenticated update so last state is offline.
         syncProfileToSupabase()
         roomMessages.clear()
+        joinedRooms.clear()
         buddyGroups.forEach { it.buddies.clear() }
         categories = emptyList()
         username = "unknown-user"

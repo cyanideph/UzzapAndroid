@@ -36,6 +36,7 @@ class ConnectingActivity : BaseChromeActivity() {
             if (isFinishing || isDestroyed) return@checkHealth
             if (isOnline) {
                 AppState.syncProfileToSupabase()
+                com.kolipri.uzzap.data.FcmClient.syncTokenWithSupabase(this@ConnectingActivity)
                 if (tablesReady) {
                     SupabaseClient.fetchCategoriesAndRooms { newCategories ->
                         if (!newCategories.isNullOrEmpty()) {

@@ -133,6 +133,23 @@ class UzzapUserPerspectiveAllFunctionsTest {
             .flatMap { it.rooms }
             .filter { it.name.lowercase().contains("tokyo") }
         assertTrue(emptyResults.isEmpty())
+
+        // When user joins a room with 0 active users, it must reflect (1/20)
+        val emptyRoom = ChatRoomInfo("Pangasinan", 0, 20)
+        assertEquals(0, emptyRoom.userCount)
+        assertFalse(AppState.isRoomJoined("Pangasinan"))
+
+        // User joins room
+        AppState.joinedRooms.add("Pangasinan")
+        assertTrue(AppState.isRoomJoined("Pangasinan"))
+        val effectiveCount = if (AppState.isRoomJoined(emptyRoom.name)) maxOf(emptyRoom.userCount, 1) else emptyRoom.userCount
+        assertEquals(1, effectiveCount)
+
+        // User leaves room
+        AppState.joinedRooms.remove("Pangasinan")
+        assertFalse(AppState.isRoomJoined("Pangasinan"))
+        val leftCount = if (AppState.isRoomJoined(emptyRoom.name)) maxOf(emptyRoom.userCount, 1) else emptyRoom.userCount
+        assertEquals(0, leftCount)
     }
 
     // =========================================================================

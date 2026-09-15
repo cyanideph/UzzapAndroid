@@ -15,6 +15,7 @@ import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -36,6 +37,10 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
     private lateinit var tvUsername: TextView
     private val handler = Handler(Looper.getMainLooper())
     private var monitoring = false
+    private var cachedUnreadCounts: Map<String, Int> = emptyMap()
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* granted/denied handled gracefully */ }
     private val monitor = object : Runnable {
         override fun run() {
             if (!monitoring || !isAdded) return
@@ -95,7 +100,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
 
     private fun requestNotificationPermissionIfNeeded() {
         if (android.os.Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATIONS)
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
@@ -193,6 +198,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
                 PopupItem(getString(R.string.menu_new_group)),
                 PopupItem("Add Buddy"),
                 PopupItem("Sync Buddies"),
+                PopupItem("Test Notification & Alert"),
                 PopupItem(getString(R.string.menu_clear_history)),
                 PopupItem(getString(R.string.menu_uzzap_help))
             )
@@ -201,8 +207,16 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
                 0 -> showNewGroupDialog()
                 1 -> showAddBuddyDialog()
                 2 -> syncBuddiesFromSupabase()
-                3 -> confirmClearHistory()
-                4 -> startActivity(SimpleTextActivity.intentForAsset(requireContext(), "Help", "help.txt"))
+                3 -> {
+                    UzzapNotificationManager.sendTestNotification(
+                        requireContext(),
+                        sender = "uzzapbot",
+                        messageText = "Kamusta cy! New Uzzap message with alert sound :)"
+                    )
+                    Toast.makeText(requireContext(), "Test message & alert sound triggered!", Toast.LENGTH_SHORT).show()
+                }
+                4 -> confirmClearHistory()
+                5 -> startActivity(SimpleTextActivity.intentForAsset(requireContext(), "Help", "help.txt"))
             }
         }
     }
@@ -389,8 +403,23 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
             if (show && buddies.isNotEmpty()) {
                 container.visibility = View.VISIBLE
                 empty.visibility = View.GONE
+                for (buddy in buddies) {
+                    val row = LayoutInflater.from(context).inflate(R.layout.item_buddy_status_row, container, false)
+                    val statusIcon = row.findViewById<ImageView>(R.id.iv_status_icon)
+                    val statusName = row.findViewById<TextView>(R.id.tv_status_username)
+                    val unread = row.findViewById<TextView>(R.id.tv_unread_count)
+                    statusName.text = buddy
+                    statusIcon.setImageResource(R.drawable.d_offline)
+                    val cachedCount = cachedUnreadCounts[buddy.lowercase()] ?: 0
+                    unread.text = if (cachedCount > 99) "99+" else cachedCount.toString()
+                    unread.visibility = if (cachedCount > 0) View.VISIBLE else View.GONE
+                    row.setOnClickListener { showBuddyOptions(buddy, group) }
+                    container.addView(row)
+                }
                 PrivateMessageStateClient.fetchUnread(AppState.username) { unreadState ->
-                    if (!isAdded || unreadState == null || !container.isAttachedToWindow) return@fetchUnread
+                    if (!isAdded || unreadState == null) return@fetchUnread
+                    cachedUnreadCounts = unreadState.countsBySender
+                    if (!container.isAttachedToWindow) return@fetchUnread
                     for (i in 0 until container.childCount) {
                         val row = container.getChildAt(i)
                         val nameView = row.findViewById<TextView>(R.id.tv_status_username)
@@ -399,17 +428,6 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
                         badge.text = if (count > 99) "99+" else count.toString()
                         badge.visibility = if (count > 0) View.VISIBLE else View.GONE
                     }
-                }
-                for (buddy in buddies) {
-                    val row = LayoutInflater.from(context).inflate(R.layout.item_buddy_status_row, container, false)
-                    val statusIcon = row.findViewById<ImageView>(R.id.iv_status_icon)
-                    val statusName = row.findViewById<TextView>(R.id.tv_status_username)
-                    val unread = row.findViewById<TextView>(R.id.tv_unread_count)
-                    statusName.text = buddy
-                    statusIcon.setImageResource(R.drawable.d_offline)
-                    unread.visibility = View.GONE
-                    row.setOnClickListener { showBuddyOptions(buddy, group) }
-                    container.addView(row)
                 }
                 PresenceClient.fetchMultiple(buddies) { presenceMap ->
                     if (!isAdded || !container.isAttachedToWindow) return@fetchMultiple

@@ -101,8 +101,8 @@ class PrivateChatActivity : BaseChromeActivity() {
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            val bottom = maxOf(bars.bottom, ime.bottom)
-            view.updatePadding(bottom = if (keyboardVisible) 0 else 0)
+            val bottomPadding = if (keyboardVisible) ime.bottom else bars.bottom
+            view.updatePadding(bottom = bottomPadding)
             val composer = input.parent as? View
             composer?.let {
                 val lp = it.layoutParams as? LinearLayout.LayoutParams

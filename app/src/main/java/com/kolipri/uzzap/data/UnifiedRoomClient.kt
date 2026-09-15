@@ -15,7 +15,18 @@ object UnifiedRoomClient {
         }
     }
 
-    fun liveCounts(onResult: (Map<String, Int>?) -> Unit) = onResult(emptyMap())
+    fun liveCounts(onResult: (Map<String, Int>?) -> Unit) {
+        SupabaseClient.fetchLiveRoomCounts { remoteCounts ->
+            val counts = (remoteCounts ?: emptyMap()).toMutableMap()
+            for (room in AppState.joinedRooms) {
+                val cur = counts[room] ?: 0
+                if (cur < 1) {
+                    counts[room] = 1
+                }
+            }
+            onResult(counts)
+        }
+    }
 
     fun join(roomName: String, onResult: (Boolean, String?) -> Unit) {
         SupabaseClient.pingPresence(roomName, AppState.nickname)

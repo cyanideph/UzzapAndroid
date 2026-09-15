@@ -7,7 +7,6 @@ import okhttp3.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
-import java.time.Instant
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
@@ -62,7 +61,7 @@ object PresenceClient {
                 runCatching {
                     val obj = JSONArray(it.body?.string().orEmpty()).optJSONObject(0) ?: return@runCatching null
                     val last = obj.optString("last_seen")
-                    val recent = runCatching { Instant.parse(last).isAfter(Instant.now().minusSeconds(ONLINE_WINDOW_SECONDS)) }.getOrDefault(false)
+                    val recent = TimeUtils.isWithinWindow(last, ONLINE_WINDOW_SECONDS)
                     BuddyPresence(obj.optString("username"), obj.optBoolean("is_online") && recent, last, obj.optString("status", "offline"))
                 }.onSuccess { p -> main.post { onResult(p) } }.onFailure { main.post { onResult(null) } }
             } }

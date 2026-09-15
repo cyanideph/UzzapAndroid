@@ -94,6 +94,40 @@ object SupabaseClient {
         httpClient.newCall(request("/rest/v1/room_messages", true).header("Prefer", "return=representation").post(json.toString().toRequestBody(jsonMediaType)).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { Log.w(TAG, "sendMessage failed: ${errorText(it, "HTTP ${it.code}")}"); mainHandler.post { onResult(null) }; return }; try { val o = JSONArray(it.body?.string().orEmpty()).optJSONObject(0); mainHandler.post { onResult(o?.let { x -> ChatMessage(x.optString("sender"), x.optString("body"), x.optBoolean("is_system"), x.optLong("id"), x.optString("created_at")) } ?: ChatMessage(sender, body.trim())) } } catch (_: Exception) { mainHandler.post { onResult(ChatMessage(sender, body.trim())) } } } } })
     }
     fun fetchParticipants(roomName: String, onResult: (List<String>?) -> Unit) { val room = URLEncoder.encode(roomName, "UTF-8"); val req = request("/rest/v1/room_participants?room_name=eq.$room&select=username&order=username.asc").get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { mainHandler.post { onResult(null) }; return }; try { val arr = JSONArray(it.body?.string().orEmpty()); mainHandler.post { onResult(List(arr.length()) { i -> arr.getJSONObject(i).optString("username") }) } } catch (_: Exception) { mainHandler.post { onResult(null) } } } } }) }
+    fun fetchLiveRoomCounts(onResult: (Map<String, Int>?) -> Unit) {
+        val req = request("/rest/v1/room_participants?select=room_name,username").get().build()
+        httpClient.newCall(req).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.w(TAG, "fetchLiveRoomCounts failed", e)
+                mainHandler.post { onResult(null) }
+            }
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    if (!it.isSuccessful) {
+                        mainHandler.post { onResult(null) }
+                        return
+                    }
+                    try {
+                        val arr = JSONArray(it.body?.string().orEmpty())
+                        val counts = mutableMapOf<String, MutableSet<String>>()
+                        for (i in 0 until arr.length()) {
+                            val o = arr.getJSONObject(i)
+                            val room = o.optString("room_name").trim()
+                            val user = o.optString("username").trim()
+                            if (room.isNotEmpty() && user.isNotEmpty()) {
+                                counts.getOrPut(room) { mutableSetOf() }.add(user)
+                            }
+                        }
+                        val map = counts.mapValues { entry -> entry.value.size }
+                        mainHandler.post { onResult(map) }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "fetchLiveRoomCounts parse failed", e)
+                        mainHandler.post { onResult(null) }
+                    }
+                }
+            }
+        })
+    }
     fun pingPresence(roomName: String, username: String) { if (!authenticated()) return; val json = JSONObject().put("room_name", roomName).put("username", username); httpClient.newCall(request("/rest/v1/room_participants?on_conflict=room_name,username", true).header("Prefer", "resolution=merge-duplicates").post(json.toString().toRequestBody(jsonMediaType)).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) = Unit; override fun onResponse(call: Call, response: Response) { response.close() } }) }
     fun leaveRoom(roomName: String, username: String) { if (!authenticated()) return; val room = URLEncoder.encode(roomName, "UTF-8"); val user = URLEncoder.encode(username, "UTF-8"); httpClient.newCall(request("/rest/v1/room_participants?room_name=eq.$room&username=eq.$user", true).delete().build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) = Unit; override fun onResponse(call: Call, response: Response) { response.close() } }) }
     fun fetchBuddies(userHandle: String, onResult: (Map<String, List<String>>?) -> Unit) { if (!authenticated()) { mainHandler.post { onResult(null) }; return }; val req = request("/rest/v1/buddies?select=buddy_handle,group_name&order=buddy_handle.asc", true).get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "fetchBuddies network failure", e); mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { val body = it.body?.string().orEmpty(); if (!it.isSuccessful) { Log.w(TAG, "fetchBuddies HTTP ${it.code}: $body"); mainHandler.post { onResult(null) }; return }; try { val arr = JSONArray(body); val grouped = mutableMapOf<String, MutableList<String>>(); for (i in 0 until arr.length()) { val o = arr.getJSONObject(i); val buddy = o.optString("buddy_handle").trim(); if (buddy.isNotEmpty()) grouped.getOrPut(o.optString("group_name").ifBlank { "My Friends" }) { mutableListOf() }.add(buddy) }; Log.d(TAG, "fetchBuddies: ${arr.length()} rows for $userHandle"); mainHandler.post { onResult(grouped) } } catch (e: Exception) { Log.e(TAG, "fetchBuddies parse failed", e); mainHandler.post { onResult(null) } } } } }) }

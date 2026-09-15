@@ -9,9 +9,13 @@ object RoomPresenceClient {
 
     fun liveCounts(onResult: (Map<String, Int>?) -> Unit) = UnifiedRoomClient.liveCounts(onResult)
 
-    fun join(roomName: String, username: String, onResult: (Boolean, String?) -> Unit) =
+    fun join(roomName: String, username: String, onResult: (Boolean, String?) -> Unit) {
+        AppState.joinedRooms.add(roomName)
         UnifiedRoomClient.join(roomName, onResult)
+    }
 
-    fun leave(roomName: String, username: String, onResult: ((Boolean) -> Unit)? = null) =
+    fun leave(roomName: String, username: String, onResult: ((Boolean) -> Unit)? = null) {
+        AppState.joinedRooms.remove(roomName)
         UnifiedRoomClient.leave(roomName, onResult)
+    }
 }

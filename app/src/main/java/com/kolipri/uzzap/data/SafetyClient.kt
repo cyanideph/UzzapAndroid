@@ -126,7 +126,7 @@ object SafetyClient {
                     val a = JSONArray(it.body?.string().orEmpty())
                     (0 until a.length()).any { i ->
                         val expiry = a.getJSONObject(i).optString("expires_at").ifBlank { null }
-                        expiry == null || runCatching { java.time.Instant.parse(expiry).isAfter(java.time.Instant.now()) }.getOrDefault(false)
+                        expiry == null || TimeUtils.isFuture(expiry)
                     }
                 }.getOrDefault(false)
                 main.post { onResult(active, if (active) "Muted by a moderator" else null) }

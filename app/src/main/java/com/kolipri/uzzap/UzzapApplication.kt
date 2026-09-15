@@ -53,6 +53,7 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
         SessionStore.init(this)
         SupabaseClient.restorePersistedSession()
         UzzapNotificationManager.initialize(this)
+        com.kolipri.uzzap.data.FcmClient.initializeAndSync(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
     }
 

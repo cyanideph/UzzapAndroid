@@ -237,7 +237,23 @@ class LegacySettingsActivity : BaseChromeActivity() {
     }
 
     private fun offlineScreen() = toggleScreen("Offline Settings", listOf("Receive messages while offline", "Store offline messages", "Show offline status"), "offline")
-    private fun tonesScreen() = toggleScreen("Chatroom Tones", listOf("Chatroom message tone", "Private message tone", "Buddy online tone", "Room invitation tone", "Vibrate"), "tone")
+    private fun tonesScreen() {
+        val labels = listOf("Chatroom message tone", "Private message tone", "Buddy online tone", "Room invitation tone", "Vibrate", "Play Test Alert Sound & Notification")
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        rows("Chatroom Tones", labels, labels.map { label ->
+            {
+                if (label == "Play Test Alert Sound & Notification") {
+                    com.kolipri.uzzap.data.UzzapNotificationManager.sendTestNotification(this, "uzzapbot", "Kamusta cy! Testing Uzzap notification and alert sound :)")
+                    toast("Playing alert sound & test notification!")
+                } else {
+                    val key = "tone_${label.hashCode()}"
+                    val next = !prefs.getBoolean(key, true)
+                    prefs.edit().putBoolean(key, next).apply()
+                    toast("$label: ${if (next) "ON" else "OFF"}")
+                }
+            }
+        }, labels.map { if (it == "Play Test Alert Sound & Notification") "Tap to test sound & alert" else "Tap to toggle" })
+    }
 
     private fun batteryScreen() {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
