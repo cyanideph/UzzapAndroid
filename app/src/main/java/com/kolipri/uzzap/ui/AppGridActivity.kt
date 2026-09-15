@@ -39,6 +39,13 @@ class AppGridActivity : BaseChromeActivity() {
         findViewById<ImageView>(R.id.icon_im).setOnClickListener { footer.text = "Instant Messaging"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_IM)) }
         findViewById<ImageView>(R.id.icon_chat).setOnClickListener { footer.text = "Chat Rooms"; startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_CHAT)) }
         findViewById<ImageView>(R.id.icon_profile).setOnClickListener { footer.text = "Change Status"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_STATUS)) }
+        if (AppState.isModerator) {
+            footer.text = "Moderator Console"
+            findViewById<ImageView>(R.id.icon_settings).setOnLongClickListener {
+                startActivity(ModeratorActivity.intent(this))
+                true
+            }
+        }
         if (!AppState.firstLoginShown) { AppState.firstLoginShown = true; handler.postDelayed({ openWelcome() }, 300) }
     }
 
@@ -56,11 +63,15 @@ class AppGridActivity : BaseChromeActivity() {
     }
 
     private fun showOptionsMenu() {
-        J2mePopup.show(this, listOf(
-            PopupItem("Lock Keypad"), PopupItem("Log Off"), PopupItem("Intro Help Screen"),
-            PopupItem("About Uzzap"), PopupItem("Exit Application")
-        )) { index ->
-            when (index) {
+        val items = mutableListOf(PopupItem("Lock Keypad"), PopupItem("Log Off"), PopupItem("Intro Help Screen"), PopupItem("About Uzzap"), PopupItem("Exit Application"))
+        if (AppState.isModerator) items.add(0, PopupItem("🛡️ Moderator Console"))
+        J2mePopup.show(this, items) { index ->
+            if (AppState.isModerator && index == 0) {
+                startActivity(ModeratorActivity.intent(this))
+                return@show
+            }
+            val adjusted = if (AppState.isModerator) index - 1 else index
+            when (adjusted) {
                 0 -> showLockKeypad()
                 1 -> confirmLogout()
                 2 -> openWelcome()
