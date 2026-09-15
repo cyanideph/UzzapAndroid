@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.view.Gravity
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.kolipri.uzzap.R
@@ -16,7 +17,7 @@ data class PopupItem(
     val enabled: Boolean = true
 )
 
-/** Compact legacy Uzzap/J2ME option menu and message popup. */
+/** Compact legacy Uzzap/J2ME option menu, message popup and text-entry popup. */
 object J2mePopup {
     fun show(context: Context, items: List<PopupItem>, selectedIndex: Int = 0, onSelect: (Int) -> Unit) {
         val dialog = Dialog(context, R.style.Theme_Uzzap_Popup)
@@ -60,6 +61,42 @@ object J2mePopup {
         dialog.setContentView(root)
         dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         dialog.show()
+    }
+
+    fun showInput(context: Context, title: String, value: String = "", hint: String = "", onSubmit: (String) -> Unit) {
+        val dialog = Dialog(context, R.style.Theme_Uzzap_Popup)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setGravity(Gravity.BOTTOM)
+        val root = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; setBackgroundResource(R.drawable.bg_popup_panel) }
+        root.addView(TextView(context).apply {
+            text = title; textSize = 14f; setTextColor(Color.BLACK); setPadding(6, 5, 6, 4); setBackgroundColor(Color.WHITE)
+        })
+        val input = EditText(context).apply {
+            setText(value); this.hint = hint; textSize = 13f; setSingleLine(true); setTextColor(Color.BLACK)
+            setPadding(dpToPx(context, 4), 0, dpToPx(context, 4), 0); background = null
+        }
+        root.addView(input, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(context, 30)))
+        val keys = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL; setBackgroundResource(R.drawable.bar_bottom)
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(context, 32))
+        }
+        keys.addView(TextView(context).apply {
+            text = context.getString(R.string.softkey_select); textSize = 12f; setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER_VERTICAL or Gravity.START; setPadding(dpToPx(context, 6), 0, 0, 0)
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+            setOnClickListener { dialog.dismiss(); onSubmit(input.text.toString()) }
+        })
+        keys.addView(TextView(context).apply {
+            text = context.getString(R.string.softkey_cancel); textSize = 12f; setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER_VERTICAL or Gravity.END; setPadding(0, 0, dpToPx(context, 6), 0)
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+            setOnClickListener { dialog.dismiss() }
+        })
+        root.addView(keys)
+        dialog.setContentView(root)
+        dialog.show()
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        input.requestFocus()
     }
 
     private fun softkeys(context: Context, dialog: Dialog, items: List<PopupItem>, selectedIndex: Int, onSelect: (Int) -> Unit): LinearLayout = LinearLayout(context).apply {
