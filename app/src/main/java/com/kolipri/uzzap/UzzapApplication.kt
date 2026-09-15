@@ -28,20 +28,10 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
             PrivateMessageStateClient.fetchUnread(AppState.username) { unread ->
                 if (foreground && unread != null) {
                     val active = AppState.activeChatBuddy
-                    val relevantSenders = if (active != null) {
-                        unread.senders.filter { !it.equals(active, ignoreCase = true) }
-                    } else unread.senders
+                    val relevantSenders = if (active != null) unread.senders.filter { !it.equals(active, ignoreCase = true) } else unread.senders
                     val relevantCount = relevantSenders.sumOf { unread.countsBySender[it.lowercase()] ?: 1 }
-                    if (relevantCount > 0) {
-                        UzzapNotificationManager.notifyPrivateMessages(
-                            this@UzzapApplication,
-                            relevantCount,
-                            relevantSenders,
-                            unread.messageIds
-                        )
-                    } else if (active != null) {
-                        UzzapNotificationManager.clearPrivateMessageNotification(this@UzzapApplication)
-                    }
+                    if (relevantCount > 0) UzzapNotificationManager.notifyPrivateMessages(this@UzzapApplication, relevantCount, relevantSenders, unread.messageIds)
+                    else if (active != null) UzzapNotificationManager.clearPrivateMessageNotification(this@UzzapApplication)
                 }
             }
             handler.postDelayed(this, 10_000L)
@@ -52,6 +42,11 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
         super<Application>.onCreate()
         SessionStore.init(this)
         SupabaseClient.restorePersistedSession()
+        // A persisted session may contain an older nickname-derived identity. Resolve the
+        // authenticated Supabase user to its own profiles.owner_id before app features start.
+        SupabaseClient.userAccessToken?.let { token ->
+            SupabaseClient.verifySession(token) { _, _, _ -> }
+        }
         UzzapNotificationManager.initialize(this)
         com.kolipri.uzzap.data.FcmClient.initializeAndSync(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
