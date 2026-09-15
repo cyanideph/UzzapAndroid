@@ -3,12 +3,9 @@ package com.kolipri.uzzap.ui
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -16,9 +13,9 @@ import android.widget.ListView
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.LegacyThemeManager
+import com.kolipri.uzzap.data.PresenceClient
 import com.kolipri.uzzap.data.RoomInvitationClient
 import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.model.Presence
@@ -32,10 +29,27 @@ class UzzapParityActivity : BaseChromeActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(8, 8, 8, 8) }
-        title = TextView(this).apply { textSize = 18f; setPadding(8, 8, 8, 12); setTextColor(activeTheme.text) }
-        list = ListView(this); root.addView(title); root.addView(list, LinearLayout.LayoutParams(-1, 0, 1f)); contentFrame.addView(root, FrameLayout.LayoutParams(-1, -1))
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(activeTheme.background) }
+        title = TextView(this).apply { textSize = 14f; setTextColor(activeTheme.text); setPadding(dp(4), dp(2), dp(4), dp(2)); includeFontPadding = false }
+        list = ListView(this).apply { divider = null; dividerHeight = 0; setPadding(0, 0, 0, 0); setBackgroundColor(activeTheme.background) }
+        root.addView(title, LinearLayout.LayoutParams(-1, dp(22)))
+        root.addView(list, LinearLayout.LayoutParams(-1, 0, 1f))
+        contentFrame.addView(root, FrameLayout.LayoutParams(-1, -1))
         render(intent.getStringExtra(EXTRA_MODE) ?: MODE_MAIN)
+    }
+
+    private fun legacyAdapter(values: List<String>): android.widget.ArrayAdapter<String> = object : android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, values) {
+        override fun getView(position: Int, convertView: android.view.View?, parent: ViewGroup): android.view.View {
+            val v = super.getView(position, convertView, parent) as TextView
+            v.textSize = 13f
+            v.includeFontPadding = false
+            v.setTextColor(activeTheme.text)
+            v.gravity = Gravity.CENTER_VERTICAL
+            v.setPadding(dp(5), 0, dp(4), 0)
+            v.minimumHeight = dp(24)
+            v.setBackgroundResource(com.kolipri.uzzap.R.drawable.bg_menu_row_selector)
+            return v
+        }
     }
 
     private fun render(mode: String) {
@@ -56,8 +70,9 @@ class UzzapParityActivity : BaseChromeActivity() {
         setScreenTitle("Uzzap")
         showConnectedBall(true)
         setSoftkeys("Options", "Exit", onLeft = { showTopOptions() }, onRight = { finish() })
-        title.text = "Welcome, ${AppState.nickname.ifBlank { AppState.username }}"
-        list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, listOf("Buddy List", "Chatrooms", "Private Messages", "My Profile", "Settings"))
+        title.text = AppState.nickname.ifBlank { AppState.username }
+        val values = listOf("Buddy List", "Chat Rooms", "Private Messages", "My Profile", "Settings")
+        list.adapter = legacyAdapter(values)
         list.setOnItemClickListener { _, _, position, _ -> when (position) {
             0 -> startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM))
             1 -> startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_CHAT))
@@ -68,71 +83,109 @@ class UzzapParityActivity : BaseChromeActivity() {
     }
 
     private fun showRows(screenTitle: String, values: List<String>, actions: List<() -> Unit>) {
-        setScreenTitle(screenTitle); showConnectedBall(true); setSoftkeys("Options", "Back", onLeft = { showTopOptions() }, onRight = { finish() })
+        setScreenTitle(screenTitle)
+        showConnectedBall(true)
+        setSoftkeys("Options", "Back", onLeft = { showTopOptions() }, onRight = { finish() })
         title.text = screenTitle
-        list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, values)
+        list.adapter = legacyAdapter(values)
         list.setOnItemClickListener { _, _, position, _ -> actions[position].invoke() }
     }
 
     private fun profile() {
-        val scroll = ScrollView(this); val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(16, 12, 16, 28) }
-        scroll.addView(root, ViewGroup.LayoutParams(-1, -2)); contentFrame.removeAllViews(); contentFrame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
-        setScreenTitle("My Profile"); setSoftkeys("Save", "Back", onLeft = { saveProfile(root) }, onRight = { finish() }); showConnectedBall(true)
-        val avatar = TextView(this).apply { text = AppState.nickname.trim().firstOrNull()?.uppercase() ?: "U"; textSize = 30f; gravity = Gravity.CENTER; setTextColor(activeTheme.onPrimary); background = rounded(activeTheme.primary, 40f); contentDescription = "Profile avatar" }
-        root.addView(avatar, LinearLayout.LayoutParams(76, 76).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = 10 })
-        val name = TextView(this).apply { text = AppState.nickname.ifBlank { AppState.username }; textSize = 22f; typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER; setTextColor(activeTheme.text) }
-        root.addView(name, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 2 })
-        val handle = TextView(this).apply { text = "@${AppState.username}"; textSize = 14f; gravity = Gravity.CENTER; setTextColor(Color.GRAY) }
-        root.addView(handle, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 18 })
-        section(root, "PRESENCE")
-        val presence = TextView(this).apply { text = "●  ${AppState.presence.label}"; textSize = 16f; setPadding(16, 15, 16, 15); background = LegacyThemeManager.cardBackground(activeTheme); elevation = 2f; setTextColor(activeTheme.text); setOnClickListener { choosePresence() }; contentDescription = "Change presence" }
-        root.addView(presence, rowParams())
-        section(root, "ABOUT ME")
-        val status = EditText(this).apply { hint = "What are you doing?"; setText(AppState.statusMessage); minLines = 2; maxLines = 4; setPadding(16, 12, 16, 12); background = LegacyThemeManager.cardBackground(activeTheme); setTextColor(activeTheme.text); setHintTextColor(Color.GRAY); contentDescription = "Status message" }
-        root.addView(status, rowParams().apply { bottomMargin = 12 })
-        section(root, "ACCOUNT")
-        val account = TextView(this).apply { text = "Username\n${AppState.username}\n\nNickname\n${AppState.nickname}"; textSize = 14f; setPadding(16, 14, 16, 14); background = LegacyThemeManager.cardBackground(activeTheme); setTextColor(activeTheme.text) }
-        root.addView(account, rowParams()); root.tag = status
+        setScreenTitle("Update profile")
+        showConnectedBall(true)
+        setSoftkeys("Update", "Cancel", onLeft = { saveProfile() }, onRight = { finish() })
+        val scroll = ScrollView(this).apply { setBackgroundColor(activeTheme.background); isFillViewport = false }
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(4), dp(3), dp(4), dp(6)) }
+        fun field(label: String, value: String, hint: String): EditText {
+            root.addView(TextView(this).apply { text = label; textSize = 12f; includeFontPadding = false; setTextColor(activeTheme.secondary); setPadding(dp(2), dp(3), dp(2), dp(1)) }, LinearLayout.LayoutParams(-1, dp(18)))
+            return EditText(this).apply {
+                setText(value); this.hint = hint; textSize = 13f; singleLine = true; includeFontPadding = false
+                setTextColor(activeTheme.text); setHintTextColor(activeTheme.secondary); setPadding(dp(3), 0, dp(3), 0)
+                background = LegacyThemeManager.cardBackground(activeTheme)
+            }.also { root.addView(it, LinearLayout.LayoutParams(-1, dp(28)).apply { bottomMargin = dp(2) }) }
+        }
+        val nickname = field("Nickname", AppState.nickname, "Your nickname")
+        val first = field("First name", AppState.firstName, "Your first name")
+        val last = field("Last name", AppState.lastName, "Your last name")
+        val email = field("Email address", AppState.email, "Your email address")
+        root.tag = arrayOf(nickname, first, last, email)
+        scroll.addView(root, ViewGroup.LayoutParams(-1, -2))
+        contentFrame.removeAllViews(); contentFrame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
     }
 
-    private fun section(root: LinearLayout, label: String) { root.addView(TextView(this).apply { text = label; textSize = 12f; typeface = Typeface.DEFAULT_BOLD; setTextColor(activeTheme.secondary); setPadding(4, 14, 4, 7) }) }
-    private fun rowParams() = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 8 }
-    private fun rounded(color: Int, radius: Float): GradientDrawable = GradientDrawable().apply { setColor(color); cornerRadius = radius }
-    private fun saveProfile(root: LinearLayout) { val status = root.tag as? EditText ?: return; AppState.statusMessage = status.text.toString().trim(); AppState.syncProfileToSupabase(); Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show() }
-    private fun choosePresence() { val values = arrayOf("Available", "Not Available", "Invisible"); val current = when (AppState.presence) { Presence.AVAILABLE -> 0; Presence.NOT_AVAILABLE -> 1; Presence.INVISIBLE -> 2 }; AlertDialog.Builder(this).setTitle("Presence").setSingleChoiceItems(values, current) { dialog, which -> AppState.presence = when (which) { 1 -> Presence.NOT_AVAILABLE; 2 -> Presence.INVISIBLE; else -> Presence.AVAILABLE }; AppState.syncProfileToSupabase(); dialog.dismiss(); profile() }.setNegativeButton("Cancel", null).show() }
-    private fun roomOptions(room: String) = showRows("Room Options", listOf("Join Room", "Select Category", "Refresh Room List", "Refresh Category List", "Room Actions", "Back"), listOf({ Toast.makeText(this, "Already joined $room", Toast.LENGTH_SHORT).show() }, { finish() }, { Toast.makeText(this, "Room list refreshed.", Toast.LENGTH_SHORT).show() }, { Toast.makeText(this, "Category list refreshed.", Toast.LENGTH_SHORT).show() }, { open(MODE_ROOM_ACTIONS, room = room) }, { finish() }))
-    private fun roomActions(room: String) = showRows("Room Actions", listOf("Room Members", "Room Info", "Whisper / Private Message", "Invite Buddy", "Leave Room", "Report", "Back"), listOf({ open(MODE_ROOM_MEMBERS, room = room) }, { AlertDialog.Builder(this).setTitle(room).setMessage("Province chatroom\nRoom: $room\nBackend: Supabase").setPositiveButton("Close", null).show() }, { open(MODE_ROOM_MEMBERS, room = room) }, { inviteBuddy(room) }, { setResult(RESULT_OK, Intent().putExtra("leave_room", room)); finish() }, { Toast.makeText(this, "Report flow available for moderation.", Toast.LENGTH_SHORT).show() }, { finish() }))
-    private fun roomMembers(room: String) { title.text = "Room Members"; setScreenTitle("Members - $room"); setSoftkeys("Options", "Back", onLeft = { showTopOptions() }, onRight = { finish() }); SupabaseClient.fetchParticipants(room) { members -> if (isFinishing) return@fetchParticipants; val result = (members ?: emptyList()).toMutableList(); if (!result.contains(AppState.nickname)) result.add(0, AppState.nickname); val display = if (result.isEmpty()) listOf("No members online") else result.map { "● $it" }; list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, display); list.setOnItemClickListener { _, _, position, _ -> result.getOrNull(position)?.takeIf { it != AppState.nickname }?.let { open(MODE_PRIVATE_CHAT, buddy = it) } } } }
-    private fun privateChat(buddy: String) { if (buddy.isBlank()) { finish(); return }; startActivity(PrivateChatActivity.intent(this, buddy)); finish() }
+    private fun saveProfile() {
+        val scroll = contentFrame.getChildAt(0) as? ScrollView ?: return
+        val root = scroll.getChildAt(0) as? LinearLayout ?: return
+        val fields = root.tag as? Array<*> ?: return
+        val nickname = (fields[0] as? EditText)?.text?.toString()?.trim().orEmpty()
+        val first = (fields[1] as? EditText)?.text?.toString()?.trim().orEmpty()
+        val last = (fields[2] as? EditText)?.text?.toString()?.trim().orEmpty()
+        val email = (fields[3] as? EditText)?.text?.toString()?.trim().orEmpty()
+        if (nickname.any { it.isWhitespace() || !it.isLetterOrDigit() && it != '_' && it != '-' }) { legacyError("* Nickname must not contain special symbols"); return }
+        if (first.isBlank()) { legacyError("* Firstname is too short."); return }
+        if (last.isBlank()) { legacyError("* Lastname is too short."); return }
+        if (email.length < 3 || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { legacyError("* Incorrect data\n\nPlease make sure to fill out all fields as instructed:\n\nEmail address has an invalid Entry"); return }
+        AppState.nickname = nickname
+        AppState.firstName = first
+        AppState.lastName = last
+        AppState.email = email
+        AppState.syncProfileToSupabase()
+        J2mePopup.showMessage(this, "Update profile", "Update complete. Your profile has been successfully updated.")
+    }
+
+    private fun legacyError(message: String) { J2mePopup.showMessage(this, "Error", message) }
+
     private fun settings() = startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SETTINGS)).also { finish() }
     private fun notifications() = startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_TONES)).also { finish() }
 
-    /** Theme chooser now mirrors the old Java theme IDs and persistence key concept. */
     private fun themes() {
         setScreenTitle("Choose Theme")
         showConnectedBall(true)
         setSoftkeys("Select", "Back", onLeft = null, onRight = { finish() })
         val themeList = LegacyThemeManager.themes()
-        val labels = themeList.map { theme ->
-            val marker = if (theme.id == LegacyThemeManager.current(this).id) " ✓" else ""
-            "${theme.displayName}$marker"
-        }
-        list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
+        list.adapter = legacyAdapter(themeList.map { theme -> if (theme.id == LegacyThemeManager.current(this).id) "${theme.displayName} *" else theme.displayName })
         list.setOnItemClickListener { _, _, position, _ ->
             val selected = themeList[position]
             LegacyThemeManager.select(this, selected.id)
             AppState.themeName = selected.id
-            Toast.makeText(this, "${selected.displayName} selected", Toast.LENGTH_SHORT).show()
             recreate()
         }
     }
 
-    private fun inviteBuddy(room: String) { val input = EditText(this).apply { hint = "Buddy nickname" }; AlertDialog.Builder(this).setTitle("Invite to $room").setView(input).setPositiveButton("Invite") { _, _ -> val buddy = input.text.toString().trim(); if (buddy.isBlank()) return@setPositiveButton; RoomInvitationClient.send(room, AppState.username, buddy) { ok -> Toast.makeText(this, if (ok) "Invitation sent to $buddy" else "Could not send invitation", Toast.LENGTH_SHORT).show() } }.setNegativeButton("Cancel", null).show() }
+    private fun choosePresence() {
+        val options = listOf(PopupItem("Available"), PopupItem("Not Available"), PopupItem("Invisible"), PopupItem("Status Message.."))
+        J2mePopup.show(this, options) { index ->
+            when (index) {
+                0 -> setPresence(Presence.AVAILABLE)
+                1 -> setPresence(Presence.NOT_AVAILABLE)
+                2 -> setPresence(Presence.INVISIBLE)
+                3 -> statusMessage()
+            }
+        }
+    }
+
+    private fun statusMessage() {
+        val input = EditText(this).apply { setText(AppState.statusMessage); hint = "Status Message"; textSize = 13f }
+        J2mePopup.show(this, listOf(PopupItem("Save"), PopupItem("Cancel"))) { index ->
+            if (index == 0) { AppState.statusMessage = input.text.toString(); AppState.syncProfileToSupabase(); toast("Status updated") }
+        }
+    }
+
+    private fun setPresence(presence: Presence) { AppState.presence = presence; AppState.syncProfileToSupabase(); PresenceClient.heartbeat(presence != Presence.INVISIBLE); toast("Status: ${presence.label}") }
+
+    private fun roomOptions(room: String) = showRows("Room Options", listOf("Join Room", "Select Category", "Refresh Room List", "Refresh Category List", "Room Actions", "Back"), listOf({ toast("Already joined $room") }, { finish() }, { toast("Room list refreshed.") }, { toast("Category list refreshed.") }, { open(MODE_ROOM_ACTIONS, room = room) }, { finish() }))
+    private fun roomActions(room: String) = showRows("Room Actions", listOf("List Participants", "Room Info", "Send Whisper", "Invite Participants", "Leave Chatroom", "Back"), listOf({ open(MODE_ROOM_MEMBERS, room = room) }, { J2mePopup.showMessage(this, room, "Chatroom\n$room") }, { open(MODE_ROOM_MEMBERS, room = room) }, { inviteBuddy(room) }, { setResult(RESULT_OK, Intent().putExtra("leave_room", room)); finish() }, { finish() }))
+    private fun roomMembers(room: String) { setScreenTitle("Participants - $room"); showConnectedBall(true); setSoftkeys("Options", "Back", onLeft = { showTopOptions() }, onRight = { finish() }); SupabaseClient.fetchParticipants(room) { members -> if (isFinishing) return@fetchParticipants; val result = (members ?: emptyList()).toMutableList(); if (!result.contains(AppState.nickname)) result.add(0, AppState.nickname); list.adapter = legacyAdapter(if (result.isEmpty()) listOf("No participants") else result); list.setOnItemClickListener { _, _, position, _ -> result.getOrNull(position)?.takeIf { it != AppState.nickname }?.let { privateChat(it) } } } }
+    private fun privateChat(buddy: String) { if (buddy.isBlank()) { finish(); return }; startActivity(PrivateChatActivity.intent(this, buddy)); finish() }
+    private fun inviteBuddy(room: String) { val input = EditText(this).apply { hint = "Buddy nickname"; textSize = 13f }; J2mePopup.show(this, listOf(PopupItem("Invite"), PopupItem("Cancel"))) { index -> if (index == 0) { val buddy = input.text.toString().trim(); if (buddy.isNotBlank()) RoomInvitationClient.send(room, AppState.username, buddy) { ok -> toast(if (ok) "Invitation sent to $buddy" else "Could not send invitation") } } } }
     private fun showTopOptions() { J2mePopup.show(this, listOf(PopupItem("Settings"), PopupItem("Themes"), PopupItem("Notifications"), PopupItem("Back"))) { index -> when (index) { 0 -> open(MODE_SETTINGS); 1 -> open(MODE_THEMES); 2 -> open(MODE_NOTIFICATIONS); else -> finish() } } }
     private fun open(mode: String, room: String? = null, buddy: String? = null) = startActivity(intent(this, mode, room, buddy))
+    private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     companion object {
-        private const val EXTRA_MODE = "mode"; private const val EXTRA_ROOM = "room"; private const val EXTRA_BUDDY = "buddy"; private const val PREFS = "uzzap_prefs"
+        private const val EXTRA_MODE = "mode"; private const val EXTRA_ROOM = "room"; private const val EXTRA_BUDDY = "buddy"
         const val MODE_MAIN = "main"; const val MODE_PROFILE = "profile"; const val MODE_SETTINGS = "settings"; const val MODE_NOTIFICATIONS = "notifications"; const val MODE_THEMES = "themes"; const val MODE_PRIVATE_CHAT = "private_chat"; const val MODE_ROOM_OPTIONS = "room_options"; const val MODE_ROOM_ACTIONS = "room_actions"; const val MODE_ROOM_MEMBERS = "room_members"
         fun intent(context: Context, mode: String, room: String? = null, buddy: String? = null) = Intent(context, UzzapParityActivity::class.java).apply { putExtra(EXTRA_MODE, mode); if (room != null) putExtra(EXTRA_ROOM, room); if (buddy != null) putExtra(EXTRA_BUDDY, buddy) }
     }
