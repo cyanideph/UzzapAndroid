@@ -26,10 +26,7 @@ class DiagnosticsActivity : BaseChromeActivity() {
         setScreenTitle("App Diagnostics")
         showConnectedBall(SupabaseClient.isOnline)
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(18, 12, 18, 18)
-        }
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(18, 12, 18, 18) }
         statusView = TextView(this).apply { setTypeface(typeface, Typeface.BOLD); textSize = 15f }
         root.addView(statusView, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT))
 
@@ -39,20 +36,10 @@ class DiagnosticsActivity : BaseChromeActivity() {
         buttons.addView(button("Refresh") { render() }, LinearLayout.LayoutParams(0, -2, 1f))
         buttons.addView(button("Clear") { AppDiagnostics.clear(this); render() }, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(buttons)
-
-        root.addView(button("Clear last crash") {
-            CrashDiagnostics.clear(this)
-            Toast.makeText(this, "Crash report cleared", Toast.LENGTH_SHORT).show()
-            render()
-        })
+        root.addView(button("Clear last crash") { CrashDiagnostics.clear(this); Toast.makeText(this, "Crash report cleared", Toast.LENGTH_SHORT).show(); render() })
 
         val scroll = ScrollView(this)
-        logView = TextView(this).apply {
-            textSize = 12f
-            typeface = Typeface.MONOSPACE
-            setTextIsSelectable(true)
-            setPadding(6, 12, 6, 24)
-        }
+        logView = TextView(this).apply { textSize = 12f; typeface = Typeface.MONOSPACE; setTextIsSelectable(true); setPadding(6, 12, 6, 24) }
         scroll.addView(logView, ViewGroup.LayoutParams(-1, -1))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         contentFrame.addView(root, ViewGroup.LayoutParams(-1, -1))
@@ -66,23 +53,24 @@ class DiagnosticsActivity : BaseChromeActivity() {
             append("Session: ").append(if (SupabaseClient.userAccessToken.isNullOrBlank()) "NOT AUTHENTICATED" else "AUTHENTICATED")
             append("  •  Supabase: ").append(if (SupabaseClient.isOnline) "ONLINE" else "UNKNOWN/OFFLINE")
             append("\nUser: ").append(AppState.username.ifBlank { "<none>" })
-            append("  •  ").append(AppDiagnostics.deviceSummary())
-            if (crash != null) append("\n⚠️ LAST CRASH CAPTURED")
+            append("\n\n===== FUNCTION HEALTH =====\n")
+            append(AppDiagnostics.healthSummary(this@DiagnosticsActivity).ifBlank { "No tracked functions yet." })
+            if (crash != null) append("\n\n⚠️ LAST CRASH CAPTURED")
         }
         val events = AppDiagnostics.read(this).ifBlank { "No diagnostic events yet." }
         logView.text = if (crash == null) events else events + "\n\n===== LAST CRASH REPORT =====\n" + crash
     }
 
     private fun runChecks() {
-        AppDiagnostics.info(this, "HealthCheck", "Started")
+        AppDiagnostics.started(this, "HealthCheck.run")
         statusView.text = "Running Supabase health check…"
         SupabaseClient.checkHealth { online, tables, status ->
-            if (online) AppDiagnostics.ok(this, "Supabase", status) else AppDiagnostics.error(this, "Supabase", status)
-            if (tables) AppDiagnostics.ok(this, "Database", "room_messages endpoint is reachable")
-            else AppDiagnostics.warn(this, "Database", "room_messages endpoint is not confirmed")
-            AppDiagnostics.ok(this, "Auth", if (SupabaseClient.userAccessToken.isNullOrBlank()) "No active session" else "Session token is present")
-            AppDiagnostics.ok(this, "Identity", "AppState username=${AppState.username.ifBlank { "<none>" }}")
-            AppDiagnostics.info(this, "HealthCheck", "Completed")
+            if (online) AppDiagnostics.success(this, "HealthCheck.Supabase", status) else AppDiagnostics.failed(this, "HealthCheck.Supabase", status)
+            if (tables) AppDiagnostics.success(this, "HealthCheck.Database", "room_messages endpoint reachable")
+            else AppDiagnostics.failed(this, "HealthCheck.Database", "room_messages endpoint not confirmed")
+            if (SupabaseClient.userAccessToken.isNullOrBlank()) AppDiagnostics.warn(this, "HealthCheck.Auth", "No active session")
+            else AppDiagnostics.success(this, "HealthCheck.Auth", "Session token present")
+            AppDiagnostics.success(this, "HealthCheck.run", "Completed")
             runOnUiThread { showConnectedBall(online); render() }
         }
     }
