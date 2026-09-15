@@ -1,0 +1,241 @@
+-- Uzzap completion migration. This file is intentionally kept on the feature branch;
+-- it is NOT applied to production by this change.
+
+alter table public.chat_rooms
+  add column if not exists is_moderator_only boolean not null default false;
+
+insert into public.chat_rooms (id, category_id, name, topic, capacity, is_moderator_only)
+values ('moderator-room', null, 'Moderator Room', 'Private room for Uzzap moderators and admins', 100, true)
+on conflict (id) do update set
+  name = excluded.name,
+  topic = excluded.topic,
+  capacity = excluded.capacity,
+  is_moderator_only = true;
+
+create index if not exists chat_rooms_moderator_only_idx
+  on public.chat_rooms (is_moderator_only)
+  where is_moderator_only = true;
+
+-- Authoritative role helper used by the Android client and RLS policies.
+create or replace function public.is_moderator_or_admin()
+returns boolean
+language sql
+stable
+set search_path = public
+as $$
+  select public.is_moderator();
+$$;
+
+revoke all on function public.is_moderator_or_admin() from public;
+grant execute on function public.is_moderator_or_admin() to authenticated;
+
+-- Owner/admin-only role management. Never trust a client-supplied creator id.
+create or replace function public.set_moderator_by_email(target_email text, make_moderator boolean)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare target_id uuid;
+begin
+  if not public.is_admin() then
+    raise exception 'admin_required';
+  end if;
+
+  select id into target_id
+  from auth.users
+  where lower(email) = lower(trim(target_email))
+  limit 1;
+
+  if target_id is null then
+    return false;
+  end if;
+
+  if make_moderator then
+    insert into public.moderator_roles(user_id, role, created_by)
+    values (target_id, 'moderator', auth.uid())
+    on conflict (user_id) do update
+      set role = 'moderator', created_by = auth.uid();
+  else
+    delete from public.moderator_roles
+    where user_id = target_id;
+  end if;
+
+  return true;
+end;
+$$;
+
+revoke all on function public.set_moderator_by_email(text, boolean) from public;
+grant execute on function public.set_moderator_by_email(text, boolean) to authenticated;
+
+-- Keep the moderation audit row while revoking the actual active sanction.
+create or replace function public.revoke_moderation_action(p_action_id bigint)
+returns boolean
+language plpgsql
+set search_path = public
+as $$
+declare a public.moderation_actions%rowtype;
+begin
+  if not public.is_moderator() then
+    raise exception 'moderator_required';
+  end if;
+
+  select * into a from public.moderation_actions where id = p_action_id;
+  if not found then return false; end if;
+
+  if a.action_type = 'mute' then
+    update public.room_sanctions
+       set active = false
+     where user_id = a.target_user_id
+       and sanction = 'mute'
+       and active = true
+       and (a.room_name is null or room_name = a.room_name);
+  elsif a.action_type = 'kick' then
+    update public.room_sanctions
+       set active = false
+     where user_id = a.target_user_id
+       and sanction = 'kick'
+       and active = true
+       and (a.room_name is null or room_name = a.room_name);
+  else
+    return false;
+  end if;
+
+  return true;
+end;
+$$;
+
+revoke all on function public.revoke_moderation_action(bigint) from public;
+grant execute on function public.revoke_moderation_action(bigint) to authenticated;
+
+-- Moderator room and active sanction enforcement happen at the database boundary.
+drop policy if exists participants_insert_own on public.room_participants;
+create policy participants_insert_own on public.room_participants
+for insert to authenticated
+with check (
+  owner_id = (select auth.uid())
+  and exists (
+    select 1 from public.chat_rooms r
+    where r.name = room_name
+      and (not r.is_moderator_only or public.is_moderator())
+  )
+  and not exists (
+    select 1 from public.room_sanctions s
+    where s.user_id = (select auth.uid())
+      and s.room_name = room_name
+      and s.sanction = 'kick'
+      and s.active = true
+      and (s.expires_at is null or s.expires_at > now())
+  )
+);
+
+drop policy if exists room_messages_insert_auth on public.room_messages;
+create policy room_messages_insert_auth on public.room_messages
+for insert to authenticated
+with check (
+  sender_id = (select auth.uid())
+  and is_system = false
+  and exists (
+    select 1 from public.chat_rooms r
+    where r.name = room_name
+      and (not r.is_moderator_only or public.is_moderator())
+  )
+  and not exists (
+    select 1 from public.room_sanctions s
+    where s.user_id = (select auth.uid())
+      and s.room_name = room_name
+      and s.sanction in ('mute','kick')
+      and s.active = true
+      and (s.expires_at is null or s.expires_at > now())
+  )
+);
+
+-- Room invitations are authoritative by UUID, not client-controlled usernames.
+create table if not exists public.room_invitations (
+  id bigint generated by default as identity primary key,
+  room_name text not null,
+  inviter_id uuid not null references auth.users(id),
+  invitee_id uuid not null references auth.users(id),
+  inviter_username text not null,
+  invitee_username text not null,
+  status text not null default 'pending' check (status in ('pending','accepted','declined')),
+  created_at timestamptz not null default now(),
+  responded_at timestamptz,
+  unique (room_name, inviter_id, invitee_id, status)
+);
+
+create index if not exists room_invitations_invitee_status_idx
+  on public.room_invitations (invitee_id, status, created_at desc);
+
+alter table public.room_invitations enable row level security;
+
+drop policy if exists room_invitations_read_own on public.room_invitations;
+create policy room_invitations_read_own on public.room_invitations
+for select to authenticated
+using (invitee_id = (select auth.uid()) or inviter_id = (select auth.uid()));
+
+drop policy if exists room_invitations_insert_none on public.room_invitations;
+drop policy if exists room_invitations_update_none on public.room_invitations;
+
+create or replace function public.create_room_invitation(p_room_name text, p_invitee_username text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare inviter uuid := auth.uid(); invitee uuid; room_ok boolean;
+declare inviter_name text; invitee_name text;
+begin
+  if inviter is null then raise exception 'authentication_required'; end if;
+  select exists(select 1 from public.chat_rooms where name = trim(p_room_name)) into room_ok;
+  if not room_ok then return false; end if;
+
+  select owner_id, username into invitee, invitee_name
+  from public.profiles
+  where lower(username) = lower(trim(p_invitee_username))
+  limit 1;
+  if invitee is null or invitee = inviter then return false; end if;
+
+  select username into inviter_name from public.profiles where owner_id = inviter limit 1;
+
+  insert into public.room_invitations(room_name, inviter_id, invitee_id, inviter_username, invitee_username)
+  values(trim(p_room_name), inviter, invitee, inviter_name, invitee_name)
+  on conflict do nothing;
+  return true;
+end;
+$$;
+
+create or replace function public.respond_room_invitation(p_invitation_id bigint, p_accepted boolean)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare inv public.room_invitations%rowtype;
+begin
+  select * into inv from public.room_invitations
+  where id = p_invitation_id and invitee_id = auth.uid() and status = 'pending'
+  for update;
+  if not found then return false; end if;
+
+  if p_accepted then
+    insert into public.room_participants(room_name, username, owner_id, last_ping)
+    values(inv.room_name, inv.invitee_username, auth.uid(), now())
+    on conflict (room_name, username) do update set last_ping = now();
+    update public.room_invitations set status='accepted', responded_at=now() where id=inv.id;
+  else
+    update public.room_invitations set status='declined', responded_at=now() where id=inv.id;
+  end if;
+  return true;
+end;
+$$;
+
+revoke all on function public.create_room_invitation(text, text) from public;
+revoke all on function public.respond_room_invitation(bigint, boolean) from public;
+grant execute on function public.create_room_invitation(text, text) to authenticated;
+grant execute on function public.respond_room_invitation(bigint, boolean) to authenticated;
+
+-- Prevent arbitrary clients from executing the privileged trigger helper functions directly.
+revoke all on function public.cleanup_stale_room_participants() from anon, authenticated;
+revoke all on function public.enforce_message_rate_limit() from anon, authenticated;
+revoke all on function public.enforce_direct_message_rate_limit() from anon, authenticated;
