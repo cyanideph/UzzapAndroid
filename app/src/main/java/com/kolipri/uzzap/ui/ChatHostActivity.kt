@@ -19,7 +19,9 @@ import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.PrivateMessageStateClient
 import com.kolipri.uzzap.data.PresenceClient
+import com.kolipri.uzzap.data.RoomInvitationClient
 import com.kolipri.uzzap.data.SupabaseClient
+import com.kolipri.uzzap.data.SupabaseRealtimeClient
 import com.kolipri.uzzap.data.UzzapNotificationManager
 
 class ChatHostActivity : BaseChromeActivity() {
@@ -27,6 +29,7 @@ class ChatHostActivity : BaseChromeActivity() {
     private val roomsFragment = ChatRoomsFragment()
     private val roomFragments = linkedMapOf<String, ChatRoomFragment>()
     private val joinedRooms = mutableListOf<String>()
+    private val handledInvitationIds = mutableSetOf<Long>()
     private var currentTab = 0
     private var selectedRoomName: String? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -37,6 +40,25 @@ class ChatHostActivity : BaseChromeActivity() {
             PresenceClient.heartbeat(AppState.presence != com.kolipri.uzzap.model.Presence.INVISIBLE)
             PrivateMessageStateClient.fetchUnread(AppState.username) { state ->
                 if (!isFinishing && state != null && state.count > 0) UzzapNotificationManager.notifyPrivateMessages(this@ChatHostActivity, state.count, state.senders)
+            }
+            RoomInvitationClient.fetchPending(AppState.username) { invitations ->
+                if (isFinishing || isDestroyed) return@fetchPending
+                val pending = invitations?.firstOrNull { !handledInvitationIds.contains(it.id) }
+                if (pending != null) {
+                    handledInvitationIds.add(pending.id)
+                    AlertDialog.Builder(this@ChatHostActivity)
+                        .setTitle("Room Invitation")
+                        .setMessage("${pending.inviterUsername} invited you to join '${pending.roomName}' chatroom.\nWould you like to join?")
+                        .setPositiveButton("Join") { _, _ ->
+                            RoomInvitationClient.respond(pending.id, true) { _ -> }
+                            openRoom(pending.roomName)
+                        }
+                        .setNegativeButton("Decline") { _, _ ->
+                            RoomInvitationClient.respond(pending.id, false) { _ -> }
+                        }
+                        .setNeutralButton("Later", null)
+                        .show()
+                }
             }
             handler.postDelayed(this, 8_000L)
         }
@@ -62,9 +84,41 @@ class ChatHostActivity : BaseChromeActivity() {
         })
     }
 
-    override fun onResume() { super.onResume(); monitoring = true; handler.removeCallbacks(notificationPoll); handler.post(notificationPoll) }
-    override fun onPause() { monitoring = false; handler.removeCallbacks(notificationPoll); PresenceClient.heartbeat(false); super.onPause() }
-    override fun onDestroy() { monitoring = false; handler.removeCallbacksAndMessages(null); PresenceClient.heartbeat(false); joinedRooms.forEach { SupabaseClient.leaveRoom(it, AppState.nickname) }; super.onDestroy() }
+    override fun onResume() {
+        super.onResume()
+        monitoring = true
+        SupabaseRealtimeClient.start()
+        handler.removeCallbacks(notificationPoll)
+        handler.post(notificationPoll)
+    }
+
+    override fun onPause() {
+        monitoring = false
+        handler.removeCallbacks(notificationPoll)
+        PresenceClient.heartbeat(false)
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        monitoring = false
+        handler.removeCallbacksAndMessages(null)
+        PresenceClient.heartbeat(false)
+        joinedRooms.forEach { SupabaseClient.leaveRoom(it, AppState.nickname) }
+        SupabaseRealtimeClient.stop()
+        super.onDestroy()
+    }
+
+    override fun onNetworkRestored() {
+        super.onNetworkRestored()
+        SupabaseRealtimeClient.start()
+        PresenceClient.heartbeat(AppState.presence != com.kolipri.uzzap.model.Presence.INVISIBLE)
+        buddyFragment.syncBuddiesFromSupabase()
+        PrivateMessageStateClient.fetchUnread(AppState.username) { state ->
+            if (!isFinishing && !isDestroyed && state != null && state.count > 0) {
+                UzzapNotificationManager.notifyPrivateMessages(this@ChatHostActivity, state.count, state.senders)
+            }
+        }
+    }
 
     fun confirmLeaveRoom() = confirmLeaveSelectedRoom()
     private fun confirmLeaveSelectedRoom() {

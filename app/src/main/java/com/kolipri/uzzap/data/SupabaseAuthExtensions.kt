@@ -80,10 +80,13 @@ fun SupabaseClient.signInWithEmail(email: String, password: String, callback: (B
                     SupabaseClient.setAccessTokenForLegacy(access)
                     AppState.authToken = access
                     AppState.email = user?.optString("email").ifNullOrBlank(email)
-                    val nickname = loadNickname(userId).ifBlank { AppState.nickname }
+                    val (loadedNick, loadedRole) = loadProfileData(userId)
+                    val nickname = loadedNick.ifBlank { AppState.nickname }
+                    val role = loadedRole.ifBlank { "user" }
                     AppState.nickname = nickname
                     AppState.username = nickname.lowercase().replace(" ", "_")
-                    SessionStore.save(access, refresh, expires, AppState.email, nickname)
+                    AppState.role = role
+                    SessionStore.save(access, refresh, expires, AppState.email, nickname, role)
                     SupabaseAuthCompat.handler().post { callback(true, nickname, access, null) }
                 }.onFailure { e ->
                     Log.e("SupabaseAuthCompat", "Login parse failed", e)
@@ -120,7 +123,8 @@ fun SupabaseClient.signUpWithEmail(email: String, password: String, nickname: St
                         AppState.email = returnedEmail
                         AppState.nickname = nickname
                         AppState.username = nickname.lowercase().replace(" ", "_")
-                        SessionStore.save(access, refresh, expires, returnedEmail, nickname)
+                        AppState.role = "user"
+                        SessionStore.save(access, refresh, expires, returnedEmail, nickname, "user")
                         SupabaseClient.upsertProfile(nickname, nickname, returnedEmail, Presence.INVISIBLE.label, "", "kool", false)
                         SupabaseAuthCompat.handler().post { callback(true, access, null) }
                     } else {
@@ -145,19 +149,23 @@ fun SupabaseClient.verifySession(token: String, callback: (Boolean, String?, Str
                     val user = JSONObject(raw)
                     val id = user.optString("id")
                     val email = user.optString("email")
-                    val profileRequest = SupabaseAuthCompat.request("/rest/v1/profiles?select=username,nickname,email&id=eq.$id", true).header("Authorization", "Bearer $token").get().build()
+                    val profileRequest = SupabaseAuthCompat.request("/rest/v1/profiles?select=username,nickname,email,role&id=eq.$id", true).header("Authorization", "Bearer $token").get().build()
                     SupabaseAuthCompat.client().newCall(profileRequest).enqueue(object : Callback {
                         override fun onFailure(call: Call, e: IOException) { SupabaseAuthCompat.handler().post { callback(true, email, null) } }
                         override fun onResponse(call: Call, profileResponse: Response) {
                             profileResponse.use {
                                 var nick: String? = null
+                                var role = "user"
                                 if (it.isSuccessful) runCatching {
                                     val arr = org.json.JSONArray(it.body?.string().orEmpty())
                                     if (arr.length() > 0) {
                                         val p = arr.getJSONObject(0)
                                         nick = p.optString("nickname").ifBlank { p.optString("username") }.ifBlank { null }
+                                        role = p.optString("role").ifBlank { "user" }
                                     }
                                 }
+                                AppState.role = role
+                                SessionStore.save(token, SessionStore.refreshToken(), SessionStore.expiresAtMs(), email ?: AppState.email, nick ?: AppState.nickname, role)
                                 SupabaseAuthCompat.handler().post { callback(true, email, nick) }
                             }
                         }
@@ -191,17 +199,19 @@ fun SupabaseClient.signOut() {
     SessionStore.clear()
 }
 
-private fun loadNickname(userId: String): String {
-    if (userId.isBlank()) return ""
+private fun loadProfileData(userId: String): Pair<String, String> {
+    if (userId.isBlank()) return Pair("", "user")
     return try {
-        val request = SupabaseAuthCompat.request("/rest/v1/profiles?select=username,nickname&id=eq.$userId", true).get().build()
+        val request = SupabaseAuthCompat.request("/rest/v1/profiles?select=username,nickname,role&id=eq.$userId", true).get().build()
         val response = SupabaseAuthCompat.client().newCall(request).execute()
         response.use {
-            if (!it.isSuccessful) return ""
+            if (!it.isSuccessful) return Pair("", "user")
             val arr = org.json.JSONArray(it.body?.string().orEmpty())
-            if (arr.length() == 0) return ""
+            if (arr.length() == 0) return Pair("", "user")
             val p = arr.getJSONObject(0)
-            p.optString("nickname").ifBlank { p.optString("username") }
+            val nick = p.optString("nickname").ifBlank { p.optString("username") }
+            val role = p.optString("role").ifBlank { "user" }
+            Pair(nick, role)
         }
-    } catch (_: Exception) { "" }
+    } catch (_: Exception) { Pair("", "user") }
 }

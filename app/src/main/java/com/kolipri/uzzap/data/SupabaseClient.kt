@@ -42,6 +42,7 @@ object SupabaseClient {
         val token = SessionStore.accessToken() ?: return
         userAccessToken = token; userRefreshToken = SessionStore.refreshToken(); sessionExpiresAtMs = SessionStore.expiresAtMs()
         AppState.authToken = token; AppState.email = SessionStore.email(); AppState.nickname = SessionStore.nickname().ifBlank { AppState.nickname }
+        AppState.role = SessionStore.role()
         AppState.username = AppState.nickname.lowercase().replace(" ", "_"); startSessionMonitor()
         if (sessionExpiresAtMs > 0L && sessionExpiresAtMs <= System.currentTimeMillis() + 60_000L) refreshSession()
     }
@@ -52,7 +53,7 @@ object SupabaseClient {
         val json = JSONObject().put("refresh_token", refreshToken)
         httpClient.newCall(postJson("/auth/v1/token?grant_type=refresh_token", json, false)).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "Session refresh failed", e) }
-            override fun onResponse(call: Call, response: Response) { response.use { val body = it.body?.string().orEmpty(); if (!it.isSuccessful) { Log.w(TAG, "Session refresh rejected: ${errorTextFromBody(body, "HTTP ${it.code}")}"); return }; runCatching { val obj = JSONObject(body); val access = obj.optString("access_token"); if (access.isBlank()) error("Missing access token"); val nextRefresh = obj.optString("refresh_token").ifBlank { refreshToken }; val expiresIn = obj.optLong("expires_in", 3600L); userAccessToken = access; userRefreshToken = nextRefresh; sessionExpiresAtMs = System.currentTimeMillis() + expiresIn * 1000L; AppState.authToken = access; SessionStore.save(access, nextRefresh, sessionExpiresAtMs, AppState.email, AppState.nickname) }.onFailure { e -> Log.w(TAG, "Invalid refresh response", e) } } }
+            override fun onResponse(call: Call, response: Response) { response.use { val body = it.body?.string().orEmpty(); if (!it.isSuccessful) { Log.w(TAG, "Session refresh rejected: ${errorTextFromBody(body, "HTTP ${it.code}")}"); return }; runCatching { val obj = JSONObject(body); val access = obj.optString("access_token"); if (access.isBlank()) error("Missing access token"); val nextRefresh = obj.optString("refresh_token").ifBlank { refreshToken }; val expiresIn = obj.optLong("expires_in", 3600L); userAccessToken = access; userRefreshToken = nextRefresh; sessionExpiresAtMs = System.currentTimeMillis() + expiresIn * 1000L; AppState.authToken = access; SessionStore.save(access, nextRefresh, sessionExpiresAtMs, AppState.email, AppState.nickname, AppState.role) }.onFailure { e -> Log.w(TAG, "Invalid refresh response", e) } } }
         })
     }
     private fun request(path: String, authenticated: Boolean = false): Request.Builder { val bearer = if (authenticated && !userAccessToken.isNullOrBlank()) "Bearer ${userAccessToken!!}" else "Bearer $anonKey"; return Request.Builder().url("$supabaseUrl$path").header("apikey", anonKey).header("Authorization", bearer).header("Content-Type", "application/json") }
@@ -104,6 +105,27 @@ object SupabaseClient {
         httpClient.newCall(req).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "deleteBuddy network failure", e); mainHandler.post { onResult(false) } }
             override fun onResponse(call: Call, response: Response) { response.use { val ok = it.isSuccessful; if (!ok) Log.w(TAG, "deleteBuddy HTTP ${it.code}"); mainHandler.post { onResult(ok) } } }
+        })
+    }
+
+    fun deleteAccount(onResult: (Boolean) -> Unit) {
+        if (!authenticated()) { mainHandler.post { onResult(true) }; return }
+        // RLS policies allow authenticated users to delete their own profile, buddies, and DM entries
+        val profileReq = request("/rest/v1/profiles", true).delete().build()
+        httpClient.newCall(profileReq).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(false) } }
+            override fun onResponse(call: Call, response: Response) {
+                response.close()
+                val buddiesReq = request("/rest/v1/buddies", true).delete().build()
+                httpClient.newCall(buddiesReq).enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(true) } }
+                    override fun onResponse(call: Call, resp2: Response) {
+                        resp2.close()
+                        signOut()
+                        mainHandler.post { onResult(true) }
+                    }
+                })
+            }
         })
     }
 }

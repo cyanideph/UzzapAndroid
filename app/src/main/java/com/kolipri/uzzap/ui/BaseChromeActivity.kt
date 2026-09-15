@@ -1,6 +1,10 @@
 package com.kolipri.uzzap.ui
 
+import android.content.Context
 import android.graphics.Color
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkRequest
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -31,6 +35,11 @@ abstract class BaseChromeActivity : AppCompatActivity() {
     protected lateinit var btnRight: TextView
     protected lateinit var tabStripContainer: LinearLayout
 
+    private var connectivityManager: ConnectivityManager? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    protected var isNetworkConnected: Boolean = true
+        private set
+
     @LayoutRes
     protected open fun contentLayoutRes(): Int? = null
 
@@ -59,13 +68,39 @@ abstract class BaseChromeActivity : AppCompatActivity() {
         btnRight = findViewById(R.id.btn_right)
         tabStripContainer = findViewById(R.id.tab_strip_container)
 
+        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val activeNetwork = connectivityManager?.activeNetworkInfo
+        val initialConnected = activeNetwork?.isConnectedOrConnecting == true
+        setConnectionStatus(initialConnected)
+
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                runOnUiThread {
+                    setConnectionStatus(true)
+                    onNetworkRestored()
+                }
+            }
+            override fun onLost(network: Network) {
+                runOnUiThread {
+                    setConnectionStatus(false)
+                    onNetworkLost()
+                }
+            }
+        }
+        runCatching {
+            connectivityManager?.registerNetworkCallback(
+                NetworkRequest.Builder().build(),
+                networkCallback!!
+            )
+        }
+
         ViewCompat.setOnApplyWindowInsetsListener(chromeRoot) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
 
             statusBarSpacer.layoutParams = statusBarSpacer.layoutParams.apply { height = bars.top }
-            navBarSpacer.layoutParams = navBarSpacer.layoutParams.apply { height = bars.bottom }
+            navBarSpacer.layoutParams = navBarSpacer.layoutParams.apply { height = if (imeVisible) 0 else bars.bottom }
             statusBarSpacer.requestLayout()
             navBarSpacer.requestLayout()
 
@@ -90,6 +125,21 @@ abstract class BaseChromeActivity : AppCompatActivity() {
 
     fun showConnectedBall(show: Boolean) {
         ivStatusBall.visibility = if (show) View.VISIBLE else View.GONE
+    }
+
+    fun setConnectionStatus(connected: Boolean) {
+        isNetworkConnected = connected
+        if (::ivStatusBall.isInitialized) {
+            ivStatusBall.setImageResource(if (connected) R.drawable.d_online else R.drawable.d_disconnected)
+        }
+    }
+
+    protected open fun onNetworkRestored() {}
+    protected open fun onNetworkLost() {}
+
+    override fun onDestroy() {
+        super.onDestroy()
+        networkCallback?.let { runCatching { connectivityManager?.unregisterNetworkCallback(it) } }
     }
 
     fun setSoftkeys(

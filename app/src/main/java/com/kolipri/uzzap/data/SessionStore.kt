@@ -19,6 +19,7 @@ object SessionStore {
     private const val EXPIRES_AT = "expires_at"
     private const val EMAIL = "email"
     private const val NICKNAME = "nickname"
+    private const val ROLE = "role"
 
     private lateinit var prefs: android.content.SharedPreferences
 
@@ -61,7 +62,7 @@ object SessionStore {
         String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8)
     }.getOrNull()
 
-    fun save(accessToken: String, refreshToken: String?, expiresAtMs: Long, email: String, nickname: String) {
+    fun save(accessToken: String, refreshToken: String?, expiresAtMs: Long, email: String, nickname: String, role: String = "user") {
         ensureReady()
         prefs.edit()
             .putString(ACCESS, encrypt(accessToken))
@@ -69,6 +70,7 @@ object SessionStore {
             .putLong(EXPIRES_AT, expiresAtMs)
             .putString(EMAIL, email)
             .putString(NICKNAME, nickname)
+            .putString(ROLE, role)
             .apply()
     }
 
@@ -77,6 +79,7 @@ object SessionStore {
     fun expiresAtMs(): Long = if (::prefs.isInitialized) prefs.getLong(EXPIRES_AT, 0L) else 0L
     fun email(): String = if (::prefs.isInitialized) prefs.getString(EMAIL, "").orEmpty() else ""
     fun nickname(): String = if (::prefs.isInitialized) prefs.getString(NICKNAME, "").orEmpty() else ""
+    fun role(): String = if (::prefs.isInitialized) prefs.getString(ROLE, "user").orEmpty() else "user"
 
     fun clear() {
         if (::prefs.isInitialized) prefs.edit().clear().apply()

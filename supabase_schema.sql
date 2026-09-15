@@ -32,7 +32,18 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'moderator', 'admin'));
 CREATE UNIQUE INDEX IF NOT EXISTS profiles_owner_id_uidx ON public.profiles(owner_id) WHERE owner_id IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.is_moderator(user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE owner_id = user_id AND role IN ('moderator', 'admin')
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE TABLE IF NOT EXISTS public.chat_categories (
     id TEXT PRIMARY KEY,
@@ -171,6 +182,38 @@ ALTER TABLE public.direct_messages ADD COLUMN IF NOT EXISTS recipient_id UUID RE
 CREATE INDEX IF NOT EXISTS idx_dm_sender ON public.direct_messages(sender_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_dm_recipient ON public.direct_messages(recipient_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS public.blocked_users (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    blocked_username TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_blocked_user UNIQUE (owner_id, blocked_username)
+);
+CREATE INDEX IF NOT EXISTS idx_blocked_owner ON public.blocked_users(owner_id);
+
+CREATE TABLE IF NOT EXISTS public.user_reports (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    reporter_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    reported_username TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    details TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_reports_reporter ON public.user_reports(reporter_id);
+
+CREATE TABLE IF NOT EXISTS public.moderation_actions (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    moderator_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    target_username TEXT NOT NULL,
+    action_type TEXT NOT NULL CHECK (action_type IN ('mute', 'kick', 'warn', 'ban')),
+    room_name TEXT,
+    reason TEXT NOT NULL,
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_mod_target ON public.moderation_actions(target_username, action_type);
+
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_rooms ENABLE ROW LEVEL SECURITY;
@@ -178,13 +221,16 @@ ALTER TABLE public.room_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.room_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.buddies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.blocked_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.moderation_actions ENABLE ROW LEVEL SECURITY;
 
 DO $$
 DECLARE
     t TEXT;
     p TEXT;
 BEGIN
-    FOREACH t IN ARRAY ARRAY['profiles','chat_categories','chat_rooms','room_messages','room_participants','buddies','direct_messages'] LOOP
+    FOREACH t IN ARRAY ARRAY['profiles','chat_categories','chat_rooms','room_messages','room_participants','buddies','direct_messages','blocked_users','user_reports','moderation_actions'] LOOP
         FOR p IN SELECT policyname FROM pg_policies WHERE schemaname='public' AND tablename=t LOOP
             EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', p, t);
         END LOOP;
@@ -204,7 +250,19 @@ CREATE POLICY rooms_read ON public.chat_rooms FOR SELECT TO anon, authenticated 
 
 CREATE POLICY room_messages_read ON public.room_messages FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY room_messages_insert_auth ON public.room_messages FOR INSERT TO authenticated
-    WITH CHECK (sender_id = auth.uid() AND is_system = false);
+    WITH CHECK (
+        sender_id = auth.uid() AND is_system = false AND
+        NOT EXISTS (
+            SELECT 1 FROM public.moderation_actions ma
+            JOIN public.profiles p ON p.username = ma.target_username
+            WHERE p.owner_id = auth.uid()
+              AND ma.action_type IN ('mute', 'ban')
+              AND (ma.expires_at IS NULL OR ma.expires_at > now())
+              AND (ma.room_name IS NULL OR ma.room_name = room_messages.room_name)
+        )
+    );
+CREATE POLICY room_messages_delete_mod ON public.room_messages FOR DELETE TO authenticated
+    USING (sender_id = auth.uid() OR public.is_moderator(auth.uid()));
 
 CREATE POLICY participants_read ON public.room_participants FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY participants_insert_own ON public.room_participants FOR INSERT TO authenticated
@@ -226,11 +284,39 @@ CREATE POLICY buddies_delete_own ON public.buddies FOR DELETE TO authenticated
 CREATE POLICY dm_read_own ON public.direct_messages FOR SELECT TO authenticated
     USING (sender_id = auth.uid() OR recipient_id = auth.uid());
 CREATE POLICY dm_insert_own ON public.direct_messages FOR INSERT TO authenticated
-    WITH CHECK (sender_id = auth.uid());
+    WITH CHECK (
+        sender_id = auth.uid() AND
+        NOT EXISTS (
+            SELECT 1 FROM public.blocked_users b
+            WHERE b.owner_id = direct_messages.recipient_id
+              AND b.blocked_username = direct_messages.sender
+        )
+    );
 CREATE POLICY dm_update_recipient ON public.direct_messages FOR UPDATE TO authenticated
     USING (recipient_id = auth.uid()) WITH CHECK (recipient_id = auth.uid());
 CREATE POLICY dm_delete_sender ON public.direct_messages FOR DELETE TO authenticated
     USING (sender_id = auth.uid());
+
+CREATE POLICY blocked_users_read ON public.blocked_users FOR SELECT TO authenticated
+    USING (owner_id = auth.uid());
+CREATE POLICY blocked_users_insert ON public.blocked_users FOR INSERT TO authenticated
+    WITH CHECK (owner_id = auth.uid());
+CREATE POLICY blocked_users_delete ON public.blocked_users FOR DELETE TO authenticated
+    USING (owner_id = auth.uid());
+
+CREATE POLICY user_reports_insert ON public.user_reports FOR INSERT TO authenticated
+    WITH CHECK (reporter_id = auth.uid());
+CREATE POLICY user_reports_read ON public.user_reports FOR SELECT TO authenticated
+    USING (reporter_id = auth.uid() OR public.is_moderator(auth.uid()));
+CREATE POLICY user_reports_update_mod ON public.user_reports FOR UPDATE TO authenticated
+    USING (public.is_moderator(auth.uid())) WITH CHECK (public.is_moderator(auth.uid()));
+
+CREATE POLICY moderation_actions_read ON public.moderation_actions FOR SELECT TO authenticated
+    USING (true);
+CREATE POLICY moderation_actions_insert ON public.moderation_actions FOR INSERT TO authenticated
+    WITH CHECK (public.is_moderator(auth.uid()));
+CREATE POLICY moderation_actions_delete ON public.moderation_actions FOR DELETE TO authenticated
+    USING (public.is_moderator(auth.uid()));
 
 -- ==========================================================
 -- PHILIPPINE REGION -> PROVINCE CHATROOM SEED

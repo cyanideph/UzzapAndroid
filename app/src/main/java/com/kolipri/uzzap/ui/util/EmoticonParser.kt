@@ -126,6 +126,14 @@ object EmoticonParser {
     }
 
     /**
+     * Checks if the given text contains any recognizable Uzzap emoticon codes.
+     */
+    fun hasEmoticons(text: CharSequence?): Boolean {
+        if (text.isNullOrEmpty()) return false
+        return EMOTICON_PATTERN.matcher(text).find()
+    }
+
+    /**
      * Converts raw text into a CharSequence with authentic retro Uzzap emoticon images.
      */
     fun parse(context: Context, text: CharSequence?, textSizeSp: Float = 15f): CharSequence {

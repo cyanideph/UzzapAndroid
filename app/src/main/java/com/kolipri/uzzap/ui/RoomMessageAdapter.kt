@@ -20,11 +20,20 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
     }
 
     private val items = mutableListOf<ChatMessage>()
+    var onMessageLongClickListener: ((ChatMessage) -> Unit)? = null
 
     fun setItems(messages: List<ChatMessage>) {
         items.clear()
         items.addAll(messages)
         notifyDataSetChanged()
+    }
+
+    fun removeById(id: Long) {
+        val idx = items.indexOfFirst { it.id == id }
+        if (idx >= 0) {
+            items.removeAt(idx)
+            notifyItemRemoved(idx)
+        }
     }
 
     fun insertAtTop(messages: List<ChatMessage>) {
@@ -48,7 +57,14 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
 
     override fun getItemCount(): Int = items.size
 
-    override fun getItemViewType(position: Int): Int = if (items[position].isSystem) TYPE_SYSTEM else TYPE_NORMAL
+    override fun getItemViewType(position: Int): Int {
+        val msg = items[position]
+        return if (msg.isSystem || msg.sender.equals("uzzapbot", ignoreCase = true) || msg.sender.equals("System", ignoreCase = true)) {
+            TYPE_SYSTEM
+        } else {
+            TYPE_NORMAL
+        }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return if (viewType == TYPE_SYSTEM) {
@@ -72,8 +88,17 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val message = items[position]
+        holder.itemView.setOnLongClickListener {
+            onMessageLongClickListener?.invoke(message)
+            true
+        }
         if (holder is SystemHolder) {
-            holder.text.text = EmoticonParser.parse(context, message.body.ifEmpty { message.sender }, 15f)
+            val text = if (message.sender.equals("uzzapbot", ignoreCase = true) && !message.body.startsWith("uzzapbot", ignoreCase = true)) {
+                "uzzapbot: ${message.body}"
+            } else {
+                message.body.ifEmpty { message.sender }
+            }
+            holder.text.text = EmoticonParser.parse(context, text, 15f)
         } else if (holder is NormalHolder) {
             holder.container.removeAllViews()
             holder.container.addView(TextView(context).apply {

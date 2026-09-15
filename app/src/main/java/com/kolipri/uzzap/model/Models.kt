@@ -51,5 +51,27 @@ data class UserProfile(
     val status: String = "Available",
     val statusMessage: String = "",
     val avatar: String = "kool",
-    val isOnline: Boolean = true
+    val isOnline: Boolean = true,
+    val role: String = "user"
+)
+
+data class UserReport(
+    val id: Long,
+    val reporterId: String?,
+    val reportedUsername: String,
+    val reason: String,
+    val details: String?,
+    val status: String,
+    val createdAt: String
+)
+
+data class ModerationAction(
+    val id: Long,
+    val moderatorId: String?,
+    val targetUsername: String,
+    val actionType: String,
+    val roomName: String?,
+    val reason: String,
+    val expiresAt: String?,
+    val createdAt: String
 )

@@ -19,6 +19,7 @@ import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.RoomPresenceClient
 import com.kolipri.uzzap.data.SafetyClient
 import com.kolipri.uzzap.data.SupabaseClient
+import com.kolipri.uzzap.data.SupabaseRealtimeClient
 import com.kolipri.uzzap.model.ChatMessage
 import com.kolipri.uzzap.ui.dialogs.EmoticonPickerDialog
 import com.kolipri.uzzap.ui.dialogs.J2mePopup
@@ -37,6 +38,24 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
     private var joinedSuccessfully = false
     private var isLoadingHistory = false
     private var hasMoreHistory = true
+    private val realtimeListener: (ChatMessage, String) -> Unit = { msg, targetRoom ->
+        if (isAdded && joinedSuccessfully && targetRoom.equals(roomName, ignoreCase = true)) {
+            val current = AppState.messagesFor(roomName)
+            val pending = current.firstOrNull { it.id == 0L && it.sender == msg.sender && it.body == msg.body }
+            if (pending != null) {
+                val idx = current.indexOf(pending)
+                if (idx >= 0) {
+                    current[idx] = msg
+                    val adapterIndex = messageAdapter.indexOf(pending)
+                    if (adapterIndex >= 0) messageAdapter.replaceAt(adapterIndex, msg)
+                }
+            } else if (msg.id > 0L && current.none { it.id == msg.id }) {
+                current.add(msg)
+                messageAdapter.add(msg)
+                scrollToLatest()
+            }
+        }
+    }
     private val pollRunnable = object : Runnable {
         override fun run() {
             if (!isPollingActive || !isAdded || !joinedSuccessfully) return
@@ -69,6 +88,11 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         layoutManager = LinearLayoutManager(requireContext())
         messageList.layoutManager = layoutManager
         messageList.adapter = messageAdapter
+        messageList.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
+            if (bottom < oldBottom && messageAdapter.itemCount > 0) {
+                messageList.post { scrollToLatest() }
+            }
+        }
         messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 if (layoutManager.findFirstVisibleItemPosition() <= 2 && dy <= 0) loadOlderHistory()
@@ -84,6 +108,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
             override fun afterTextChanged(s: Editable?) { if (formatting || s == null) return; val ctx = context ?: return; formatting = true; EmoticonParser.applySpans(ctx, s, 15f); formatting = false }
         })
         view.findViewById<ImageView>(R.id.iv_emoticon_picker).setOnClickListener { context?.let { ctx -> EmoticonPickerDialog.show(ctx) { code -> val current = etMessage.text.toString(); val prefix = if (current.isNotEmpty() && !current.endsWith(" ")) " " else ""; etMessage.append("$prefix$code "); etMessage.setSelection(etMessage.text.length) } } }
+        SupabaseRealtimeClient.addRoomMessageListener(realtimeListener)
         RoomPresenceClient.join(roomName, AppState.nickname) { ok, message ->
             if (!isAdded) return@join
             if (!ok) { AlertDialog.Builder(requireContext()).setTitle("Room Full").setMessage(message ?: "This room cannot accept another participant.").setPositiveButton("OK") { _, _ -> host.leaveRoom(roomName) }.setOnCancelListener { host.leaveRoom(roomName) }.show(); return@join }
@@ -172,6 +197,11 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
     }
     private fun whisperDialog() { SupabaseClient.fetchParticipants(roomName) { members -> val targets = (members ?: emptyList()).filter { !it.equals(AppState.nickname, true) }; if (!isAdded) return@fetchParticipants; if (targets.isEmpty()) { Toast.makeText(requireContext(), "No other room members are online.", Toast.LENGTH_SHORT).show(); return@fetchParticipants }; AlertDialog.Builder(requireContext()).setTitle("Whisper to").setItems(targets.toTypedArray()) { _, which -> startActivity(PrivateChatActivity.intent(requireContext(), targets[which])) }.setNegativeButton("Cancel", null).show() } }
-    override fun onDestroyView() { super.onDestroyView(); isPollingActive = false; handler.removeCallbacksAndMessages(null) }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        SupabaseRealtimeClient.removeRoomMessageListener(realtimeListener)
+        isPollingActive = false
+        handler.removeCallbacksAndMessages(null)
+    }
     companion object { private const val ARG_ROOM = "arg_room"; fun newInstance(roomName: String) = ChatRoomFragment().apply { arguments = Bundle().apply { putString(ARG_ROOM, roomName) } } }
 }

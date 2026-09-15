@@ -25,6 +25,11 @@ object UzzapNotificationManager {
 
     fun notifyPrivateMessages(context: Context, count: Int, senders: List<String>) {
         if (count <= 0) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                return
+            }
+        }
         initialize(context)
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val signature = "$count:${senders.sorted().joinToString(",")}"
@@ -42,7 +47,9 @@ object UzzapNotificationManager {
             .setContentIntent(pending)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
-        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(1001, notification)
+        runCatching {
+            (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(1001, notification)
+        }
     }
 
     fun clearPrivateMessageNotification(context: Context) {

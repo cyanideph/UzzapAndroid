@@ -15,6 +15,9 @@ object AppState {
     var statusMessage: String = ""
     var themeName: String = "default"
     var firstLoginShown: Boolean = false
+    var activeChatBuddy: String? = null
+    var role: String = "user"
+    val isModerator: Boolean get() = role.equals("moderator", ignoreCase = true) || role.equals("admin", ignoreCase = true)
 
     // Keep the legacy Uzzap buddy-group structure available immediately. Supabase
     // supplies the actual buddy rows; this list is only the local UI container.
@@ -77,6 +80,7 @@ object AppState {
         nickname = "cy"
         email = ""
         authToken = ""
+        role = "user"
         SupabaseClient.signOut()
     }
 }

@@ -70,9 +70,9 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
                 val live = counts ?: emptyMap()
                 val updated = remoteCats.map { category ->
                     val rooms = category.rooms.map { room ->
-                        ChatRoomInfo(room.name, live[room.name] ?: 0, 20)
+                        ChatRoomInfo(room.name, live[room.name] ?: 0, if (room.capacity > 0) room.capacity else 100)
                     }
-                    ChatRoomCategory(category.name, rooms.sumOf { it.userCount }, rooms.size * 20, rooms)
+                    ChatRoomCategory(category.name, rooms.sumOf { it.userCount }, rooms.sumOf { it.capacity }, rooms)
                 }
                 AppState.categories = updated
                 loaded = true

@@ -28,6 +28,7 @@ import com.kolipri.uzzap.data.DirectMessageClient
 import com.kolipri.uzzap.data.PrivateMessageStateClient
 import com.kolipri.uzzap.data.PresenceClient
 import com.kolipri.uzzap.data.SafetyClient
+import com.kolipri.uzzap.data.SupabaseRealtimeClient
 import com.kolipri.uzzap.data.UzzapNotificationManager
 import com.kolipri.uzzap.model.DirectMessage
 import com.kolipri.uzzap.ui.dialogs.EmoticonPickerDialog
@@ -51,6 +52,18 @@ class PrivateChatActivity : BaseChromeActivity() {
     private var buddy = ""
     private var lastId = 0L
     private var keyboardVisible = false
+
+    private val realtimeListener: (DirectMessage) -> Unit = { dm ->
+        val me = AppState.username
+        val isForThisChat = (dm.sender.equals(buddy, true) && dm.recipient.equals(me, true)) ||
+                            (dm.sender.equals(me, true) && dm.recipient.equals(buddy, true))
+        if (isForThisChat && dm.id > lastId) {
+            lastId = dm.id
+            append(dm)
+            scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
+            markReadAndRefreshNotification()
+        }
+    }
 
     private val poll = object : Runnable {
         override fun run() {
@@ -82,6 +95,7 @@ class PrivateChatActivity : BaseChromeActivity() {
         showConnectedBall(false)
         // The modern chat has its own header/actions; hide the legacy softkeys.
         setSoftkeys(null, null)
+        SupabaseRealtimeClient.addDirectMessageListener(realtimeListener)
 
         ViewCompat.setOnApplyWindowInsetsListener(chatRoot) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -422,6 +436,7 @@ class PrivateChatActivity : BaseChromeActivity() {
 
     override fun onResume() {
         super.onResume()
+        AppState.activeChatBuddy = buddy
         polling = true
         handler.removeCallbacks(poll)
         handler.post(poll)
@@ -429,6 +444,9 @@ class PrivateChatActivity : BaseChromeActivity() {
     }
 
     override fun onPause() {
+        if (AppState.activeChatBuddy.equals(buddy, ignoreCase = true)) {
+            AppState.activeChatBuddy = null
+        }
         polling = false
         handler.removeCallbacks(poll)
         super.onPause()
@@ -437,6 +455,7 @@ class PrivateChatActivity : BaseChromeActivity() {
     override fun onDestroy() {
         polling = false
         handler.removeCallbacksAndMessages(null)
+        SupabaseRealtimeClient.removeDirectMessageListener(realtimeListener)
         super.onDestroy()
     }
 

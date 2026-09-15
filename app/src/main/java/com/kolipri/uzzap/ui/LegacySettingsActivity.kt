@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.content.Intent
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -17,6 +18,8 @@ import androidx.appcompat.app.AlertDialog
 import com.kolipri.uzzap.BuildConfig
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.PresenceClient
+import com.kolipri.uzzap.data.SessionStore
+import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.model.Presence
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -114,8 +117,8 @@ class LegacySettingsActivity : BaseChromeActivity() {
     }
 
     private fun settingsScreen() {
-        val labels = listOf("Edit My Profile", "Change Status", "Change Password", "Change Mobile Number", "Offline Settings", "Chatroom Tones", "Battery Saving", "Extended Messaging", "Instant Messaging", "Privacy", "Theme", "Subscription", "Back")
-        val subtitles = listOf("Nickname, presence and about me", "Available / Not Available / Invisible", "Update your account password", "Update the mobile number on your account", "Offline message and status behavior", "Chatroom, PM and buddy notification sounds", "Reduce background activity", "Buddy list and messaging tools", "Private messaging entry point", "Invitation and presence controls", "Choose the Uzzap appearance", "Account subscription information", "Return to Uzzap")
+        val labels = listOf("Edit My Profile", "Change Status", "Change Password", "Change Mobile Number", "Offline Settings", "Chatroom Tones", "Battery Saving", "Extended Messaging", "Instant Messaging", "Privacy", "Theme", "Subscription", "Delete Account", "Back")
+        val subtitles = listOf("Nickname, presence and about me", "Available / Not Available / Invisible", "Update your account password", "Update the mobile number on your account", "Offline message and status behavior", "Chatroom, PM and buddy notification sounds", "Reduce background activity", "Buddy list and messaging tools", "Private messaging entry point", "Invitation and presence controls", "Choose the Uzzap appearance", "Account subscription information", "Permanently delete account and chat history", "Return to Uzzap")
         rows("Settings", labels, labels.map { label ->
             {
                 when (label) {
@@ -131,10 +134,42 @@ class LegacySettingsActivity : BaseChromeActivity() {
                     "Privacy" -> open(MODE_PRIVACY)
                     "Theme" -> startActivity(UzzapParityActivity.intent(this, UzzapParityActivity.MODE_THEMES))
                     "Subscription" -> open(MODE_SUBSCRIPTION)
+                    "Delete Account" -> confirmDeleteAccount()
                     else -> finish()
                 }
             }
         }, subtitles)
+    }
+
+    private fun confirmDeleteAccount() {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Account")
+            .setMessage("Are you sure you want to permanently delete your account?\n\nThis will remove your profile, buddy list, and message history. This action cannot be undone.")
+            .setPositiveButton("Delete Permanently") { _, _ ->
+                performAccountDeletion()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun performAccountDeletion() {
+        val progress = AlertDialog.Builder(this)
+            .setTitle("Deleting Account")
+            .setMessage("Please wait while your account is deleted...")
+            .setCancelable(false)
+            .show()
+
+        SupabaseClient.deleteAccount { success ->
+            progress.dismiss()
+            Toast.makeText(this, if (success) "Account deleted successfully." else "Local account session cleared.", Toast.LENGTH_SHORT).show()
+            AppState.resetSession()
+            SessionStore.clear()
+            val intent = Intent(this, SplashMenuActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            startActivity(intent)
+            finish()
+        }
     }
 
     private fun statusScreen() {

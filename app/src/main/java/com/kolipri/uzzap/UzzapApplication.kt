@@ -27,7 +27,14 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
             PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE)
             PrivateMessageStateClient.fetchUnread(AppState.username) { unread ->
                 if (foreground && unread != null) {
-                    UzzapNotificationManager.notifyPrivateMessages(this@UzzapApplication, unread.count, unread.senders)
+                    val active = AppState.activeChatBuddy
+                    val relevantSenders = if (active != null) unread.senders.filter { !it.equals(active, ignoreCase = true) } else unread.senders
+                    val relevantCount = relevantSenders.sumOf { unread.countsBySender[it.lowercase()] ?: 1 }
+                    if (relevantCount > 0) {
+                        UzzapNotificationManager.notifyPrivateMessages(this@UzzapApplication, relevantCount, relevantSenders)
+                    } else if (active != null) {
+                        UzzapNotificationManager.clearPrivateMessageNotification(this@UzzapApplication)
+                    }
                 }
             }
             handler.postDelayed(this, 10_000L)

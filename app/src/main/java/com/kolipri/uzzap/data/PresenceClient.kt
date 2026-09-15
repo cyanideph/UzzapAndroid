@@ -66,5 +66,38 @@ object PresenceClient {
         })
     }
 
+    fun fetchMultiple(usernames: List<String>, onResult: (Map<String, BuddyPresence>) -> Unit) {
+        if (usernames.isEmpty() || SupabaseClient.userAccessToken.isNullOrBlank()) {
+            main.post { onResult(emptyMap()) }
+            return
+        }
+        val encodedList = usernames.map { URLEncoder.encode(it.lowercase().replace(" ", "_"), "UTF-8") }.joinToString(",")
+        val path = "/rest/v1/profiles?username=in.($encodedList)&select=username,is_online,last_seen,status"
+        http.newCall(req(path).get().build()).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) { main.post { onResult(emptyMap()) } }
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    if (!it.isSuccessful) { main.post { onResult(emptyMap()) }; return }
+                    val map = runCatching {
+                        val arr = JSONArray(it.body?.string().orEmpty())
+                        val now = Instant.now()
+                        buildMap<String, BuddyPresence> {
+                            for (i in 0 until arr.length()) {
+                                val o = arr.getJSONObject(i)
+                                val uname = o.optString("username")
+                                val lastSeen = o.optString("last_seen")
+                                val recent = runCatching {
+                                    Instant.parse(lastSeen).isAfter(now.minusSeconds(ONLINE_WINDOW_SECONDS))
+                                }.getOrDefault(false)
+                                put(uname.lowercase(), BuddyPresence(uname, o.optBoolean("is_online") && recent, lastSeen, o.optString("status", "Available")))
+                            }
+                        }
+                    }.getOrDefault(emptyMap())
+                    main.post { onResult(map) }
+                }
+            }
+        })
+    }
+
     private fun currentUsername(): String? = AppState.username.takeIf { it.isNotBlank() && it != "unknown-user" }
 }

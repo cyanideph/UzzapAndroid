@@ -72,7 +72,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
 
     fun setupScreen() { val hostActivity = activity as? ChatHostActivity ?: return; hostActivity.setScreenTitle(getString(R.string.em_buddy_list_title)); hostActivity.showConnectedBall(true); hostActivity.setSoftkeys(getString(R.string.softkey_options), getString(R.string.softkey_menu), onLeft = { showOptionsMenu() }, onRight = { showOptionsMenu() }) }
 
-    private fun syncBuddiesFromSupabase() {
+    fun syncBuddiesFromSupabase() {
         SupabaseClient.fetchBuddies(AppState.nickname) { grouped ->
             if (!isAdded || grouped == null) return@fetchBuddies
             for (g in AppState.buddyGroups) if (g.key != "all") g.buddies.clear()
@@ -132,10 +132,25 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
                     for (i in 0 until container.childCount) { val row = container.getChildAt(i); val nameView = row.findViewById<TextView>(R.id.tv_status_username); val badge = row.findViewById<TextView>(R.id.tv_unread_count); val count = unreadState.countsBySender[nameView.text.toString().lowercase()] ?: 0; badge.text = if (count > 99) "99+" else count.toString(); badge.visibility = if (count > 0) View.VISIBLE else View.GONE }
                 }
                 for (buddy in buddies) {
-                    val row = LayoutInflater.from(context).inflate(R.layout.item_buddy_status_row, container, false); val statusIcon = row.findViewById<ImageView>(R.id.iv_status_icon); val statusName = row.findViewById<TextView>(R.id.tv_status_username); val unread = row.findViewById<TextView>(R.id.tv_unread_count)
-                    statusName.text = buddy; statusIcon.setImageResource(R.drawable.d_offline); unread.visibility = View.GONE
-                    PresenceClient.fetch(buddy) { p -> if (row.isAttachedToWindow) statusIcon.setImageResource(if (p?.isOnline == true) R.drawable.d_online else R.drawable.d_offline) }
-                    row.setOnClickListener { showBuddyOptions(buddy, group) }; container.addView(row)
+                    val row = LayoutInflater.from(context).inflate(R.layout.item_buddy_status_row, container, false)
+                    val statusIcon = row.findViewById<ImageView>(R.id.iv_status_icon)
+                    val statusName = row.findViewById<TextView>(R.id.tv_status_username)
+                    val unread = row.findViewById<TextView>(R.id.tv_unread_count)
+                    statusName.text = buddy
+                    statusIcon.setImageResource(R.drawable.d_offline)
+                    unread.visibility = View.GONE
+                    row.setOnClickListener { showBuddyOptions(buddy, group) }
+                    container.addView(row)
+                }
+                PresenceClient.fetchMultiple(buddies) { presenceMap ->
+                    if (!isAdded || !container.isAttachedToWindow) return@fetchMultiple
+                    for (i in 0 until container.childCount) {
+                        val r = container.getChildAt(i)
+                        val name = r.findViewById<TextView>(R.id.tv_status_username).text.toString()
+                        val icon = r.findViewById<ImageView>(R.id.iv_status_icon)
+                        val p = presenceMap[name.lowercase()]
+                        icon.setImageResource(if (p?.isOnline == true) R.drawable.d_online else R.drawable.d_offline)
+                    }
                 }
             } else if (show) { container.visibility = View.GONE; empty.visibility = View.VISIBLE } else { container.visibility = View.GONE; empty.visibility = View.GONE }
             return view
