@@ -85,14 +85,14 @@ object SafetyClient {
 
     fun applyModerationAction(targetUsername: String, actionType: String, roomName: String?, reason: String, durationMinutes: Int?, onResult: (Boolean) -> Unit) {
         val action = actionType.lowercase()
-        if (targetUsername.isBlank() || action !in setOf("mute", "kick", "unmute", "unkick")) { main.post { onResult(false) }; return }
+        if (targetUsername.isBlank() || action !in setOf("mute", "kick", "unmute", "unkick", "warn", "ban", "unban")) { main.post { onResult(false) }; return }
         val body = JSONObject().put("p_username", targetUsername.trim()).put("p_action", action).put("p_room_name", roomName).put("p_reason", reason.take(500))
         if (durationMinutes != null) body.put("p_duration_minutes", durationMinutes)
         rpc("moderate_user", body, simple(onResult))
     }
 
     fun fetchActiveModerationActions(onResult: (List<ModerationAction>) -> Unit) {
-        val path = "/rest/v1/moderation_actions?select=id,moderator_id,target_username,action_type,room_name,reason,expires_at,created_at&order=created_at.desc&limit=100"
+        val path = "/rest/v1/moderation_actions?select=id,moderator_id,target_username,action_type,room_name,reason,expires_at,created_at&action_type=in.(mute,kick,ban)&order=created_at.desc&limit=100"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { onResult(emptyList()) } }
             override fun onResponse(call: Call, response: Response) { response.use {
