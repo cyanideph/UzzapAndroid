@@ -17,16 +17,28 @@ class WelcomeActivity : BaseChromeActivity() {
         setSoftkeys(null, getString(R.string.softkey_close), onRight = { finish() })
 
         findViewById<TextView>(R.id.tv_welcome_title).text =
-            getString(R.string.welcome_title, AppState.username)
+            "Welcome to Uzzap, ${AppState.username}!"
 
-        bindTip(R.id.tip_im, R.drawable.d_d001_im_large,
-            "Connect to your favorite IM \u2013 wait a few seconds and watch your familiar YM or MSN buddies appear.")
-        bindTip(R.id.tip_add, R.drawable.d_n002_buddies_large,
-            "Go to the address book on your phone and Invite Friends to join your personal network, or Add Other Contacts by selecting their details.")
-        bindTip(R.id.tip_chat, R.drawable.d_d002_chat_large,
-            "Join a Chatroom and meet new friends \u2013 you can even use an alias to try it out.")
-        bindTip(R.id.tip_matching, R.drawable.d_n001_abm_large,
-            "Activate Buddy Matching and watch your buddy list grow automatically day by day.")
+        bindTip(
+            R.id.tip_im,
+            R.drawable.d_d001_im_large,
+            "Chat privately with your buddies. Send messages, follow delivery and read status, and keep track of unread conversations."
+        )
+        bindTip(
+            R.id.tip_add,
+            R.drawable.d_n002_buddies_large,
+            "Build your Buddy List. Add or remove buddies, check presence, start private chats, block users, and report problems when needed."
+        )
+        bindTip(
+            R.id.tip_chat,
+            R.drawable.d_d002_chat_large,
+            "Explore Philippine chatrooms by region and province. Join a room, meet other users, send messages, invite buddies, and leave anytime."
+        )
+        bindTip(
+            R.id.tip_matching,
+            R.drawable.d_n001_abm_large,
+            "Stay safe and connected. Use Report and Block when necessary. Authorized moderators can review reports and manage room safety."
+        )
     }
 
     private fun bindTip(containerId: Int, iconRes: Int, text: String) {
