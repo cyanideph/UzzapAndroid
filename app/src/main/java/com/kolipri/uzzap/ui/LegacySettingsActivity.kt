@@ -11,7 +11,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import com.kolipri.uzzap.BuildConfig
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.PresenceClient
@@ -24,7 +23,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
-/** Legacy Java/J2ME-style Settings screens. Java Uzzap is the visual source of truth. */
+/** Legacy Java/J2ME-style Settings screens. Java Uzzap is the visual and wording source of truth. */
 class LegacySettingsActivity : BaseChromeActivity() {
     private val http = OkHttpClient()
     private val jsonType = "application/json; charset=utf-8".toMediaType()
@@ -45,11 +44,6 @@ class LegacySettingsActivity : BaseChromeActivity() {
             MODE_MOBILE -> mobileScreen()
             MODE_OFFLINE -> offlineScreen()
             MODE_TONES -> tonesScreen()
-            MODE_BATTERY -> batteryScreen()
-            MODE_EM -> extendedMessagingScreen()
-            MODE_IM -> instantMessagingScreen()
-            MODE_PRIVACY -> privacyScreen()
-            MODE_SUBSCRIPTION -> subscriptionScreen()
             else -> settingsScreen()
         }
     }
@@ -113,17 +107,8 @@ class LegacySettingsActivity : BaseChromeActivity() {
         showContent(scroll(root))
     }
 
-    /** Exact top-level Settings ordering confirmed from old Java aa.java. */
     private fun settingsScreen() {
-        val labels = listOf(
-            "Edit My Profile",
-            "Change Status",
-            "Change Password",
-            "Change Mobile Number",
-            "Offline Settings",
-            "Chatroom Tones"
-        )
-        rows("Settings", labels, listOf(
+        rows("Settings", listOf("Edit My Profile", "Change Status", "Change Password", "Change Mobile Number", "Offline Settings", "Chatroom Tones"), listOf(
             { startActivity(UzzapParityActivity.intent(this, UzzapParityActivity.MODE_PROFILE)) },
             { open(MODE_STATUS) },
             { open(MODE_PASSWORD) },
@@ -157,49 +142,84 @@ class LegacySettingsActivity : BaseChromeActivity() {
             setTextColor(activeTheme.text)
             setHintTextColor(activeTheme.secondary)
             setPadding(dp(4), dp(2), dp(4), dp(2))
+            singleLine = true
         }
         J2mePopup.show(this, listOf(PopupItem("Save"), PopupItem("Cancel"))) { index ->
             if (index == 0) {
                 AppState.statusMessage = input.text.toString()
                 AppState.syncProfileToSupabase()
+                toast("Status message updated")
             }
         }
     }
 
+    /** Mirrors co.java: old password, new password, verification; Update/Cancel. */
     private fun passwordScreen() {
-        prepareScreen("Change Password", "Save", "Back", onLeft = {
-            val a = currentForm?.findViewWithTag<EditText>("new")
-            val b = currentForm?.findViewWithTag<EditText>("confirm")
-            val pa = a?.text?.toString().orEmpty()
-            val pb = b?.text?.toString().orEmpty()
+        prepareScreen("* Change password", "Update", "Cancel", onLeft = {
+            val old = currentForm?.findViewWithTag<EditText>("old")?.text?.toString().orEmpty()
+            val new1 = currentForm?.findViewWithTag<EditText>("new1")?.text?.toString().orEmpty()
+            val new2 = currentForm?.findViewWithTag<EditText>("new2")?.text?.toString().orEmpty()
             when {
-                pa.length < 6 -> toast("Password must be at least 6 characters")
-                pa != pb -> toast("Passwords do not match")
-                else -> updateAuthUser(JSONObject().put("password", pa))
+                old.isBlank() || new1.isBlank() || new2.isBlank() -> legacyMessage("Please fill in all input fields.")
+                new1.any { !it.isLetterOrDigit() } -> legacyMessage("Password must not contain special symbols")
+                new1 != new2 -> legacyMessage("Passwords do not match.")
+                new1.length < 6 -> legacyMessage("Password is too short")
+                else -> changePassword(old, new1)
             }
-        })
+        }, onRight = { finish() })
         val root = container()
-        section(root, "Change Password")
-        val newPassword = editField("New password", "new", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        val confirm = editField("Confirm password", "confirm", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        addRow(root, newPassword)
-        addRow(root, confirm)
+        section(root, "Change password")
+        addRow(root, editField("Old password", "old", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD))
+        addRow(root, editField("New password", "new1", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD))
+        addRow(root, editField("Re-type new password", "new2", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD))
         currentForm = root
         showContent(scroll(root))
     }
 
+    private fun changePassword(old: String, newPassword: String) {
+        val token = SupabaseClient.userAccessToken
+        if (token.isNullOrBlank()) { legacyMessage("You are not signed in."); return }
+        // Supabase Auth does not accept an old password in the update-user endpoint.
+        // Re-authentication is therefore performed first; only then is the password changed.
+        val email = AppState.email
+        if (email.isBlank()) { legacyMessage("No existing password (?)"); return }
+        val body = JSONObject().put("email", email).put("password", old)
+        val verify = Request.Builder().url("${BuildConfig.SUPABASE_URL.trimEnd('/')}/auth/v1/token?grant_type=password")
+            .header("apikey", BuildConfig.SUPABASE_ANON_KEY).header("Content-Type", "application/json")
+            .post(body.toString().toRequestBody(jsonType)).build()
+        http.newCall(verify).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) = runOnUiThread { legacyMessage("Failed to update your password. Please try again later.") }
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                response.use {
+                    if (!it.isSuccessful) { runOnUiThread { legacyMessage("Existing password not correct.") }; return }
+                    updateAuthUser(JSONObject().put("password", newPassword)) { success ->
+                        runOnUiThread { legacyMessage(if (success) "Update complete. Your password has been changed." else "Failed to update your password. Please try again later.") }
+                    }
+                }
+            }
+        })
+    }
+
     private fun mobileScreen() {
-        prepareScreen("Change Mobile Number", "Save", "Back", onLeft = {
-            val input = currentForm?.findViewWithTag<EditText>("mobile")
-            val phone = input?.text?.toString()?.trim().orEmpty()
-            if (phone.length < 7) toast("Enter a valid mobile number")
-            else updateAuthUser(JSONObject().put("phone", phone))
+        prepareScreen("* Change mobile number", "Update", "Cancel", onLeft = {
+            val phone = currentForm?.findViewWithTag<EditText>("mobile")?.text?.toString()?.trim().orEmpty()
+            if (phone.length < 7) legacyMessage("Invalid format. Change cancelled.")
+            else if (phone == SessionStore.phone()) legacyMessage("The number you entered is your current mobile number. No change was made.")
+            else changeMobile(phone)
         })
         val root = container()
-        section(root, "Change Mobile Number")
-        addRow(root, editField("Mobile number", "mobile", InputType.TYPE_CLASS_PHONE))
+        section(root, "Change mobile number")
+        addRow(root, editField("Enter new number", "mobile", InputType.TYPE_CLASS_PHONE))
         currentForm = root
         showContent(scroll(root))
+    }
+
+    private fun changeMobile(phone: String) {
+        val token = SupabaseClient.userAccessToken
+        if (token.isNullOrBlank()) { legacyMessage("Failed to update your mobile number. Please try again later."); return }
+        updateAuthUser(JSONObject().put("phone", phone)) { success ->
+            runOnUiThread { legacyMessage(if (success) "* Change mobile number\n\nPlease wait while updating your mobile number.." else "Failed to update your mobile number. Please try again later.") }
+        }
     }
 
     private fun editField(hintText: String, fieldTag: String, type: Int): EditText = EditText(this).apply {
@@ -226,83 +246,41 @@ class LegacySettingsActivity : BaseChromeActivity() {
         })
     }
 
-    private fun offlineScreen() = toggleScreen("Offline Settings", listOf("Receive messages while offline", "Store offline messages", "Show offline status"), "offline")
-    private fun tonesScreen() = toggleScreen("Chatroom Tones", listOf("Chatroom message tone", "Private message tone", "Buddy online tone", "Room invitation tone", "Vibrate"), "tone")
+    private fun offlineScreen() = rows("Offline Settings", listOf("Available SMS", "Email"), listOf(
+        { togglePreference("offline_sms", "Available SMS") },
+        { togglePreference("offline_email", "Email") }
+    ), listOf("Receive messages via SMS when Uzzap is off.", "Forward messages to Email when Uzzap is off."))
 
-    private fun batteryScreen() {
+    private fun tonesScreen() {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val enabled = prefs.getBoolean("battery_saving", false)
-        rows("Battery Saving", listOf("Background activity", "What it does"), listOf(
-            {
-                prefs.edit().putBoolean("battery_saving", !enabled).apply()
-                toast("Battery Saving: ${if (!enabled) "ON" else "OFF"}")
-            },
-            { toast("Reduces background polling and presence checks.") }
-        ), listOf(if (enabled) "ON" else "OFF", "Reduces background polling and presence checks."))
+        val enabled = prefs.getBoolean("chatroom_alert", true)
+        rows("* Chatroom Tones", listOf("Chatroom Tones"), listOf {
+            prefs.edit().putBoolean("chatroom_alert", !enabled).apply()
+            toast("Chatroom Tones: ${if (!enabled) "ON" else "OFF"}")
+        }, listOf(if (enabled) "ON" else "OFF"))
     }
 
-    private fun extendedMessagingScreen() = rows("Extended Messaging", listOf("Buddy List", "Add Buddy", "Groups", "Unread Messages"), listOf(
-        { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) },
-        { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) },
-        { toast("Groups are available from the Buddy List") },
-        { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }
-    ))
-
-    private fun instantMessagingScreen() = rows("Instant Messaging", listOf("Choose a buddy", "Back"), listOf(
-        { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) },
-        { finish() }
-    ))
-
-    private fun privacyScreen() = toggleScreen("Privacy", listOf("Allow buddy invitations", "Allow room invitations", "Show my online presence"), "privacy")
-
-    private fun subscriptionScreen() = rows("Subscription", listOf("Uzzap Subscription", "Back"), listOf(
-        { toast("Classic carrier subscription is not required for this Supabase build.") },
-        { finish() }
-    ))
-
-    private fun confirmDeleteAccount() {
-        AlertDialog.Builder(this)
-            .setTitle("Delete Account")
-            .setMessage("Are you sure you want to permanently delete your account?")
-            .setPositiveButton("Delete") { _, _ -> performAccountDeletion() }
-            .setNegativeButton("Cancel", null)
-            .show()
+    private fun togglePreference(key: String, label: String) {
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val next = !prefs.getBoolean(key, false)
+        prefs.edit().putBoolean(key, next).apply()
+        toast("$label: ${if (next) "ON" else "OFF"}")
     }
 
-    private fun performAccountDeletion() {
-        val progress = AlertDialog.Builder(this)
-            .setTitle("Deleting Account")
-            .setMessage("Please wait...")
-            .setCancelable(false)
-            .show()
-        SupabaseClient.deleteAccount { success ->
-            progress.dismiss()
-            Toast.makeText(this, if (success) "Account deleted successfully." else "Local account session cleared.", Toast.LENGTH_SHORT).show()
-            AppState.resetSession()
-            SessionStore.clear()
-            startActivity(Intent(this, SplashMenuActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            })
-            finish()
-        }
-    }
-
-    private fun updateAuthUser(payload: JSONObject) {
+    private fun updateAuthUser(payload: JSONObject, onResult: (Boolean) -> Unit = {}) {
         val token = SupabaseClient.userAccessToken
-        if (token.isNullOrBlank()) { toast("You are not signed in"); return }
-        val request = Request.Builder()
-            .url("${BuildConfig.SUPABASE_URL.trimEnd('/')}/auth/v1/user")
-            .header("apikey", BuildConfig.SUPABASE_ANON_KEY)
-            .header("Authorization", "Bearer $token")
-            .header("Content-Type", "application/json")
-            .patch(payload.toString().toRequestBody(jsonType))
-            .build()
+        if (token.isNullOrBlank()) { onResult(false); return }
+        val request = Request.Builder().url("${BuildConfig.SUPABASE_URL.trimEnd('/')}/auth/v1/user")
+            .header("apikey", BuildConfig.SUPABASE_ANON_KEY).header("Authorization", "Bearer $token")
+            .header("Content-Type", "application/json").patch(payload.toString().toRequestBody(jsonType)).build()
         http.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) = runOnUiThread { toast("Update failed") }
-            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                response.use { runOnUiThread { toast(if (it.isSuccessful) "Updated successfully" else "Update rejected: HTTP ${it.code}") } }
-            }
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) = onResult(false)
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) { response.use { onResult(it.isSuccessful) } }
         })
+    }
+
+    private fun legacyMessage(message: String) {
+        J2mePopup.showMessage(this, "", message)
     }
 
     private fun open(mode: String) = startActivity(intent(this, mode))
@@ -310,12 +288,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun showTopOptions() {
-        J2mePopup.show(this, listOf(
-            PopupItem("Settings"),
-            PopupItem("Themes"),
-            PopupItem("Notifications"),
-            PopupItem("Back")
-        )) { index ->
+        J2mePopup.show(this, listOf(PopupItem("Settings"), PopupItem("Themes"), PopupItem("Notifications"), PopupItem("Back"))) { index ->
             when (index) {
                 0 -> open(MODE_SETTINGS)
                 1 -> startActivity(UzzapParityActivity.intent(this, UzzapParityActivity.MODE_THEMES))
@@ -334,11 +307,6 @@ class LegacySettingsActivity : BaseChromeActivity() {
         const val MODE_MOBILE = "mobile"
         const val MODE_OFFLINE = "offline"
         const val MODE_TONES = "tones"
-        const val MODE_BATTERY = "battery"
-        const val MODE_EM = "em"
-        const val MODE_IM = "im"
-        const val MODE_PRIVACY = "privacy"
-        const val MODE_SUBSCRIPTION = "subscription"
         fun intent(context: android.content.Context, mode: String) = Intent(context, LegacySettingsActivity::class.java).apply { putExtra(EXTRA_MODE, mode) }
     }
 }
