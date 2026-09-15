@@ -56,7 +56,7 @@ class AppGridActivity : BaseChromeActivity() {
     override fun onResume() { super.onResume(); handler.post(tickRunnable) }
     override fun onPause() { super.onPause(); handler.removeCallbacks(tickRunnable) }
     private fun openWelcome() = startActivity(Intent(this, WelcomeActivity::class.java))
-    private fun openParity(mode: String, room: String? = null, buddy: String? = null) = startActivity(UzzapParityActivity.intent(this, mode, room, buddy)
+    private fun openParity(mode: String, room: String? = null, buddy: String? = null) = startActivity(UzzapParityActivity.intent(this, mode, room, buddy))
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
     private fun toggleSilentMode() {
