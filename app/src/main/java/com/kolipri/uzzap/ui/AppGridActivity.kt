@@ -28,10 +28,11 @@ class AppGridActivity : BaseChromeActivity() {
         showConnectedBall(true)
         setSoftkeys(getString(R.string.softkey_options), getString(R.string.softkey_exit), onLeft = { showOptionsMenu() }, onRight = { showExitMenu() })
         val footer = findViewById<TextView>(R.id.tv_footer_feature_name)
+        val settingsIcon = findViewById<ImageView>(R.id.icon_settings)
         findViewById<ImageView>(R.id.icon_u).setOnClickListener { footer.text = "Subscription"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SUBSCRIPTION)) }
         findViewById<ImageView>(R.id.icon_matching).setOnClickListener { footer.text = "Buddy Matching"; toast("Automatic Buddy Matching is not supported on this device.") }
         findViewById<ImageView>(R.id.icon_addbuddy).setOnClickListener { footer.text = "Add / Invite Buddies"; startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }
-        findViewById<ImageView>(R.id.icon_settings).setOnClickListener { footer.text = "Settings"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SETTINGS)) }
+        settingsIcon.setOnClickListener { footer.text = "Settings"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SETTINGS)) }
         findViewById<ImageView>(R.id.icon_ringtone).setOnClickListener { footer.text = "Silent Mode"; toggleSilentMode() }
         findViewById<ImageView>(R.id.icon_themes).setOnClickListener { footer.text = "Themes"; openParity(UzzapParityActivity.MODE_THEMES) }
         findViewById<ImageView>(R.id.icon_help).setOnClickListener { footer.text = "Help"; startActivity(SimpleTextActivity.intentForAsset(this, "Help", "help.txt")) }
@@ -40,12 +41,13 @@ class AppGridActivity : BaseChromeActivity() {
         findViewById<ImageView>(R.id.icon_im).setOnClickListener { footer.text = "Instant Messaging"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_IM)) }
         findViewById<ImageView>(R.id.icon_chat).setOnClickListener { footer.text = "Chat Rooms"; startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_CHAT)) }
         findViewById<ImageView>(R.id.icon_profile).setOnClickListener { footer.text = "Change Status"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_STATUS)) }
-        ModeratorRoleClient.refresh()
-        if (AppState.isModerator) {
-            footer.text = "Moderator Console"
-            findViewById<ImageView>(R.id.icon_settings).setOnLongClickListener {
-                startActivity(ModeratorActivity.intent(this))
-                true
+        ModeratorRoleClient.refresh { role ->
+            if (role == "moderator" || role == "admin") {
+                footer.text = "Moderator Console"
+                settingsIcon.setOnLongClickListener {
+                    startActivity(ModeratorActivity.intent(this))
+                    true
+                }
             }
         }
         if (!AppState.firstLoginShown) { AppState.firstLoginShown = true; handler.postDelayed({ openWelcome() }, 300) }
@@ -54,7 +56,7 @@ class AppGridActivity : BaseChromeActivity() {
     override fun onResume() { super.onResume(); handler.post(tickRunnable) }
     override fun onPause() { super.onPause(); handler.removeCallbacks(tickRunnable) }
     private fun openWelcome() = startActivity(Intent(this, WelcomeActivity::class.java))
-    private fun openParity(mode: String, room: String? = null, buddy: String? = null) = startActivity(UzzapParityActivity.intent(this, mode, room, buddy))
+    private fun openParity(mode: String, room: String? = null, buddy: String? = null) = startActivity(UzzapParityActivity.intent(this, mode, room, buddy)
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
     private fun toggleSilentMode() {
