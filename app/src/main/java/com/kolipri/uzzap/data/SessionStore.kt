@@ -8,7 +8,6 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.SecretKeySpec
 
 /** Small encrypted session store. Passwords are never persisted. */
 object SessionStore {
@@ -20,6 +19,7 @@ object SessionStore {
     private const val EMAIL = "email"
     private const val NICKNAME = "nickname"
     private const val ROLE = "role"
+    private const val PHONE = "phone"
 
     private lateinit var prefs: android.content.SharedPreferences
 
@@ -79,7 +79,12 @@ object SessionStore {
     fun expiresAtMs(): Long = if (::prefs.isInitialized) prefs.getLong(EXPIRES_AT, 0L) else 0L
     fun email(): String = if (::prefs.isInitialized) prefs.getString(EMAIL, "").orEmpty() else ""
     fun nickname(): String = if (::prefs.isInitialized) prefs.getString(NICKNAME, "").orEmpty() else ""
+    fun phone(): String = if (::prefs.isInitialized) prefs.getString(PHONE, "").orEmpty() else ""
     fun role(): String = if (::prefs.isInitialized) prefs.getString(ROLE, "user").orEmpty() else "user"
+
+    fun savePhone(phone: String) {
+        if (::prefs.isInitialized) prefs.edit().putString(PHONE, phone).apply()
+    }
 
     fun clear() {
         if (::prefs.isInitialized) prefs.edit().clear().apply()
