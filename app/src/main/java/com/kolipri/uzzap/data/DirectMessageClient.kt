@@ -99,7 +99,7 @@ object DirectMessageClient {
     }
 
     fun sendMessage(me: String, buddy: String, body: String, onResult: (DirectMessage?) -> Unit) {
-        sendMessage(me, buddy, body, onResult) { }
+        sendMessage(me, buddy, body, onResult) { main.post { onResult(null) } }
     }
 
     fun sendMessage(me: String, buddy: String, body: String, onResult: (DirectMessage?) -> Unit, onError: (String) -> Unit) {
@@ -110,8 +110,6 @@ object DirectMessageClient {
         if (clean.length > 2000) { main.post { onError("Message is too long (maximum 2000 characters).") }; return }
         if (buddy.isBlank()) { main.post { onError("Recipient is missing.") }; return }
 
-        // Always use the username belonging to the authenticated account. The UI's `me`
-        // value is display state and must never be trusted for the RLS-protected sender field.
         resolveCurrentUser(myId) { senderProfile ->
             if (senderProfile == null) {
                 main.post { onError("Your account profile could not be resolved. Please sign out and sign in again.") }
