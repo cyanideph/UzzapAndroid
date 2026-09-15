@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.InputType
+import android.text.method.ScrollingMovementMethod
 import android.util.Patterns
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -16,6 +17,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
+import com.kolipri.uzzap.data.CrashDiagnostics
 import com.kolipri.uzzap.data.NicknameResolver
 import com.kolipri.uzzap.data.PasswordRecoveryClient
 import com.kolipri.uzzap.data.SupabaseClient
@@ -36,6 +38,26 @@ class SplashMenuActivity : BaseChromeActivity() {
         loadSession()
         renderMenu()
         verifySession()
+        showCrashReportIfPresent()
+    }
+
+    private fun showCrashReportIfPresent() {
+        val report = CrashDiagnostics.read(this) ?: return
+        val text = TextView(this).apply {
+            text = report
+            textSize = 12f
+            setTextIsSelectable(true)
+            movementMethod = ScrollingMovementMethod()
+            setPadding(20, 10, 20, 10)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Previous Crash Captured")
+            .setMessage("Uzzap saved the last crash so it can be diagnosed without a computer. You can copy the report below and send it to me.")
+            .setView(text)
+            .setPositiveButton("Keep Report", null)
+            .setNeutralButton("Clear") { _, _ -> CrashDiagnostics.clear(this) }
+            .setNegativeButton("Exit") { _, _ -> finishAffinity() }
+            .show()
     }
 
     override fun onResume() {
@@ -151,11 +173,7 @@ class SplashMenuActivity : BaseChromeActivity() {
         loading?.show()
     }
 
-    private fun hideLoading() {
-        loading?.dismiss()
-        loading = null
-    }
-
+    private fun hideLoading() { loading?.dismiss(); loading = null }
     private fun validEmail(value: String) = value.isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(value).matches()
 
     private fun saveSession(email: String, nick: String, token: String) {
@@ -165,11 +183,7 @@ class SplashMenuActivity : BaseChromeActivity() {
         AppState.authToken = token
         SupabaseClient.setAccessTokenForLegacy(token)
         getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit()
-            .putBoolean("session_active", true)
-            .putString("email", email)
-            .putString("nickname", nick)
-            .putString("auth_token", token)
-            .apply()
+            .putBoolean("session_active", true).putString("email", email).putString("nickname", nick).putString("auth_token", token).apply()
     }
 
     private fun onLogin() {
@@ -245,10 +259,6 @@ class SplashMenuActivity : BaseChromeActivity() {
 
     private fun showBackendInfo() = AlertDialog.Builder(this).setTitle("Supabase Backend").setMessage("Host: ${SupabaseClient.supabaseUrl}\n\nStatus: ${SupabaseClient.connectionStatus}\n\nSession: ${if (sessionActive()) "Authenticated as ${AppState.nickname}" else "Signed out"}").setPositiveButton("OK", null).show()
     private fun openHelp() = startActivity(SimpleTextActivity.intentForAsset(this, "Help", "help.txt"))
-    private fun openAbout() = AlertDialog.Builder(this)
-        .setTitle("About Uzzap")
-        .setMessage("UZZAP\n\nModern Recreation by CY\n\nA modern Android/Kotlin recreation of the classic Nokia/J2ME Uzzap mobile chat experience.\n\nDeveloped by CY using Android/Kotlin and Supabase.\n\nThis is an independent, unofficial recreation. The original Nokia/J2ME Uzzap application, its decompiled source, historical assets and trademarks are separate materials and are not claimed as original CY work. See NOTICE.md for attribution and licensing details.\n\n© 2026 CY")
-        .setPositiveButton("Close", null)
-        .show()
+    private fun openAbout() = AlertDialog.Builder(this).setTitle("About Uzzap").setMessage("UZZAP\n\nModern Recreation by CY\n\nA modern Android/Kotlin recreation of the classic Nokia/J2ME Uzzap mobile chat experience.\n\nDeveloped by CY using Android/Kotlin and Supabase.\n\nThis is an independent, unofficial recreation. The original Nokia/J2ME Uzzap application, its decompiled source, historical assets and trademarks are separate materials and are not claimed as original CY work. See NOTICE.md for attribution and licensing details.\n\n© 2026 CY").setPositiveButton("Close", null).show()
     override fun onDestroy() { hideLoading(); super.onDestroy() }
 }
