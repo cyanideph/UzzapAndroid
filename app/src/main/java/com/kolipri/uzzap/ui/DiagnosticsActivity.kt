@@ -117,13 +117,13 @@ class DiagnosticsActivity : BaseChromeActivity() {
         addButton(filterRow, "START") { setFilter("STARTED") }
         root.addView(filterRow)
 
-        // Put the full event log first and give it most of the available height.
-        // This makes the actual timestamped, scrolling diagnostic stream immediately visible.
         root.addView(text("EVENT LOG • LIVE / SCROLLABLE", 12f, true).apply {
             setPadding(dp(4), dp(8), dp(4), dp(5))
         })
         logView = text("", 11f).apply {
             typeface = Typeface.MONOSPACE
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.rgb(18, 22, 27))
             setTextIsSelectable(true)
             setPadding(dp(12), dp(12), dp(12), dp(24))
             setLineSpacing(0f, 1.15f)
@@ -131,6 +131,7 @@ class DiagnosticsActivity : BaseChromeActivity() {
         logScroll = ScrollView(this).apply {
             isFillViewport = true
             isVerticalScrollBarEnabled = true
+            setBackgroundColor(Color.rgb(18, 22, 27))
             addView(logView, ViewGroup.LayoutParams(-1, -2))
         }
         root.addView(logScroll, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -199,7 +200,7 @@ class DiagnosticsActivity : BaseChromeActivity() {
     }
 
     private fun render() {
-        if (!::summaryView.isInitialized || !::healthView.isInitialized || !::logView.isInitialized) return
+        if (!::summaryView.isInitialized || !::healthView.isInitialized || !::logView.isInitialized || !::logScroll.isInitialized) return
         val crash = CrashDiagnostics.read(this)
         val authenticated = !SupabaseClient.userAccessToken.isNullOrBlank()
         summaryView.text = buildString {
