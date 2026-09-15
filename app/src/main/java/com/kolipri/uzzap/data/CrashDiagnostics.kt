@@ -13,10 +13,15 @@ object CrashDiagnostics {
 
     fun install(context: Context) {
         val appContext = context.applicationContext
+        AppDiagnostics.info(appContext, "CrashDiagnostics", "Crash handler installed")
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            try { write(appContext, thread, throwable) }
-            catch (writeError: Throwable) { Log.e(TAG, "Unable to persist crash report", writeError) }
+            try {
+                AppDiagnostics.exception(appContext, "UNCAUGHT_EXCEPTION", throwable)
+                write(appContext, thread, throwable)
+            } catch (writeError: Throwable) {
+                Log.e(TAG, "Unable to persist crash report", writeError)
+            }
             previous?.uncaughtException(thread, throwable)
         }
     }
