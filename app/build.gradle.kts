@@ -12,8 +12,8 @@ android {
         applicationId = "com.kolipri.uzzap"
         minSdk = 23
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.0-beta.4"
+        versionCode = 5
+        versionName = "1.0-beta.5"
 
         // Client-side Supabase configuration.
         // Only the publishable/anon key belongs in an Android client.
@@ -25,11 +25,11 @@ android {
             if (envFile.exists()) envFile.inputStream().use { load(it) }
         }
 
-        val defaultSupabaseUrl = "https://hrjgblvxhtbopuyzyasu.supabase.co"
+        // This is the active Uzzap Supabase project. Local/CI configuration
+        // can override it with -PSUPABASE_URL or SUPABASE_URL.
+        val defaultSupabaseUrl = "https://fnnvajxveklmgjnxstrq.supabase.co"
         val defaultSupabaseAnonKey = ""
 
-        // Prefer the current Supabase publishable key. Keep ANON_KEY as a
-        // backwards-compatible fallback for older local/CI configurations.
         val projectSupabaseUrl = providers.gradleProperty("SUPABASE_URL").orNull
         val projectSupabasePublishableKey = providers.gradleProperty("SUPABASE_PUBLISHABLE_KEY").orNull
         val projectSupabaseAnonKey = providers.gradleProperty("SUPABASE_ANON_KEY").orNull
@@ -55,14 +55,10 @@ android {
             "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
         buildConfigField("String", "SUPABASE_URL", quoteBuildConfig(supabaseUrl))
-        // Existing source code uses SUPABASE_ANON_KEY; populate it with the
-        // preferred publishable key so the whole app uses the new credential.
         buildConfigField("String", "SUPABASE_ANON_KEY", quoteBuildConfig(supabaseKey))
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoteBuildConfig(supabaseKey))
     }
 
-    // Release signing is supplied only by CI/local environment variables.
-    // No keystore or signing password is committed to the repository.
     val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
     val releaseKeystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
     val releaseKeyAlias = System.getenv("ANDROID_KEY_ALIAS")

@@ -3,17 +3,10 @@ package com.kolipri.uzzap.data
 import android.os.Handler
 import android.os.Looper
 import com.kolipri.uzzap.BuildConfig
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
-import java.net.URLEncoder
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
@@ -22,82 +15,77 @@ data class BuddyPresence(val username: String, val isOnline: Boolean, val lastSe
 object PresenceClient {
     private const val ONLINE_WINDOW_SECONDS = 35L
     private val main = Handler(Looper.getMainLooper())
-    private val http = OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(10, TimeUnit.SECONDS).writeTimeout(10, TimeUnit.SECONDS).build()
+    private val http = OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(10, TimeUnit.SECONDS).build()
     private val url = BuildConfig.SUPABASE_URL.trimEnd('/')
     private val key = BuildConfig.SUPABASE_ANON_KEY
-    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+    private val json = "application/json; charset=utf-8".toMediaType()
 
-    private fun req(path: String) = Request.Builder().url("$url$path")
+    private fun req(path: String) = Request.Builder()
+        .url("$url$path")
         .header("apikey", key)
         .header("Authorization", "Bearer ${SupabaseClient.userAccessToken.orEmpty()}")
         .header("Content-Type", "application/json")
 
-    /** Updates only the signed-in user's row; no exposed SECURITY DEFINER RPC is required. */
     fun heartbeat(isOnline: Boolean = true) {
-        val token = SupabaseClient.userAccessToken
-        val username = currentUsername()
-        if (token.isNullOrBlank() || username.isNullOrBlank()) return
-        val encoded = URLEncoder.encode(username.lowercase().replace(" ", "_"), "UTF-8")
-        val body = JSONObject().put("is_online", isOnline).put("last_seen", Instant.now().toString())
-        http.newCall(req("/rest/v1/profiles?username=eq.$encoded").patch(body.toString().toRequestBody(jsonMediaType)).build()).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) = Unit
+        http.newCall(req("/rest/v1/rpc/set_presence")
+            .post(JSONObject().put("p_status", if (isOnline) "online" else "offline").toString().toRequestBody(json))
+            .build()).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) { }
             override fun onResponse(call: Call, response: Response) { response.close() }
         })
     }
 
     fun fetch(username: String, onResult: (BuddyPresence?) -> Unit) {
-        if (SupabaseClient.userAccessToken.isNullOrBlank()) { main.post { onResult(null) }; return }
-        val u = URLEncoder.encode(username.lowercase().replace(" ", "_"), "UTF-8")
-        val path = "/rest/v1/profiles?username=eq.$u&select=username,is_online,last_seen,status&limit=1"
-        http.newCall(req(path).get().build()).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { main.post { onResult(null) } }
+        http.newCall(req("/rest/v1/rpc/get_user_presence")
+            .post(JSONObject().put("p_username", username).toString().toRequestBody(json))
+            .build()).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                main.post { onResult(null) }
+            }
+
             override fun onResponse(call: Call, response: Response) {
                 response.use {
-                    if (!it.isSuccessful) { main.post { onResult(null) }; return }
-                    val p = runCatching {
-                        val o = JSONArray(it.body?.string().orEmpty()).optJSONObject(0) ?: return@runCatching null
-                        val lastSeen = o.optString("last_seen")
-                        val recent = runCatching { Instant.parse(lastSeen).isAfter(Instant.now().minusSeconds(ONLINE_WINDOW_SECONDS)) }.getOrDefault(false)
-                        BuddyPresence(o.optString("username"), o.optBoolean("is_online") && recent, lastSeen, o.optString("status", "Available"))
-                    }.getOrNull()
-                    main.post { onResult(p) }
+                    if (!it.isSuccessful) {
+                        main.post { onResult(null) }
+                        return
+                    }
+                    runCatching {
+                        val array = JSONArray(it.body?.string().orEmpty())
+                        val obj = array.optJSONObject(0) ?: return@runCatching null
+                        val last = obj.optString("last_seen")
+                        val recent = runCatching {
+                            Instant.parse(last).isAfter(Instant.now().minusSeconds(ONLINE_WINDOW_SECONDS))
+                        }.getOrDefault(false)
+                        BuddyPresence(
+                            obj.optString("username"),
+                            obj.optBoolean("is_online") && recent,
+                            last,
+                            obj.optString("status", "offline")
+                        )
+                    }.onSuccess { presence ->
+                        main.post { onResult(presence) }
+                    }.onFailure {
+                        main.post { onResult(null) }
+                    }
                 }
             }
         })
     }
 
     fun fetchMultiple(usernames: List<String>, onResult: (Map<String, BuddyPresence>) -> Unit) {
-        if (usernames.isEmpty() || SupabaseClient.userAccessToken.isNullOrBlank()) {
+        val distinct = usernames.distinct()
+        if (distinct.isEmpty()) {
             main.post { onResult(emptyMap()) }
             return
         }
-        val encodedList = usernames.map { URLEncoder.encode(it.lowercase().replace(" ", "_"), "UTF-8") }.joinToString(",")
-        val path = "/rest/v1/profiles?username=in.($encodedList)&select=username,is_online,last_seen,status"
-        http.newCall(req(path).get().build()).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { main.post { onResult(emptyMap()) } }
-            override fun onResponse(call: Call, response: Response) {
-                response.use {
-                    if (!it.isSuccessful) { main.post { onResult(emptyMap()) }; return }
-                    val map = runCatching {
-                        val arr = JSONArray(it.body?.string().orEmpty())
-                        val now = Instant.now()
-                        buildMap<String, BuddyPresence> {
-                            for (i in 0 until arr.length()) {
-                                val o = arr.getJSONObject(i)
-                                val uname = o.optString("username")
-                                val lastSeen = o.optString("last_seen")
-                                val recent = runCatching {
-                                    Instant.parse(lastSeen).isAfter(now.minusSeconds(ONLINE_WINDOW_SECONDS))
-                                }.getOrDefault(false)
-                                put(uname.lowercase(), BuddyPresence(uname, o.optBoolean("is_online") && recent, lastSeen, o.optString("status", "Available")))
-                            }
-                        }
-                    }.getOrDefault(emptyMap())
-                    main.post { onResult(map) }
-                }
+        val results = java.util.concurrent.ConcurrentHashMap<String, BuddyPresence>()
+        var remaining = distinct.size
+        for (username in distinct) {
+            fetch(username) { presence ->
+                if (presence != null) results[presence.username.lowercase()] = presence
+                remaining--
+                if (remaining == 0) main.post { onResult(results) }
             }
-        })
+        }
     }
-
-    private fun currentUsername(): String? = AppState.username.takeIf { it.isNotBlank() && it != "unknown-user" }
 }
