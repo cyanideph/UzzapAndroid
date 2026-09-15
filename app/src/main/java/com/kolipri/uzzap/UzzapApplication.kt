@@ -17,6 +17,7 @@ import com.kolipri.uzzap.data.SessionStore
 import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.data.UzzapNotificationManager
 import com.kolipri.uzzap.data.verifySession
+import com.kolipri.uzzap.model.Presence
 
 class UzzapApplication : Application(), DefaultLifecycleObserver {
     private val handler = Handler(Looper.getMainLooper())
@@ -28,7 +29,7 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
                 handler.postDelayed(this, 10_000L)
                 return
             }
-            runCatching { PresenceClient.heartbeat(AppState.presence != AppState.Presence.INVISIBLE) }
+            runCatching { PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE) }
                 .onFailure { AppDiagnostics.exception(this@UzzapApplication, "Presence", it) }
             runCatching {
                 PrivateMessageStateClient.fetchUnread(AppState.username) { unread ->
