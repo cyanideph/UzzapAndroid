@@ -65,17 +65,25 @@ class AppGridActivity : BaseChromeActivity() {
         val items = mutableListOf<PopupItem>()
         if (isMod) items.add(PopupItem("🛡️ Moderator Console"))
         if (isAdmin) items.add(PopupItem("👑 Moderator Management"))
-        items.addAll(listOf(PopupItem("Lock Keypad"), PopupItem("Log Off"), PopupItem("Intro Help Screen"), PopupItem("About Uzzap"), PopupItem("Exit Application")))
+        items.addAll(listOf(
+            PopupItem("✉️ Room Invitations"),
+            PopupItem("Lock Keypad"),
+            PopupItem("Log Off"),
+            PopupItem("Intro Help Screen"),
+            PopupItem("About Uzzap"),
+            PopupItem("Exit Application")
+        ))
         J2mePopup.show(this, items) { index ->
             var i = index
             if (isMod) { if (i == 0) { startActivity(ModeratorActivity.intent(this)); return@show }; i-- }
             if (isAdmin) { if (i == 0) { startActivity(ModeratorManagementActivity.intent(this)); return@show }; i-- }
             when (i) {
-                0 -> showLockKeypad()
-                1 -> confirmLogout()
-                2 -> openWelcome()
-                3 -> showAbout()
-                4 -> showExitMenu()
+                0 -> startActivity(Intent(this, RoomInvitationsActivity::class.java))
+                1 -> showLockKeypad()
+                2 -> confirmLogout()
+                3 -> openWelcome()
+                4 -> showAbout()
+                5 -> showExitMenu()
             }
         }
     }
