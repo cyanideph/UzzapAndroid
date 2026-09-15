@@ -12,8 +12,8 @@ android {
         applicationId = "com.kolipri.uzzap"
         minSdk = 23
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0-beta.2"
+        versionCode = 3
+        versionName = "1.0-beta.3"
 
         // Client-side Supabase configuration.
         // Only the publishable/anon key belongs in an Android client.
@@ -29,13 +29,20 @@ android {
             }
         }
 
+        // These are safe client-side values. They are deliberately kept as a
+        // deterministic fallback so a CI/local build cannot produce an APK
+        // with empty Supabase configuration when .env files are absent.
+        val defaultSupabaseUrl = "https://hrjgblvxhtbopuyzyasu.supabase.co"
+        val defaultSupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyamdibHZ4aHRib3B1eXp5YXN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMzMzOTcsImV4cCI6MjEwNDkwOTM5N30.Ms5NsNsJCykVjr7CiX-IwigAYoHfG1nxysTA_oRb9MA"
+
         val supabaseUrl = (System.getenv("SUPABASE_URL")
-            ?: envProps.getProperty("SUPABASE_URL", "")).orEmpty().trimEnd('/')
+            ?: envProps.getProperty("SUPABASE_URL", defaultSupabaseUrl))
+            .orEmpty().trimEnd('/').ifBlank { defaultSupabaseUrl }
         val supabasePublishableKey = System.getenv("SUPABASE_PUBLISHABLE_KEY")
             ?: envProps.getProperty("SUPABASE_PUBLISHABLE_KEY", "")
         val supabaseAnonKey = System.getenv("SUPABASE_ANON_KEY")
-            ?: envProps.getProperty("SUPABASE_ANON_KEY", "")
-        val supabaseClientKey = supabasePublishableKey.ifBlank { supabaseAnonKey }
+            ?: envProps.getProperty("SUPABASE_ANON_KEY", defaultSupabaseAnonKey)
+        val supabaseClientKey = supabasePublishableKey.ifBlank { supabaseAnonKey }.ifBlank { defaultSupabaseAnonKey }
 
         fun quoteBuildConfig(value: String): String =
             "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
