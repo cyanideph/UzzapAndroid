@@ -101,7 +101,9 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         messageAdapter.onMessageLongClickListener = { message ->
             if (AppState.isModerator && message.id > 0) showModeratorMessageActions(message)
         }
-        layoutManager = LinearLayoutManager(requireContext())
+        layoutManager = LinearLayoutManager(requireContext()).apply {
+            stackFromEnd = true
+        }
         messageList.layoutManager = layoutManager
         messageList.adapter = messageAdapter
         messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -238,8 +240,17 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
     }
 
     private fun scrollToLatest() {
+        if (!::messageList.isInitialized || !::messageAdapter.isInitialized) return
         messageList.post {
-            if (messageAdapter.itemCount > 0) messageList.scrollToPosition(messageAdapter.itemCount - 1)
+            val last = messageAdapter.itemCount - 1
+            if (last >= 0) {
+                layoutManager.scrollToPositionWithOffset(last, Int.MIN_VALUE)
+                messageList.post {
+                    if (messageAdapter.itemCount > 0) {
+                        layoutManager.scrollToPositionWithOffset(messageAdapter.itemCount - 1, Int.MIN_VALUE)
+                    }
+                }
+            }
         }
     }
 
@@ -362,27 +373,22 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
             val targets = (members ?: emptyList()).filter { !it.equals(AppState.nickname, true) }
             if (!isAdded) return@fetchParticipants
             if (targets.isEmpty()) {
-                Toast.makeText(requireContext(), "No other room members are online.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "No other room members available.", Toast.LENGTH_SHORT).show()
                 return@fetchParticipants
             }
-            AlertDialog.Builder(requireContext()).setTitle("Whisper to").setItems(targets.toTypedArray()) { _, which -> startActivity(PrivateChatActivity.intent(requireContext(), targets[which])) }.setNegativeButton("Cancel", null).show()
+            AlertDialog.Builder(requireContext()).setTitle("Whisper in $roomName").setItems(targets.toTypedArray()) { _, which ->
+                val target = targets[which]
+                val input = EditText(requireContext()).apply { hint = "Whisper to $target" }
+                AlertDialog.Builder(requireContext()).setTitle("Whisper to $target").setView(input).setPositiveButton("Send") { _, _ ->
+                    val text = input.text.toString().trim()
+                    if (text.isNotEmpty()) UnifiedRoomClient.sendMessage(roomName, text) {}
+                }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
+            }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
         }
-    }
-
-    override fun onDestroyView() {
-        AppDiagnostics.info(requireContext(), "Room.lifecycle", "destroy room=$roomName")
-        SupabaseRealtimeClient.removeRoomMessageListener(realtimeListener)
-        stopPolling()
-        joinedSuccessfully = false
-        historyLoadInFlight = false
-        isLoadingHistory = false
-        super.onDestroyView()
     }
 
     companion object {
-        private const val ARG_ROOM = "arg_room"
-        fun newInstance(roomName: String) = ChatRoomFragment().apply {
-            arguments = Bundle().apply { putString(ARG_ROOM, roomName) }
-        }
+        private const val ARG_ROOM = "room"
+        fun newInstance(roomName: String) = ChatRoomFragment().apply { arguments = Bundle().apply { putString(ARG_ROOM, roomName) } }
     }
 }
