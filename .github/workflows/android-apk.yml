@@ -36,24 +36,37 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
+      - name: Validate Supabase client key
+        env:
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "SUPABASE_PUBLISHABLE_KEY GitHub Actions secret is missing."
+            exit 1
+          fi
+          case "$SUPABASE_PUBLISHABLE_KEY" in
+            sb_publishable_*) echo "Supabase publishable key is configured." ;;
+            *) echo "SUPABASE_PUBLISHABLE_KEY does not look like a current Supabase publishable key."; exit 1 ;;
+          esac
+
       - name: Run unit tests
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           ./gradlew :app:testDebugUnitTest \
             -PSUPABASE_URL="${SUPABASE_URL}" \
-            -PSUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" \
+            -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" \
             --stacktrace
 
       - name: Build debug APK
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           ./gradlew :app:assembleDebug \
             -PSUPABASE_URL="${SUPABASE_URL}" \
-            -PSUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" \
+            -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" \
             --stacktrace
 
       - name: Upload APK artifact
