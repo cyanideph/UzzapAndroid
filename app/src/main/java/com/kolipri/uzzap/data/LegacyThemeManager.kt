@@ -18,18 +18,7 @@ object LegacyThemeManager {
     const val ROSES = "roses"
     const val UZZAP = "uzzap"
 
-    data class Theme(
-        val id: String,
-        val displayName: String,
-        val background: Int,
-        val surface: Int,
-        val primary: Int,
-        val secondary: Int,
-        val text: Int,
-        val special: Int,
-        val onPrimary: Int,
-        val defaultAssetNamespace: String = DEFAULT
-    )
+    data class Theme(val id: String, val displayName: String, val background: Int, val surface: Int, val primary: Int, val secondary: Int, val text: Int, val special: Int, val onPrimary: Int, val defaultAssetNamespace: String = DEFAULT)
 
     private val defaultTheme = Theme(DEFAULT, "Default", Color.WHITE, Color.WHITE, Color.rgb(0xDF, 0xDF, 0xDF), Color.rgb(0x0D, 0x0C, 0xAF), Color.BLACK, Color.rgb(0xAF, 0x0C, 0x0D), Color.WHITE)
     private val uzzapTheme = Theme(UZZAP, "Uzzap / Reptilian", Color.rgb(0xF9, 0xF9, 0xF9), Color.rgb(0xF9, 0xF9, 0xF9), Color.rgb(0x8E, 0xEF, 0x04), Color.rgb(0x05, 0x74, 0x1D), Color.BLACK, Color.rgb(0xAF, 0x0C, 0x0D), Color.BLACK, UZZAP)
@@ -41,18 +30,15 @@ object LegacyThemeManager {
     )
 
     fun themes(): List<Theme> = listOf(defaultTheme, uzzapTheme) + fallbackThemes
-
     fun current(context: Context): Theme {
         val id = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_THEME, UZZAP).orEmpty()
         return themes().firstOrNull { it.id == id } ?: uzzapTheme
     }
-
     fun select(context: Context, id: String) {
         val safe = themes().firstOrNull { it.id == id }?.id ?: UZZAP
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_THEME, safe).apply()
         AppState.themeName = safe
     }
-
     fun assetPath(theme: Theme, assetName: String): String = "themes/${theme.defaultAssetNamespace}/$assetName"
     fun fallbackAssetPath(assetName: String): String = "themes/$DEFAULT/$assetName"
 
@@ -73,9 +59,10 @@ object LegacyThemeManager {
         root.findViewById<TextView>(R.id.btn_right)?.setTextColor(theme.onPrimary)
     }
 
+    /** Flat legacy surface: no rounded Material cards, no elevation. */
     fun cardBackground(theme: Theme): GradientDrawable = GradientDrawable().apply {
         setColor(theme.surface)
-        cornerRadius = 14f
+        cornerRadius = 0f
         setStroke(1, theme.primary)
     }
 }
