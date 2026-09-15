@@ -1,10 +1,7 @@
 package com.kolipri.uzzap.ui
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -12,8 +9,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
-import androidx.core.app.ActivityCompat
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentTransaction
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
@@ -28,7 +23,7 @@ class ChatHostActivity:BaseChromeActivity(){
     private val buddyFragment=BuddyListFragment();private val roomsFragment=ChatRoomsFragment();private val roomFragments=linkedMapOf<String,ChatRoomFragment>();private val joinedRooms=mutableListOf<String>();private val handledInvitationIds=mutableSetOf<Long>();private var currentTab=0;private var selectedRoomName:String?=null;private val handler=Handler(Looper.getMainLooper());private var monitoring=false
     private val notificationPoll=object:Runnable{override fun run(){if(!monitoring||isFinishing)return;PresenceClient.heartbeat(AppState.presence!=com.kolipri.uzzap.model.Presence.INVISIBLE);PrivateMessageStateClient.fetchUnread(AppState.username){state->if(!isFinishing&&!isDestroyed&&state!=null&&state.count>0)UzzapNotificationManager.notifyPrivateMessages(this@ChatHostActivity,state.count,state.senders)};RoomInvitationClient.fetchPending(AppState.username){invitations->if(isFinishing||isDestroyed)return@fetchPending;val pending=invitations?.firstOrNull{!handledInvitationIds.contains(it.id)};if(pending!=null){handledInvitationIds.add(pending.id);AlertDialog.Builder(this@ChatHostActivity).setTitle("Room Invitation").setMessage("${pending.inviterUsername} invited you to join '${pending.roomName}' chatroom.\nWould you like to join?").setPositiveButton("Join"){_,_->RoomInvitationClient.respond(pending.id,true){};openRoom(pending.roomName)}.setNegativeButton("Decline"){_,_->RoomInvitationClient.respond(pending.id,false){}}.setNeutralButton("Later",null).show()}};handler.postDelayed(this,8000)}}
     override fun contentLayoutRes():Int?=null
-    override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);UzzapNotificationManager.initialize(this);if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)ActivityCompat.requestPermissions(this,arrayOf(Manifest.permission.POST_NOTIFICATIONS),NOTIFICATION_PERMISSION_REQUEST);showConnectedBall(true);showTabStrip(true);supportFragmentManager.beginTransaction().add(R.id.content_frame,buddyFragment,TAG_BUDDY).add(R.id.content_frame,roomsFragment,TAG_ROOMS).hide(roomsFragment).commitNow();currentTab=if(intent.getStringExtra(EXTRA_MODE)==MODE_CHAT)1 else 0;applyVisibility();renderTabs();/* Fragment.onViewCreated()/onResume will call setupScreen after view fields are initialized. */onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){when{currentTab>=ROOM_TAB_START->confirmLeaveSelectedRoom();currentTab==1&&roomsFragment.onBackPressed()->Unit;currentTab==1&&intent.getStringExtra(EXTRA_MODE)==MODE_CHAT->finish();currentTab==1->goToBuddyList();else->finish()}}})}
+    override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);UzzapNotificationManager.initialize(this);showConnectedBall(true);showTabStrip(true);supportFragmentManager.beginTransaction().add(R.id.content_frame,buddyFragment,TAG_BUDDY).add(R.id.content_frame,roomsFragment,TAG_ROOMS).hide(roomsFragment).commitNow();currentTab=if(intent.getStringExtra(EXTRA_MODE)==MODE_CHAT)1 else 0;applyVisibility();renderTabs();onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){when{currentTab>=ROOM_TAB_START->confirmLeaveSelectedRoom();currentTab==1&&roomsFragment.onBackPressed()->Unit;currentTab==1&&intent.getStringExtra(EXTRA_MODE)==MODE_CHAT->finish();currentTab==1->goToBuddyList();else->finish()}}})}
     override fun onResume(){super.onResume();monitoring=true;SupabaseRealtimeClient.start();handler.removeCallbacks(notificationPoll);handler.post(notificationPoll)}
     override fun onPause(){monitoring=false;handler.removeCallbacks(notificationPoll);PresenceClient.heartbeat(false);super.onPause()}
     override fun onDestroy(){monitoring=false;handler.removeCallbacksAndMessages(null);PresenceClient.heartbeat(false);joinedRooms.forEach{RoomPresenceClient.leave(it,AppState.nickname)};AppState.joinedRooms.clear();SupabaseRealtimeClient.stop();super.onDestroy()}
@@ -44,5 +39,5 @@ class ChatHostActivity:BaseChromeActivity(){
     private fun addIconTab(icon:Int,index:Int,description:String){val iv=ImageView(this);val size=(34*resources.displayMetrics.density).toInt();iv.layoutParams=LinearLayout.LayoutParams(size,size).apply{marginEnd=(4*resources.displayMetrics.density).toInt()};iv.setImageResource(icon);iv.setBackgroundResource(R.drawable.tab_bg_selector);iv.isSelected=index==currentTab;iv.contentDescription=description;iv.setPadding(4,4,4,4);iv.setOnClickListener{selectTab(index)};tabStripContainer.addView(iv)}
     private fun addRoomIconTab(index:Int,roomName:String){val iv=ImageView(this);val size=(34*resources.displayMetrics.density).toInt();iv.layoutParams=LinearLayout.LayoutParams(size,size).apply{marginEnd=(4*resources.displayMetrics.density).toInt()};iv.setImageResource(R.drawable.d_chatrooms);iv.setBackgroundResource(R.drawable.tab_bg_selector);iv.isSelected=index==currentTab;iv.contentDescription="Joined room $roomName";iv.setPadding(4,4,4,4);iv.setOnClickListener{selectTab(index)};tabStripContainer.addView(iv)}
     private fun roomTag(roomName:String)=TAG_ROOM_PREFIX+roomName.hashCode()
-    companion object{const val MODE_EM="em";const val MODE_CHAT="chat";private const val EXTRA_MODE="extra_mode";private const val TAG_BUDDY="tab_buddy";private const val TAG_ROOMS="tab_rooms";private const val TAG_ROOM_PREFIX="tab_room_";private const val ROOM_TAB_START=2;private const val NOTIFICATION_PERMISSION_REQUEST=4107;fun intent(context:Context,mode:String):Intent=Intent(context,ChatHostActivity::class.java).putExtra(EXTRA_MODE,mode)}
+    companion object{const val MODE_EM="em";const val MODE_CHAT="chat";private const val EXTRA_MODE="extra_mode";private const val TAG_BUDDY="tab_buddy";private const val TAG_ROOMS="tab_rooms";private const val TAG_ROOM_PREFIX="tab_room_";private const val ROOM_TAB_START=2;fun intent(context:Context,mode:String):Intent=Intent(context,ChatHostActivity::class.java).putExtra(EXTRA_MODE,mode)}
 }
