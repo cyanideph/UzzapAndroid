@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
+import com.kolipri.uzzap.data.ModeratorRoleClient
 import com.kolipri.uzzap.ui.dialogs.J2mePopup
 import com.kolipri.uzzap.ui.dialogs.PopupItem
 import java.text.SimpleDateFormat
@@ -39,6 +40,7 @@ class AppGridActivity : BaseChromeActivity() {
         findViewById<ImageView>(R.id.icon_im).setOnClickListener { footer.text = "Instant Messaging"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_IM)) }
         findViewById<ImageView>(R.id.icon_chat).setOnClickListener { footer.text = "Chat Rooms"; startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_CHAT)) }
         findViewById<ImageView>(R.id.icon_profile).setOnClickListener { footer.text = "Change Status"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_STATUS)) }
+        ModeratorRoleClient.refresh()
         if (AppState.isModerator) {
             footer.text = "Moderator Console"
             findViewById<ImageView>(R.id.icon_settings).setOnLongClickListener {
