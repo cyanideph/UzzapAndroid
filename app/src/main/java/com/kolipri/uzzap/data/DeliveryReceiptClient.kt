@@ -22,16 +22,13 @@ object DeliveryReceiptClient {
     private fun currentUserId(): String? = SupabaseClient.userAccessToken?.let { token -> runCatching { val p = token.split('.').getOrNull(1) ?: return@runCatching null; val b = Base64.decode(p, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING); JSONObject(String(b, StandardCharsets.UTF_8)).optString("sub").ifBlank { null } }.getOrNull() }
 
     fun fetchRecent(onResult: (List<DeliveryReceipt>?) -> Unit) {
+        val fn = "ReadReceipts.fetchRecent"; AppDiagnostics.started(fn)
         val me = currentUserId()
-        if (me.isNullOrBlank()) { main.post { onResult(null) }; return }
+        if (me.isNullOrBlank()) { AppDiagnostics.failed(fn, "Missing authenticated user"); main.post { onResult(null) }; return }
         val path = "/rest/v1/direct_messages?sender_id=eq.$me&select=recipient,body,created_at,is_read&order=id.desc&limit=200"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { main.post { onResult(null) } }
-            override fun onResponse(call: Call, response: Response) { response.use {
-                if (!it.isSuccessful) { main.post { onResult(null) }; return }
-                val result = runCatching { val a = JSONArray(it.body?.string().orEmpty()); List(a.length()) { i -> val o = a.getJSONObject(i); DeliveryReceipt(o.optString("recipient"), o.optString("body"), o.optString("created_at"), o.optBoolean("is_read")) } }.getOrNull()
-                main.post { onResult(result) }
-            } }
+            override fun onFailure(call: Call, e: IOException) { AppDiagnostics.failed(fn, e.message ?: "Network error"); main.post { onResult(null) } }
+            override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { AppDiagnostics.failed(fn, "HTTP ${it.code}: ${it.message}"); main.post { onResult(null) }; return }; val result = runCatching { val a = JSONArray(it.body?.string().orEmpty()); List(a.length()) { i -> val o = a.getJSONObject(i); DeliveryReceipt(o.optString("recipient"), o.optString("body"), o.optString("created_at"), o.optBoolean("is_read")) } }.getOrNull(); if (result != null) AppDiagnostics.success(fn, "${result.size} receipts") else AppDiagnostics.failed(fn, "Invalid response JSON"); main.post { onResult(result) } } }
         })
     }
 }
