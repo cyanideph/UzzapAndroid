@@ -28,14 +28,6 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
             PrivateMessageStateClient.fetchUnread(AppState.username) { unread ->
                 if (foreground && unread != null) {
                     val active = AppState.activeChatBuddy
-                    val relevantIndexes = if (active != null) {
-                        unread.senders.mapIndexedNotNull { index, sender ->
-                            if (!sender.equals(active, ignoreCase = true)) index else null
-                        }
-                    } else unread.senders.indices
-
-                    // countsBySender is the authoritative count; messageIds are used
-                    // only for notification deduplication and may be empty on older data.
                     val relevantSenders = if (active != null) {
                         unread.senders.filter { !it.equals(active, ignoreCase = true) }
                     } else unread.senders
