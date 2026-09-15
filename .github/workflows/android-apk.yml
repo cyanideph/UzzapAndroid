@@ -7,6 +7,7 @@ on:
       - feature/uzzap-parity
       - fix/keyboard-chatroom-composer
       - fix/gradle-source-patching
+      - fix/unified-supabase-functions
   pull_request:
     branches:
       - main
@@ -19,56 +20,34 @@ jobs:
   build-apk:
     name: Build Debug APK
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
-
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
-
       - name: Validate Supabase client key
         env:
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
-          if [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
-            echo "SUPABASE_PUBLISHABLE_KEY GitHub Actions secret is missing."
-            exit 1
-          fi
-          case "$SUPABASE_PUBLISHABLE_KEY" in
-            sb_publishable_*) echo "Supabase publishable key is configured." ;;
-            *) echo "SUPABASE_PUBLISHABLE_KEY does not look like a current Supabase publishable key."; exit 1 ;;
-          esac
-
+          if [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then echo "SUPABASE_PUBLISHABLE_KEY GitHub Actions secret is missing."; exit 1; fi
+          case "$SUPABASE_PUBLISHABLE_KEY" in sb_publishable_*) echo "Supabase publishable key is configured." ;; *) echo "Invalid Supabase publishable key format."; exit 1 ;; esac
       - name: Run unit tests
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-        run: |
-          ./gradlew :app:testDebugUnitTest \
-            -PSUPABASE_URL="${SUPABASE_URL}" \
-            -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" \
-            --stacktrace
-
+        run: ./gradlew :app:testDebugUnitTest -PSUPABASE_URL="${SUPABASE_URL}" -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" --stacktrace
       - name: Build debug APK
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-        run: |
-          ./gradlew :app:assembleDebug \
-            -PSUPABASE_URL="${SUPABASE_URL}" \
-            -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" \
-            --stacktrace
-
+        run: ./gradlew :app:assembleDebug -PSUPABASE_URL="${SUPABASE_URL}" -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" --stacktrace
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
