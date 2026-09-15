@@ -20,66 +20,57 @@ android {
         // Never put a service-role/secret key in the APK.
         val envProps = Properties().apply {
             val envExample = rootProject.file(".env.example")
-            if (envExample.exists()) {
-                envExample.inputStream().use { load(it) }
-            }
+            if (envExample.exists()) envExample.inputStream().use { load(it) }
             val envFile = rootProject.file(".env")
-            if (envFile.exists()) {
-                envFile.inputStream().use { load(it) }
-            }
+            if (envFile.exists()) envFile.inputStream().use { load(it) }
         }
 
-        val defaultSupabaseUrl =
-            "https://hrjgblvxhtbopuyzyasu.supabase.co"
-        val defaultSupabaseAnonKey =
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyamdibHZ4aHRib3B1eXp5YXN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMzMzOTcsImV4cCI6MjEwNDkwOTM5N30.Ms5NsNsJCykVjr7CiX-IwigAYoHfG1nxysTA_oRb9MA"
+        val defaultSupabaseUrl = "https://hrjgblvxhtbopuyzyasu.supabase.co"
+        val defaultSupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyamdibHZ4aHRib3B1eXp5YXN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMzMzOTcsImV4cCI6MjEwNDkwOTM5N30.Ms5NsNsJCykVjr7CiX-IwigAYoHfG1nxysTA_oRb9MA"
 
         // Priority: -P Gradle property > environment variable > .env files > fallback.
-        val projectSupabaseUrl =
-            providers.gradleProperty("SUPABASE_URL").orNull
-        val projectSupabaseAnonKey =
-            providers.gradleProperty("SUPABASE_ANON_KEY").orNull
-
+        val projectSupabaseUrl = providers.gradleProperty("SUPABASE_URL").orNull
+        val projectSupabaseAnonKey = providers.gradleProperty("SUPABASE_ANON_KEY").orNull
         val envSupabaseUrl = System.getenv("SUPABASE_URL")
         val envSupabaseAnonKey = System.getenv("SUPABASE_ANON_KEY")
         val envSupabasePublishableKey = System.getenv("SUPABASE_PUBLISHABLE_KEY")
-
         val fileSupabaseUrl = envProps.getProperty("SUPABASE_URL")
         val fileSupabaseAnonKey = envProps.getProperty("SUPABASE_ANON_KEY")
         val fileSupabasePublishableKey = envProps.getProperty("SUPABASE_PUBLISHABLE_KEY")
 
-        val supabaseUrl =
-            (projectSupabaseUrl
-                ?: envSupabaseUrl
-                ?: fileSupabaseUrl
-                ?: defaultSupabaseUrl)
-                .trim()
-                .trimEnd('/')
-                .ifBlank { defaultSupabaseUrl }
-
-        val supabaseAnonKey =
-            (projectSupabaseAnonKey
-                ?: envSupabaseAnonKey
-                ?: envSupabasePublishableKey
-                ?: fileSupabasePublishableKey
-                ?: fileSupabaseAnonKey
-                ?: defaultSupabaseAnonKey)
-                .trim()
-                .ifBlank { defaultSupabaseAnonKey }
+        val supabaseUrl = (projectSupabaseUrl ?: envSupabaseUrl ?: fileSupabaseUrl ?: defaultSupabaseUrl)
+            .trim().trimEnd('/').ifBlank { defaultSupabaseUrl }
+        val supabaseAnonKey = (projectSupabaseAnonKey
+            ?: envSupabaseAnonKey
+            ?: envSupabasePublishableKey
+            ?: fileSupabasePublishableKey
+            ?: fileSupabaseAnonKey
+            ?: defaultSupabaseAnonKey)
+            .trim().ifBlank { defaultSupabaseAnonKey }
 
         fun quoteBuildConfig(value: String): String =
             "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
-        buildConfigField(
-            "String",
-            "SUPABASE_URL",
-            quoteBuildConfig(supabaseUrl)
-        )
-        buildConfigField(
-            "String",
-            "SUPABASE_ANON_KEY",
-            quoteBuildConfig(supabaseAnonKey)
-        )
+        buildConfigField("String", "SUPABASE_URL", quoteBuildConfig(supabaseUrl))
+        buildConfigField("String", "SUPABASE_ANON_KEY", quoteBuildConfig(supabaseAnonKey))
+    }
+
+    // Release signing is supplied only by CI/local environment variables.
+    // No keystore or signing password is committed to the repository.
+    val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+    val releaseKeystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+    val releaseKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
+    val releaseKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+
+    if (!releaseKeystorePath.isNullOrBlank()) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -89,6 +80,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (!releaseKeystorePath.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
