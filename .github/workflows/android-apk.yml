@@ -2,9 +2,14 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main, feature/uzzap-parity, fix/keyboard-chatroom-composer, fix/gradle-source-patching]
+    branches:
+      - main
+      - feature/uzzap-parity
+      - fix/keyboard-chatroom-composer
+      - fix/gradle-source-patching
   pull_request:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -34,9 +39,12 @@ jobs:
       - name: Build debug APK
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: ./gradlew :app:assembleDebug --stacktrace
+        run: |
+          ./gradlew :app:assembleDebug \
+            -PSUPABASE_URL="${SUPABASE_URL}" \
+            -PSUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" \
+            --stacktrace
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
