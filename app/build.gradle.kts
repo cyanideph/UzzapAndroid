@@ -25,9 +25,9 @@ android {
             if (envFile.exists()) envFile.inputStream().use { load(it) }
         }
 
-        // This is the active Uzzap Supabase project. Local/CI configuration
-        // can override it with -PSUPABASE_URL or SUPABASE_URL.
-        val defaultSupabaseUrl = "https://fnnvajxveklmgjnxstrq.supabase.co"
+        // Production/source-of-truth Uzzap database: KOTLINJARZAP.
+        // Local/CI configuration can override it with -PSUPABASE_URL or SUPABASE_URL.
+        val defaultSupabaseUrl = "https://hrjgblvxhtbopuyzyasu.supabase.co"
         val defaultSupabaseAnonKey = ""
 
         val projectSupabaseUrl = providers.gradleProperty("SUPABASE_URL").orNull
