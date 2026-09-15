@@ -6,6 +6,7 @@ import android.widget.TextView
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.SupabaseClient
+import com.kolipri.uzzap.data.verifySession
 
 class WelcomeActivity : BaseChromeActivity() {
 
