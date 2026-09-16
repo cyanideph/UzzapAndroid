@@ -110,7 +110,6 @@ fun SupabaseClient.signUpWithEmail(email: String, password: String, nickname: St
                         if (profile.username.isBlank()) error("Account created but profile provisioning was not completed")
                         SupabaseAuthCompat.handler().post { callback(true, access, null) }
                     } else {
-                        // Supabase created the account but requires email confirmation. The auth trigger still provisions the profile.
                         SupabaseAuthCompat.handler().post { callback(true, null, "Account created. Please confirm your email, then log in.") }
                     }
                 }.onFailure { e -> SupabaseAuthCompat.handler().post { callback(false, null, e.message ?: "Invalid registration response") } }
@@ -144,9 +143,18 @@ fun SupabaseClient.verifySession(token: String, callback: (Boolean, String?, Str
 
 fun SupabaseClient.upsertProfile(username: String, nickname: String, email: String?, status: String, statusMessage: String, avatar: String, isOnline: Boolean) {
     val token = SupabaseClient.userAccessToken ?: return
-    val body = JSONObject().put("username", username).put("nickname", nickname).put("status", status).put("status_message", statusMessage).put("avatar", avatar).put("is_online", isOnline).put("last_seen", utcNow())
+    val encodedUsername = URLEncoder.encode(username.trim(), "UTF-8")
+    val body = JSONObject().put("nickname", nickname).put("status", status).put("status_message", statusMessage).put("avatar", avatar).put("is_online", isOnline).put("last_seen", utcNow())
     if (!email.isNullOrBlank()) body.put("email", email)
-    SupabaseAuthCompat.client().newCall(SupabaseAuthCompat.request("/rest/v1/profiles?on_conflict=id", true).header("Authorization", "Bearer $token").header("Prefer", "resolution=merge-duplicates").post(body.toString().toRequestBody("application/json; charset=utf-8".toMediaType())).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { Log.w("SupabaseAuthCompat", "Profile sync failed", e) }; override fun onResponse(call: Call, response: Response) { response.close() } })
+    val request = SupabaseAuthCompat.request("/rest/v1/profiles?username=eq.$encodedUsername", true)
+        .header("Authorization", "Bearer $token")
+        .header("Prefer", "return=minimal")
+        .patch(body.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+        .build()
+    SupabaseAuthCompat.client().newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) { Log.w("SupabaseAuthCompat", "Profile sync failed", e) }
+        override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) Log.w("SupabaseAuthCompat", "Profile sync HTTP ${it.code}") } }
+    })
 }
 
 fun SupabaseClient.signOut() {
