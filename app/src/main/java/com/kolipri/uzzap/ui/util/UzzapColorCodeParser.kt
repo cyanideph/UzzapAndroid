@@ -7,16 +7,17 @@ import android.text.style.ForegroundColorSpan
 
 /** Renders Uzzap [cNN] inline color controls. Raw markup remains stored in Supabase. */
 object UzzapColorCodeParser {
+    // Integer ARGB constants keep JVM unit tests independent of Android Color.rgb().
     private val colors = mapOf(
-        1 to Color.BLACK, 2 to Color.rgb(0, 150, 0), 3 to Color.RED, 4 to Color.BLUE,
-        5 to Color.rgb(190, 170, 0), 6 to Color.rgb(255, 140, 0), 7 to Color.rgb(128, 0, 128),
-        8 to Color.rgb(255, 105, 180), 9 to Color.GRAY, 10 to Color.WHITE, 11 to Color.CYAN,
-        12 to Color.MAGENTA, 13 to Color.rgb(0, 255, 0), 14 to Color.rgb(212, 175, 55), 15 to Color.rgb(139, 69, 19),
-        16 to Color.rgb(0, 0, 128), 17 to Color.rgb(135, 206, 235), 18 to Color.rgb(138, 43, 226),
-        19 to Color.rgb(0, 128, 128), 20 to Color.rgb(128, 0, 0), 21 to Color.rgb(128, 128, 0),
-        22 to Color.rgb(192, 192, 192), 23 to Color.rgb(255, 127, 80), 24 to Color.rgb(64, 224, 208),
-        25 to Color.rgb(75, 0, 130), 26 to Color.rgb(220, 20, 60), 27 to Color.rgb(0, 100, 0),
-        28 to Color.rgb(0, 0, 139), 29 to Color.rgb(255, 20, 147), 30 to Color.rgb(255, 69, 0)
+        1 to Color.BLACK, 2 to 0xFF009600.toInt(), 3 to Color.RED, 4 to Color.BLUE,
+        5 to 0xFFBEAA00.toInt(), 6 to 0xFFFF8C00.toInt(), 7 to 0xFF800080.toInt(),
+        8 to 0xFFFF69B4.toInt(), 9 to Color.GRAY, 10 to Color.WHITE, 11 to Color.CYAN,
+        12 to Color.MAGENTA, 13 to 0xFF00FF00.toInt(), 14 to 0xFFD4AF37.toInt(), 15 to 0xFF8B4513.toInt(),
+        16 to 0xFF000080.toInt(), 17 to 0xFF87CEEB.toInt(), 18 to 0xFF8A2BE2.toInt(),
+        19 to 0xFF008080.toInt(), 20 to 0xFF800000.toInt(), 21 to 0xFF808000.toInt(),
+        22 to 0xFFC0C0C0.toInt(), 23 to 0xFFFF7F50.toInt(), 24 to 0xFF40E0D0.toInt(),
+        25 to 0xFF4B0082.toInt(), 26 to 0xFFDC143C.toInt(), 27 to 0xFF006400.toInt(),
+        28 to 0xFF00008B.toInt(), 29 to 0xFFFF1493.toInt(), 30 to 0xFFFF4500.toInt()
     )
 
     fun colorFor(code: Int): Int? = colors[code]
