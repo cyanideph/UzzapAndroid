@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - phase-1-core-chat
+      - phase-2-auth-notifications-sync
       - feature/uzzap-parity
       - feature/deep-implementation-fixes
       - fix/keyboard-chatroom-composer
