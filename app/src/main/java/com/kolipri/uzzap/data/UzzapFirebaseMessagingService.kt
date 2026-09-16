@@ -16,24 +16,41 @@ class UzzapFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
         val data = remoteMessage.data
-        val rawSender = data["sender"] ?: remoteMessage.notification?.title ?: "Uzzap"
-        val cleanSender = rawSender.removePrefix("Message from ").trim()
-        val body = data["body"] ?: remoteMessage.notification?.body ?: "New private message"
+        val type = data["type"] ?: "private_message"
+        val sender = (data["sender"] ?: remoteMessage.notification?.title ?: "Uzzap")
+            .removePrefix("Message from ")
+            .removePrefix("Buddy request from ")
+            .removePrefix("Room invitation from ")
+            .trim()
+        val body = data["body"] ?: remoteMessage.notification?.body ?: ""
+        val eventId = data["event_id"]?.toLongOrNull()
 
-        // Avoid intrusive alert if user is actively in conversation with this buddy
-        val activeBuddy = AppState.activeChatBuddy
-        if (activeBuddy != null && activeBuddy.equals(cleanSender, ignoreCase = true)) {
-            Log.d(TAG, "Message received from active chat buddy $cleanSender; playing subtle sound")
-            UzzapNotificationManager.playAlertSound(applicationContext)
-            return
+        when (type) {
+            "private_message" -> {
+                val activeBuddy = AppState.activeChatBuddy
+                if (activeBuddy != null && activeBuddy.equals(sender, ignoreCase = true)) {
+                    Log.d(TAG, "Message received from active chat buddy $sender; playing subtle sound")
+                    UzzapNotificationManager.playAlertSound(applicationContext)
+                    return
+                }
+                UzzapNotificationManager.notifyPrivateMessages(
+                    context = applicationContext,
+                    count = 1,
+                    senders = listOf(sender),
+                    messageIds = listOfNotNull(eventId),
+                    customBody = body.ifBlank { "New private message" }
+                )
+            }
+            "buddy_request" -> UzzapNotificationManager.notifyBuddyRequest(
+                applicationContext, sender, eventId, body
+            )
+            "room_invitation" -> UzzapNotificationManager.notifyRoomInvitation(
+                applicationContext, sender, data["room_name"].orEmpty(), eventId, body
+            )
+            else -> UzzapNotificationManager.notifyGeneric(
+                applicationContext, sender.ifBlank { "Uzzap" }, body.ifBlank { "You have a new Uzzap notification" }, eventId
+            )
         }
-
-        UzzapNotificationManager.notifyPrivateMessages(
-            context = applicationContext,
-            count = 1,
-            senders = listOf(cleanSender),
-            customBody = body
-        )
     }
 
     companion object {
