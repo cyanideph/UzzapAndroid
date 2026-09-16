@@ -95,12 +95,9 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
             true
         }
         if (holder is SystemHolder) {
-            val text = if (message.sender.equals("uzzapbot", ignoreCase = true) && !message.body.startsWith("uzzapbot", ignoreCase = true)) {
-                "uzzapbot: ${message.body}"
-            } else {
-                message.body.ifEmpty { message.sender }
-            }
-            holder.text.text = renderFormatted(text, R.color.uzzap_special_blue)
+            // System/bot messages are deliberately rendered as pure system text:
+            // no sender prefix and no nickname formatting.
+            holder.text.text = EmoticonParser.parse(context, message.body, 15f)
         } else if (holder is NormalHolder) {
             holder.container.removeAllViews()
             holder.container.addView(TextView(context).apply {
@@ -117,7 +114,7 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
     /**
      * The database historically stored the canonical username in sender. For the
      * current user's own history, replace that legacy value with the authoritative
-     * editable nickname so old messages also immediately use the selected color.
+     * editable nickname.
      */
     private fun displaySender(sender: String): String {
         val currentUsername = AppState.username.trim()
