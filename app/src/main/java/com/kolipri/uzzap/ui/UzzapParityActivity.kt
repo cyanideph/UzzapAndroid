@@ -122,7 +122,7 @@ class UzzapParityActivity : BaseChromeActivity() {
         val nickname = EditText(this).apply {
             hint = "Nickname or [cNN] color markup"
             setText(AppState.nickname)
-            singleLine = true
+            isSingleLine = true
             maxLines = 1
             maxEms = 64
             setPadding(16, 12, 16, 12)
