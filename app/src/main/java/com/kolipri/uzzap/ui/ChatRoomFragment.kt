@@ -17,6 +17,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.AppState
@@ -37,6 +38,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
     private lateinit var messageList: RecyclerView
     private lateinit var messageAdapter: RoomMessageAdapter
     private lateinit var layoutManager: LinearLayoutManager
+    private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var etMessage: EditText
     private val host get() = requireActivity() as ChatHostActivity
     private val handler = Handler(Looper.getMainLooper())
@@ -120,6 +122,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        swipeRefresh = view.findViewById(R.id.room_swipe_refresh)
         messageList = view.findViewById(R.id.room_messages)
         messageAdapter = RoomMessageAdapter(requireContext())
         messageAdapter.onMessageLongClickListener = { message ->
@@ -128,6 +131,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         layoutManager = LinearLayoutManager(requireContext()).apply { stackFromEnd = true }
         messageList.layoutManager = layoutManager
         messageList.adapter = messageAdapter
+        swipeRefresh.setOnRefreshListener { refreshHistory(force = true, fromPull = true) }
         messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(r: RecyclerView, dx: Int, dy: Int) {
                 if (layoutManager.findFirstVisibleItemPosition() <= 2 && dy <= 0) loadOlderHistory()
@@ -215,29 +219,45 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         }
     }
 
-    private fun refreshHistory(force: Boolean = false) {
+    private fun refreshHistory(force: Boolean = false, fromPull: Boolean = false) {
         val now = System.currentTimeMillis()
-        if (!joinedSuccessfully || historyLoadInFlight) return
+        if (!joinedSuccessfully || historyLoadInFlight) {
+            if (fromPull && ::swipeRefresh.isInitialized) swipeRefresh.isRefreshing = false
+            return
+        }
         if (!force && lastHistoryLoadAt > 0L && now - lastHistoryLoadAt < 1_500L) return
         historyLoadInFlight = true
         isLoadingHistory = true
-        val messages = AppState.messagesFor(roomName)
-        messages.clear()
-        messageAdapter.setItems(emptyList())
-        hasMoreHistory = true
+        if (fromPull && ::swipeRefresh.isInitialized) swipeRefresh.isRefreshing = true
+
+        val state = AppState.messagesFor(roomName)
+        val previousIds = state.filter { it.id > 0 }.map { it.id }.toSet()
         UnifiedRoomClient.fetchLatestMessages(roomName, 60) { remote ->
             historyLoadInFlight = false
             isLoadingHistory = false
+            if (::swipeRefresh.isInitialized) swipeRefresh.isRefreshing = false
             if (!isAdded) return@fetchLatestMessages
             if (remote == null) {
                 Toast.makeText(requireContext(), "Could not load room history.", Toast.LENGTH_SHORT).show()
                 return@fetchLatestMessages
             }
             lastHistoryLoadAt = System.currentTimeMillis()
-            messages.addAll(remote)
-            messageAdapter.setItems(remote)
+
+            // Never clear the local/realtime list before a REST refresh completes.
+            // Merge by database ID so a foreground/pull refresh cannot roll the UI back.
+            val merged = LinkedHashMap<Long, ChatMessage>()
+            state.filter { it.id > 0 }.forEach { merged[it.id] = it }
+            remote.filter { it.id > 0 }.forEach { merged[it.id] = it }
+            val localOnly = state.filter { it.id <= 0 }
+            val ordered = merged.values.sortedBy { it.id }
+            val finalMessages = localOnly + ordered
+
+            state.clear()
+            state.addAll(finalMessages)
+            messageAdapter.setItems(finalMessages)
             hasMoreHistory = remote.size >= 60
-            scrollToLatest()
+            if (remote.any { it.id > (previousIds.maxOrNull() ?: 0L) }) scrollToLatest()
+            else if (fromPull) scrollToLatest()
             startPolling()
         }
     }
@@ -348,7 +368,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
                 0 -> etMessage.requestFocus()
                 1 -> whisperDialog()
                 2 -> startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_MEMBERS, roomName))
-                3 -> AlertDialog.Builder(requireContext()).setTitle(roomName).setMessage("Province chatroom\nLive Supabase room\nMessages: ${AppState.messagesFor(roomName).size}").setPositiveButton("OK", null).show()
+                3 -> AlertDialog.Builder(requireContext()).setTitle(roomName).setMessage("Province chatroom\nLive room\nMessages: ${AppState.messagesFor(roomName).size}").setPositiveButton("OK", null).show()
                 4 -> startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_ACTIONS, roomName))
                 5 -> showReportDialog()
                 6 -> host.confirmLeaveRoom()
