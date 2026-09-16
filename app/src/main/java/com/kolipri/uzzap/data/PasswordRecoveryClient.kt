@@ -14,18 +14,22 @@ import java.util.concurrent.TimeUnit
 
 /** Password recovery flow for the native Android Uzzap client. */
 object PasswordRecoveryClient {
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private val jsonType = "application/json; charset=utf-8".toMediaType()
-    private val http = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
-        .build()
+    // Keep Android runtime initialization lazy so JVM unit tests can exercise
+    // deep-link validation without requiring a prepared Android Looper.
+    private val mainHandler by lazy(LazyThreadSafetyMode.NONE) { Handler(Looper.getMainLooper()) }
+    private val jsonType by lazy(LazyThreadSafetyMode.NONE) { "application/json; charset=utf-8".toMediaType() }
+    private val http by lazy(LazyThreadSafetyMode.NONE) {
+        OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .build()
+    }
 
     const val RESET_URI = "uzzap://auth/reset"
 
-    private val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
-    private val publishableKey = BuildConfig.SUPABASE_ANON_KEY
+    private val baseUrl by lazy(LazyThreadSafetyMode.NONE) { BuildConfig.SUPABASE_URL.trimEnd('/') }
+    private val publishableKey by lazy(LazyThreadSafetyMode.NONE) { BuildConfig.SUPABASE_ANON_KEY }
 
     fun sendResetEmail(email: String, onResult: (Boolean, String?) -> Unit) {
         val redirect = URLEncoder.encode(RESET_URI, "UTF-8")
