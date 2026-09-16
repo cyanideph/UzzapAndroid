@@ -14,18 +14,20 @@ import java.util.concurrent.TimeUnit
 
 /** Password recovery flow for the native Android Uzzap client. */
 object PasswordRecoveryClient {
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private val jsonType = "application/json; charset=utf-8".toMediaType()
-    private val http = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private val mainHandler by lazy(LazyThreadSafetyMode.NONE) { Handler(Looper.getMainLooper()) }
+    private val jsonType by lazy(LazyThreadSafetyMode.NONE) { "application/json; charset=utf-8".toMediaType() }
+    private val http by lazy(LazyThreadSafetyMode.NONE) {
+        OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .build()
+    }
 
     const val RESET_URI = "uzzap://auth/reset"
 
-    private val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
-    private val publishableKey = BuildConfig.SUPABASE_ANON_KEY
+    private val baseUrl by lazy(LazyThreadSafetyMode.NONE) { BuildConfig.SUPABASE_URL.trimEnd('/') }
+    private val publishableKey by lazy(LazyThreadSafetyMode.NONE) { BuildConfig.SUPABASE_ANON_KEY }
 
     fun sendResetEmail(email: String, onResult: (Boolean, String?) -> Unit) {
         val redirect = URLEncoder.encode(RESET_URI, "UTF-8")
@@ -55,14 +57,34 @@ object PasswordRecoveryClient {
         })
     }
 
-    /** Extracts the recovery access token delivered in the Android deep-link fragment. */
-    fun consumeRecoveryIntent(uri: Uri?): Boolean {
-        if (uri == null || uri.scheme != "uzzap" || uri.host != "auth" || uri.path != "/reset") return false
-        val fragment = uri.fragment.orEmpty()
+    /**
+     * JVM-safe validation of a recovery deep-link string. It deliberately does
+     * not touch Android Uri APIs, making the security rules testable in local
+     * unit tests as well as usable by Android runtime code.
+     */
+    fun isValidRecoveryLink(link: String?): Boolean {
+        if (link.isNullOrBlank() || link.length > 8192) return false
+        val separator = link.indexOf('#')
+        if (separator <= 0 || separator == link.lastIndex) return false
+        val base = link.substring(0, separator)
+        val fragment = link.substring(separator + 1)
+        if (base != RESET_URI || base.contains('?')) return false
+
         val values = parseParams(fragment)
         val type = values["type"].orEmpty()
         val access = values["access_token"].orEmpty()
-        if (type != "recovery" || access.isBlank()) return false
+        return type == "recovery" && access.isNotBlank() && access.length <= 4096
+    }
+
+    /** Android entry point; converts the intent URI to the pure validator input. */
+    fun isValidRecoveryIntent(uri: Uri?): Boolean =
+        uri != null && isValidRecoveryLink(uri.toString())
+
+    /** Extracts the recovery access token delivered in the Android deep-link fragment. */
+    fun consumeRecoveryIntent(uri: Uri?): Boolean {
+        if (!isValidRecoveryIntent(uri)) return false
+        val values = parseParams(uri?.fragment.orEmpty())
+        val access = values["access_token"].orEmpty()
         val refresh = values["refresh_token"].orEmpty()
         val expiresIn = values["expires_in"]?.toLongOrNull() ?: 3600L
         SupabaseClient.setAccessTokenForLegacy(access)
@@ -104,9 +126,12 @@ object PasswordRecoveryClient {
         value.split('&').forEach { pair ->
             if (pair.isBlank()) return@forEach
             val parts = pair.split('=', limit = 2)
-            val key = Uri.decode(parts[0])
-            val v = Uri.decode(parts.getOrElse(1) { "" })
+            val key = decode(parts[0])
+            val v = decode(parts.getOrElse(1) { "" })
             put(key, v)
         }
     }
+
+    private fun decode(value: String): String =
+        runCatching { java.net.URLDecoder.decode(value, "UTF-8") }.getOrDefault("")
 }
