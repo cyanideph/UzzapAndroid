@@ -1,6 +1,6 @@
 # Uzzap (Kotlin/Android recreation)
 
-**Uzzap v1.0-beta.6 (Build 6)** — a from-scratch Android/Kotlin modernization of the classic Uzzap mobile chat experience, **created by CY**.
+**Uzzap v1.0-beta.7 (Build 7)** — a from-scratch Android/Kotlin modernization of the classic Uzzap mobile chat experience, **created by CY**.
 
 The project preserves the classic Uzzap navigation, menus, icons, emoticons and chat-room flow while adding a modern Supabase backend, realtime messaging, private chat, push notifications, receipts, community controls and server-side moderation.
 
@@ -14,6 +14,7 @@ The project preserves the classic Uzzap navigation, menus, icons, emoticons and 
 - Persistent Supabase sessions
 - Token refresh and expired-session recovery
 - Profile creation/editing and avatar support
+- Text-only editable nicknames with nickname color-markup sanitization
 - Online/offline presence
 
 ### Philippine community rooms
@@ -26,6 +27,17 @@ The project preserves the classic Uzzap navigation, menus, icons, emoticons and 
 - Duplicate-message protection
 - Room message deletion
 - `uzzapbot` system/welcome messages
+- Pure centered system-style welcome rendering
+
+### Messaging and emoticons
+- 30 Uzzap message color codes (`c01` through `c30`)
+- Multiple color segments in a single message
+- Color codes are for messages only; nicknames remain text-only
+- Uzzap emoticon/emoji picker
+- Numbered Uzzap emoticons `11`-`20` and `47`
+- Legacy text emoticon rendering such as `:)`, `:D`, `:(`, `;)`, `:P` and `<3`
+- Color codes and emoticons can be combined in messages
+- Raw message markup remains compatible with Supabase storage
 
 ### Buddies and private chat
 - Buddy requests
@@ -57,6 +69,7 @@ The project preserves the classic Uzzap navigation, menus, icons, emoticons and 
 - Role hierarchy safeguards
 - Self-sanction and moderator-to-admin protections
 - Role-aware message deletion
+- Secure room message deletion
 - Server-side sanction materialization
 - Message rate limiting
 
@@ -82,23 +95,6 @@ The publishable/anon key is not a privilege boundary; PostgreSQL RLS and authent
 
 Apply every migration in filename order. If the repository is linked to the project, `supabase db push` can be used; otherwise apply the SQL files through the Supabase SQL Editor.
 
-Current migration sequence includes:
-
-1. `20260914010000_room_invitations.sql`
-2. `20260914020000_presence_unread_blocks_reports.sql`
-3. `20260914070000_add_presence_unread_safety_controls.sql`
-4. `20260914_direct_messages_realtime.sql`
-5. `20260914_harden_uzzap_auth_rls_profiles_presence.sql`
-6. `20260915090000_add_message_rate_limits.sql`
-7. `20260915150000_complete_uzzap_enforcement.sql`
-8. `20260915153000_moderation_warn_ban.sql`
-9. `20260915170000_security_performance_hardening.sql`
-10. `20260915180000_user_fcm_tokens.sql`
-11. `20260915_moderator_room_and_management.sql`
-12. Phase 2 security/RLS cleanup
-13. Phase 3 room-invitation push trigger
-14. Phase 4 moderation hardening
-
 Enable Email authentication in Supabase Auth and configure the Android build with `SUPABASE_URL` and `SUPABASE_ANON_KEY` (or the publishable-key equivalent).
 
 ## Build
@@ -117,8 +113,8 @@ The checked-in project targets **Gradle 9.3.1**, Android Gradle Plugin **9.1.1**
 ### Current app identity
 
 - Application ID: `com.cy.uzzap`
-- Version name: `1.0-beta.6`
-- Version code: `6`
+- Version name: `1.0-beta.7`
+- Version code: `7`
 - Release channel: Beta
 - Backend: Supabase Auth + PostgreSQL/RLS
 - Push: Firebase Cloud Messaging
@@ -143,9 +139,22 @@ The Docker build accepts client-safe Supabase configuration only. It does not ac
 
 The classic Uzzap visual language is intentionally retained while the Android implementation provides modern scrolling, dialogs, realtime updates, buddy/private-chat navigation, notification handling, moderation screens and diagnostics.
 
-The **About Uzzap** screen now reports the live application version/build and documents the current feature set and beta history.
+The **About Uzzap** screen reports the live application version/build and documents the current feature set and beta history.
 
 ## Version history
+
+### v1.0-beta.7 — September 2026
+- Added 30 Uzzap message color codes (`c01`-`c30`)
+- Added multi-color message rendering while keeping nicknames text-only
+- Added Uzzap emoticon/emoji picker
+- Added numbered emoticons `11`-`20` and `47`
+- Added legacy text emoticon rendering
+- Added pure system-style `uzzapbot` welcome messages
+- Hardened nickname sanitization and room sender identity
+- Added secure moderator/admin room message deletion
+- Fixed password recovery HTTP 405 update failure
+- Updated About Uzzap What's New and version history
+- Version code increased to 7
 
 ### v1.0-beta.6 — September 2026
 - Consolidated Phase 1 core chat reliability
@@ -172,7 +181,7 @@ The **About Uzzap** screen now reports the live application version/build and do
 
 ## Project status
 
-The current `main` branch contains the Phase 1–4 work: core chat reliability, authentication/sync hardening, notifications and moderation hardening. The app is still a **Beta** release and should receive additional integration/UI testing and production release-signing validation before public distribution.
+The current `main` branch contains the Phase 1–4 work plus the beta.7 messaging, emoticon, profile, welcome-system and moderation fixes. The app is still a **Beta** release and should receive additional integration/UI testing and production release-signing validation before public distribution.
 
 ## Before public release
 
