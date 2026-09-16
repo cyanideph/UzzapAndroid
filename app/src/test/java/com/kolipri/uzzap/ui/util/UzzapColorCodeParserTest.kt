@@ -10,7 +10,7 @@ class UzzapColorCodeParserTest {
         val result = UzzapColorCodeParser.parseMarkup("[c03 test]")
         assertEquals("test", result.text)
         assertEquals(1, result.ranges.size)
-        assertEquals(3, result.ranges[0].color)
+        assertEquals(UzzapColorCodeParser.colorFor(3), result.ranges[0].color)
     }
 
     @Test
