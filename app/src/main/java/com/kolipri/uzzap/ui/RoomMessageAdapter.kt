@@ -24,9 +24,25 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
     private val items = mutableListOf<ChatMessage>()
     var onMessageLongClickListener: ((ChatMessage) -> Unit)? = null
 
+    /**
+     * Replace the server snapshot without discarding messages that arrived through
+     * Realtime while the REST request was in flight. A foreground refresh must never
+     * make a newer message disappear just because the HTTP response was an older
+     * snapshot. Unsaved local messages (id == 0) are also retained until their send
+     * operation resolves.
+     */
     fun setItems(messages: List<ChatMessage>) {
+        val byId = linkedMapOf<Long, ChatMessage>()
+        val local = mutableListOf<ChatMessage>()
+        for (item in items) {
+            if (item.id > 0) byId[item.id] = item else local.add(item)
+        }
+        for (item in messages) {
+            if (item.id > 0) byId[item.id] = item else if (local.none { it == item }) local.add(item)
+        }
         items.clear()
-        items.addAll(messages)
+        items.addAll(byId.values.sortedBy { it.id })
+        items.addAll(local)
         notifyDataSetChanged()
     }
 
@@ -45,6 +61,7 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
     }
 
     fun add(message: ChatMessage) {
+        if (message.id > 0 && items.any { it.id == message.id }) return
         items.add(message)
         notifyItemInserted(items.lastIndex)
     }
@@ -95,8 +112,6 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
             true
         }
         if (holder is SystemHolder) {
-            // System/bot messages are deliberately rendered as pure system text:
-            // no sender prefix and no nickname formatting.
             holder.text.text = EmoticonParser.parse(context, message.body, 15f)
         } else if (holder is NormalHolder) {
             holder.container.removeAllViews()
@@ -111,11 +126,6 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
         }
     }
 
-    /**
-     * The database historically stored the canonical username in sender. For the
-     * current user's own history, replace that legacy value with the authoritative
-     * editable nickname.
-     */
     private fun displaySender(sender: String): String {
         val currentUsername = AppState.username.trim()
         val currentNickname = AppState.nickname.trim()
@@ -124,7 +134,6 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
         ) currentNickname else sender
     }
 
-    /** Apply Uzzap color markup first, then add legacy emoticon image spans without losing color spans. */
     private fun renderFormatted(value: String, defaultColorRes: Int): CharSequence {
         val defaultColor = ContextCompat.getColor(context, defaultColorRes)
         val colored = UzzapColorCodeParser.parse(value, defaultColor)
