@@ -13,8 +13,8 @@ android {
         applicationId = "com.cy.uzzap"
         minSdk = 23
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.0-beta.6"
+        versionCode = 7
+        versionName = "1.0-beta.7"
 
         // Client-side Supabase configuration.
         // Only the publishable/anon key belongs in an Android client.
