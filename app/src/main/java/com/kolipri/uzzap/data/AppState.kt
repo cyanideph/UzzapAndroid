@@ -49,6 +49,9 @@ object AppState {
 
     fun syncProfileToSupabase() {
         if (SupabaseClient.userAccessToken.isNullOrBlank()) return
+        // Keep the edited nickname in the encrypted local session too, otherwise a
+        // later session restore can silently replace the markup with the old value.
+        SessionStore.updateProfile(nickname, email)
         SupabaseClient.upsertProfile(
             username = username,
             nickname = nickname,
