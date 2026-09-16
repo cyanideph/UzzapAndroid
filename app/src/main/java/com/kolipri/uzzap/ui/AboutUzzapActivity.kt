@@ -59,7 +59,6 @@ class AboutUzzapActivity : BaseChromeActivity() {
         addText(root, "Beta 7 — Uzzap identity, colors and emoticons\n• Added all 30 Uzzap message color codes: c01-c30\n• Messages support color markup and multiple color segments\n• Nicknames remain text-only and keep the normal Uzzap nickname color\n• Added Uzzap emoticon/emoji picker\n• Added numbered emoticons 11-20 and 47\n• Numbered emoticon markers render as their actual Uzzap images\n• Added legacy text emoticon rendering such as :), :D, :(, ;), :P and <3\n• Color codes and emoticons can be used together in messages\n• Added pure centered UzzapBot system welcome messages\n• Hardened nickname sanitization and room sender identity\n• Added secure moderator/admin room message deletion\n• Fixed password recovery HTTP 405 update failure", 15, false)
 
         addHeading(root, "Version History")
-        addText(root, "Development history reconstructed from the current Android codebase and available repository history. Older beta entries describe the logical milestones of the modernization rather than claiming exact original release notes.", 14, false)
 
         addText(root, "v1.0-beta.1 — Foundation", 17, true)
         addText(root, "• Started the Android/Kotlin modernization of the Uzzap experience\n• Established the Android project structure and application identity\n• Built the first navigation, screen and shared UI foundations\n• Established the initial login, signup and profile direction\n• Began replacing the legacy client architecture with a maintainable Android codebase", 15, false)
@@ -89,9 +88,6 @@ class AboutUzzapActivity : BaseChromeActivity() {
 
         addHeading(root, "Build Information")
         addText(root, "Application ID: ${BuildConfig.APPLICATION_ID}\nBuild type: ${BuildConfig.BUILD_TYPE}\nTarget SDK: 36\nBackend: Supabase Auth + PostgreSQL/RLS\nPush: Firebase Cloud Messaging\nRelease channel: Beta", 14, false)
-
-        addHeading(root, "Project Note")
-        addText(root, "This Android project is a Kotlin modernization of the classic Uzzap chat experience. The beta timeline above is a reconstructed development narrative based on the features and repository history available in the current project; it is not presented as an exact archival changelog for releases whose original notes were not preserved.", 14, false)
 
         addText(root, "Uzzap • Created by CY", 14, true)
         return ScrollView(this).apply {
