@@ -11,7 +11,7 @@ object UzzapColorCodeParser {
         1 to Color.BLACK, 2 to Color.rgb(0, 150, 0), 3 to Color.RED, 4 to Color.BLUE,
         5 to Color.rgb(190, 170, 0), 6 to Color.rgb(255, 140, 0), 7 to Color.rgb(128, 0, 128),
         8 to Color.rgb(255, 105, 180), 9 to Color.GRAY, 10 to Color.WHITE, 11 to Color.CYAN,
-        12 to Color.MAGENTA, 13 to Color.LIME, 14 to Color.rgb(212, 175, 55), 15 to Color.rgb(139, 69, 19),
+        12 to Color.MAGENTA, 13 to Color.rgb(0, 255, 0), 14 to Color.rgb(212, 175, 55), 15 to Color.rgb(139, 69, 19),
         16 to Color.rgb(0, 0, 128), 17 to Color.rgb(135, 206, 235), 18 to Color.rgb(138, 43, 226),
         19 to Color.rgb(0, 128, 128), 20 to Color.rgb(128, 0, 0), 21 to Color.rgb(128, 128, 0),
         22 to Color.rgb(192, 192, 192), 23 to Color.rgb(255, 127, 80), 24 to Color.rgb(64, 224, 208),
