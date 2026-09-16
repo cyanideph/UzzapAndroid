@@ -32,6 +32,7 @@ object SupabaseRealtimeClient {
     private var shouldConnect = false
 
     private val roomListeners = CopyOnWriteArrayList<(ChatMessage, String) -> Unit>()
+    private val roomDeleteListeners = CopyOnWriteArrayList<(Long, String) -> Unit>()
     private val directListeners = CopyOnWriteArrayList<(DirectMessage) -> Unit>()
     private val connectionListeners = CopyOnWriteArrayList<(Boolean) -> Unit>()
 
@@ -76,6 +77,8 @@ object SupabaseRealtimeClient {
 
     fun addRoomMessageListener(l: (ChatMessage, String) -> Unit) { roomListeners.add(l) }
     fun removeRoomMessageListener(l: (ChatMessage, String) -> Unit) { roomListeners.remove(l) }
+    fun addRoomMessageDeletedListener(l: (Long, String) -> Unit) { roomDeleteListeners.add(l) }
+    fun removeRoomMessageDeletedListener(l: (Long, String) -> Unit) { roomDeleteListeners.remove(l) }
     fun addDirectMessageListener(l: (DirectMessage) -> Unit) { directListeners.add(l) }
     fun removeDirectMessageListener(l: (DirectMessage) -> Unit) { directListeners.remove(l) }
 
@@ -117,6 +120,10 @@ object SupabaseRealtimeClient {
     }
 
     private fun joinRealtimeTables(s: WebSocket) {
+        val accessToken = SupabaseClient.userAccessToken.orEmpty()
+        val authPayload = JSONObject().apply {
+            if (accessToken.isNotBlank()) put("access_token", accessToken)
+        }
         val roomChanges = JSONArray()
             .put(JSONObject().put("event", "INSERT").put("schema", "public").put("table", "room_messages"))
             .put(JSONObject().put("event", "UPDATE").put("schema", "public").put("table", "room_messages"))
@@ -125,7 +132,7 @@ object SupabaseRealtimeClient {
             JSONObject()
                 .put("topic", "realtime:public:room_messages")
                 .put("event", "phx_join")
-                .put("payload", JSONObject().put("config", JSONObject().put("postgres_changes", roomChanges)))
+                .put("payload", JSONObject().put("config", JSONObject().put("postgres_changes", roomChanges)).put("access_token", accessToken))
                 .put("ref", refs.incrementAndGet())
                 .toString()
         )
@@ -137,7 +144,7 @@ object SupabaseRealtimeClient {
             JSONObject()
                 .put("topic", "realtime:public:direct_messages")
                 .put("event", "phx_join")
-                .put("payload", JSONObject().put("config", JSONObject().put("postgres_changes", dmChanges)))
+                .put("payload", JSONObject().put("config", JSONObject().put("postgres_changes", dmChanges)).put("access_token", accessToken))
                 .put("ref", refs.incrementAndGet())
                 .toString()
         )
@@ -149,9 +156,26 @@ object SupabaseRealtimeClient {
             if (o.optString("event") != "postgres_changes") return
             val d = o.optJSONObject("payload")?.optJSONObject("data") ?: return
             val table = d.optString("table")
-            val rec = d.optJSONObject("record") ?: return
+            val changeType = d.optString("type", o.optString("type")).uppercase()
+            val rec = d.optJSONObject("record")
+            val old = d.optJSONObject("old_record")
+
             when (table) {
                 "room_messages" -> {
+                    if (changeType == "DELETE") {
+                        val rawId = old?.opt("id") ?: rec?.opt("id")
+                        val id = when (rawId) {
+                            is Number -> rawId.toLong()
+                            is String -> rawId.toLongOrNull() ?: MessageIdRegistry.register(rawId)
+                            else -> 0L
+                        }
+                        val roomName = (old?.optString("room_name") ?: rec?.optString("room_name")).orEmpty()
+                        if (id > 0 && roomName.isNotBlank()) {
+                            main.post { roomDeleteListeners.forEach { it(id, roomName) } }
+                        }
+                        return@runCatching
+                    }
+                    if (rec == null) return@runCatching
                     val rawId = rec.opt("id")
                     val id = when (rawId) {
                         is Number -> rawId.toLong()
@@ -169,6 +193,7 @@ object SupabaseRealtimeClient {
                     }
                 }
                 "direct_messages" -> {
+                    if (rec == null) return@runCatching
                     val rawId = rec.opt("id")
                     val id = when (rawId) {
                         is Number -> rawId.toLong()
