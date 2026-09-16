@@ -9,6 +9,8 @@
         <activity android:name=".ui.ResetPasswordActivity" android:exported="true" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle"><intent-filter><action android:name="android.intent.action.VIEW" /><category android:name="android.intent.category.DEFAULT" /><category android:name="android.intent.category.BROWSABLE" /><data android:scheme="uzzap" android:host="auth" android:path="/reset" /></intent-filter></activity>
         <activity android:name=".ui.ConnectingActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
         <activity android:name=".ui.AppGridActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
+        <activity android:name=".ui.CommunicationCenterActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
+        <activity android:name=".ui.ProfileActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
         <activity android:name=".ui.AboutUzzapActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
         <activity android:name=".ui.WelcomeActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
         <activity android:name=".ui.SimpleTextActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
