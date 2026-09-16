@@ -37,6 +37,13 @@ private fun String?.ifNullOrBlank(fallback: String): String = if (isNullOrBlank(
 private fun utcNow(): String = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(Date())
 private data class ProfileIdentity(val username: String, val nickname: String)
 
+/** Maps only backend-supported roles to client roles. Unknown/missing values are ordinary users. */
+internal fun normalizeApplicationRole(value: String?): String = when (value?.trim()?.lowercase(Locale.US)) {
+    "admin" -> "admin"
+    "moderator" -> "moderator"
+    else -> "user"
+}
+
 /** Resolves the authoritative application role from moderator_roles. */
 internal fun resolveApplicationRole(userId: String, token: String, callback: (String) -> Unit) {
     if (userId.isBlank() || token.isBlank()) { callback("user"); return }
@@ -58,11 +65,7 @@ internal fun resolveApplicationRole(userId: String, token: String, callback: (St
                 }
                 val role = runCatching {
                     val arr = JSONArray(raw)
-                    if (arr.length() == 0) "user" else when (arr.getJSONObject(0).optString("role").lowercase(Locale.US)) {
-                        "admin" -> "admin"
-                        "moderator" -> "moderator"
-                        else -> "user"
-                    }
+                    normalizeApplicationRole(if (arr.length() == 0) null else arr.getJSONObject(0).optString("role"))
                 }.getOrDefault("user")
                 SupabaseAuthCompat.handler().post { callback(role) }
             }
@@ -150,7 +153,7 @@ fun SupabaseClient.verifySession(token: String, callback: (Boolean, String?, Str
                         }
                     } else {
                         AppState.username = SessionStore.username().ifBlank { error("No saved username for this account") }; AppState.nickname = SessionStore.nickname().ifBlank { AppState.username }
-                        AppState.role = SessionStore.role().ifBlank { "user" }
+                        AppState.role = normalizeApplicationRole(SessionStore.role())
                         SupabaseAuthCompat.handler().post { callback(true, email, AppState.nickname) }
                     }
                 }.onFailure { SupabaseAuthCompat.handler().post { callback(false, null, null) } }
