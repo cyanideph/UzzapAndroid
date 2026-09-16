@@ -56,36 +56,42 @@ class AboutUzzapActivity : BaseChromeActivity() {
         addText(root, "Android/Kotlin modernization of the classic Uzzap chat experience, with a Supabase-backed realtime service and modern security controls.", 15, false)
 
         addHeading(root, "What's New in ${BuildConfig.VERSION_NAME}")
-        addText(root, "Beta 7 messaging and emoticons\n• Added 30 Uzzap message color codes: c01-c30\n• Messages support color markup and multiple color segments\n• Nicknames remain text-only; color codes are not used for nicknames\n• Added Uzzap emoticon/emoji picker\n• Added numbered emoticons 11-20 and 47\n• Numbered emoticon markers render as their actual Uzzap images\n• Added legacy text emoticon rendering such as :), :D, :(, ;), :P and <3\n• Color codes and emoticons can be used together in messages", 15, false)
-        addText(root, "Core chat reliability\n• Cursor-based private-message history and pagination\n• Retry-safe message sending and failed-message recovery\n• Realtime reconnect synchronization and duplicate-message protection\n• Room DELETE events and polling fallback", 15, false)
-        addText(root, "Authentication and sync\n• Persistent Supabase sessions\n• Token refresh and expired-session recovery\n• Canonical username handling\n• Safer logout/session cleanup\n• Hardened RLS policies and authenticated ownership checks", 15, false)
-        addText(root, "Notifications\n• FCM data-only notification flow\n• Private-message and buddy-request notifications\n• Room-invitation notifications\n• Tap-to-chat navigation\n• Duplicate-notification suppression\n• Automatic cleanup of invalid push tokens", 15, false)
-        addText(root, "Moderation\n• Authenticated-only reporting and moderation operations\n• Moderator-only room\n• Moderator assignment/removal\n• Report queue and moderation audit history\n• Warn, mute, kick, ban, expiry and revoke controls\n• Role hierarchy and self-sanction safeguards\n• Protected server-side sanction materialization\n• Role-aware room message deletion", 15, false)
-        addText(root, "Messaging and community\n• Philippine regions as chat categories\n• Provinces as chat rooms\n• Buddies and private chat\n• Delivery/read receipts\n• Room invitations\n• Uzzap bot welcome/system messages\n• Welcome messages render as pure centered system text\n• Block and report controls", 15, false)
-        addText(root, "Profile and security\n• Nicknames are editable as text only\n• Nickname color markup is sanitized at the database boundary\n• Password recovery update path fixed for HTTP 405 failures\n• Supabase PostgreSQL/RLS backend\n• Protected SECURITY DEFINER database paths\n• Push-token RLS hardening\n• Message rate limiting", 15, false)
-        addText(root, "Build and security\n• Android CI debug/release build workflows\n• Supabase publishable/anon key only in the Android client\n• No service-role/secret key in the Android client", 15, false)
+        addText(root, "Beta 7 — Uzzap identity, colors and emoticons\n• Added all 30 Uzzap message color codes: c01-c30\n• Messages support color markup and multiple color segments\n• Nicknames remain text-only and keep the normal Uzzap nickname color\n• Added Uzzap emoticon/emoji picker\n• Added numbered emoticons 11-20 and 47\n• Numbered emoticon markers render as their actual Uzzap images\n• Added legacy text emoticon rendering such as :), :D, :(, ;), :P and <3\n• Color codes and emoticons can be used together in messages\n• Added pure centered UzzapBot system welcome messages\n• Hardened nickname sanitization and room sender identity\n• Added secure moderator/admin room message deletion\n• Fixed password recovery HTTP 405 update failure", 15, false)
 
-        addHeading(root, "Features")
+        addHeading(root, "Version History")
+        addText(root, "Development history reconstructed from the current Android codebase and available repository history. Older beta entries describe the logical milestones of the modernization rather than claiming exact original release notes.", 14, false)
+
+        addText(root, "v1.0-beta.1 — Foundation", 17, true)
+        addText(root, "• Started the Android/Kotlin modernization of the Uzzap experience\n• Established the Android project structure and application identity\n• Built the first navigation, screen and shared UI foundations\n• Established the initial login, signup and profile direction\n• Began replacing the legacy client architecture with a maintainable Android codebase", 15, false)
+
+        addText(root, "v1.0-beta.2 — Core Chat", 17, true)
+        addText(root, "• Added the first working chatroom experience\n• Added room joining and leaving\n• Added realtime room messaging and message history\n• Added basic reconnect and message-retry handling\n• Connected the application to its backend data model", 15, false)
+
+        addText(root, "v1.0-beta.3 — Philippine Community", 17, true)
+        addText(root, "• Organized the community around Philippine regions and provinces\n• Added region/category selection\n• Added province-based chat rooms\n• Expanded profile and presence handling\n• Improved room navigation and synchronization\n• Established the foundation for the modern Uzzap community structure", 15, false)
+
+        addText(root, "v1.0-beta.4 — Social & Private Chat", 17, true)
+        addText(root, "• Added buddies and buddy requests\n• Added private one-to-one chat\n• Added delivery and read receipt handling\n• Added unread synchronization\n• Added blocking and reporting workflows\n• Added room invitations and related social flows", 15, false)
+
+        addText(root, "v1.0-beta.5 — Notifications & Moderation", 17, true)
+        addText(root, "• Added FCM push notification delivery\n• Added notification tap-to-chat navigation\n• Added duplicate-notification suppression and push-token cleanup\n• Added moderator report queue and audit history\n• Added moderator assignment and role-aware controls\n• Added warn, mute, kick, ban, expiry and revoke workflows\n• Added moderator-only room support", 15, false)
+
+        addText(root, "v1.0-beta.6 — Reliability & Security", 17, true)
+        addText(root, "• Hardened Supabase Auth and persistent sessions\n• Added token refresh and expired-session recovery\n• Strengthened PostgreSQL/RLS ownership and authorization checks\n• Added protected server-side moderation functions\n• Added message rate limiting and safer synchronization\n• Improved realtime reconnect and duplicate-message protection\n• Added notification cleanup and delivery safeguards\n• Added Android CI APK build and diagnostic workflows", 15, false)
+
+        addText(root, "v1.0-beta.7 — Uzzap Identity & Messaging", 17, true)
+        addText(root, "• Added 30 Uzzap message color codes: c01-c30\n• Added multi-color message rendering\n• Kept nickname editing text-only; nickname colors are not user-selectable\n• Added Uzzap emoticon/emoji picker\n• Added numbered emoticons 11-20 and 47\n• Added legacy text emoticon rendering\n• Added color + emoticon combinations in messages\n• Added pure system-style UzzapBot welcome messages\n• Sanitized nickname markup at the database boundary\n• Added secure moderator/admin room message deletion\n• Fixed password recovery HTTP 405 update failure\n• Updated the Android application to version code 7", 15, false)
+
+        addHeading(root, "Current Feature Set")
         features.forEachIndexed { index, feature ->
             addText(root, "${index + 1}. $feature", 15, false)
         }
 
-        addHeading(root, "Version History")
-        addText(root, "v1.0-beta.7", 16, true)
-        addText(root, "September 2026\n• Added 30 Uzzap message color codes (c01-c30)\n• Added Uzzap emoticon/emoji picker and numbered emoticons 11-20 and 47\n• Added legacy text emoticon rendering\n• Preserved color markup for messages while keeping nicknames text-only\n• Added pure system-style UzzapBot welcome messages\n• Hardened nickname sanitization and room sender identity\n• Added secure moderator/admin room message deletion\n• Fixed password recovery HTTP 405 update failure\n• Updated version code to 7", 15, false)
-        addText(root, "v1.0-beta.6", 16, true)
-        addText(root, "September 2026\n• Consolidates Phase 1 core chat reliability\n• Consolidates Phase 2 authentication, sync and security hardening\n• Consolidates Phase 3 notification delivery and push cleanup\n• Consolidates Phase 4 moderation hardening\n• Expands the About screen to document the current feature set\n• Updates the Android build to versionCode 6", 15, false)
-        addText(root, "v1.0-beta.5", 16, true)
-        addText(root, "September 2026\n• Expanded moderation, invitations and message receipt features\n• Added moderator audit history\n• Added production security and rate-limit hardening\n• Added Philippine region/province room structure", 15, false)
-        addText(root, "v1.0-beta.4", 16, true)
-        addText(root, "September 2026\n• Added buddy/private chat workflows\n• Added reporting and moderation UI\n• Improved Supabase integration", 15, false)
-        addText(root, "v1.0-beta.3", 16, true)
-        addText(root, "September 2026\n• Android/Kotlin Uzzap modernization\n• Initial chatroom and profile flows", 15, false)
-        addText(root, "Older history", 16, true)
-        addText(root, "The current Android app is a Kotlin modernization inspired by the classic Smart Uzzap mobile client. Original and third-party materials are documented separately in the repository NOTICE and licensing documentation.", 15, false)
-
         addHeading(root, "Build Information")
-        addText(root, "Application ID: ${BuildConfig.APPLICATION_ID}\nBuild type: ${BuildConfig.BUILD_TYPE}\nTarget SDK: 36\nBackend: Supabase Auth + PostgreSQL/RLS\nRelease channel: Beta", 14, false)
+        addText(root, "Application ID: ${BuildConfig.APPLICATION_ID}\nBuild type: ${BuildConfig.BUILD_TYPE}\nTarget SDK: 36\nBackend: Supabase Auth + PostgreSQL/RLS\nPush: Firebase Cloud Messaging\nRelease channel: Beta", 14, false)
+
+        addHeading(root, "Project Note")
+        addText(root, "This Android project is a Kotlin modernization of the classic Uzzap chat experience. The beta timeline above is a reconstructed development narrative based on the features and repository history available in the current project; it is not presented as an exact archival changelog for releases whose original notes were not preserved.", 14, false)
 
         addText(root, "Uzzap • Created by CY", 14, true)
         return ScrollView(this).apply {
