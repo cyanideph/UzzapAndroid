@@ -15,6 +15,7 @@
         <activity android:name=".ui.ChatHostActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.UzzapParityActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.LegacySettingsActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.InstantMessagingActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.PrivateChatActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.ModeratorActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.ModeratorManagementActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
@@ -22,12 +23,6 @@
         <activity android:name=".ui.RoomInvitationsActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
         <activity android:name=".ui.DeliveryReadReceiptsActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
         <activity android:name=".ui.DiagnosticsActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
-        <service
-            android:name=".data.UzzapFirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
+        <service android:name=".data.UzzapFirebaseMessagingService" android:exported="false"><intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter></service>
     </application>
 </manifest>
