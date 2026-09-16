@@ -91,9 +91,9 @@ class UzzapParityActivity : BaseChromeActivity() {
         setSoftkeys("Save", "Back", onLeft = { saveProfile(root) }, onRight = { finish() })
         showConnectedBall(true)
 
-        val currentNickname = AppState.nickname.ifBlank { AppState.username }
+        val currentNickname = UzzapColorCodeParser.plainText(AppState.nickname).trim().ifBlank { AppState.username }
         val avatar = TextView(this).apply {
-            text = UzzapColorCodeParser.plainText(currentNickname).trim().firstOrNull()?.uppercase() ?: "U"
+            text = currentNickname.firstOrNull()?.uppercase() ?: "U"
             textSize = 30f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
@@ -103,7 +103,7 @@ class UzzapParityActivity : BaseChromeActivity() {
         root.addView(avatar, LinearLayout.LayoutParams(76, 76).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = 10 })
 
         val name = TextView(this).apply {
-            text = UzzapColorCodeParser.parse(currentNickname)
+            text = currentNickname
             textSize = 22f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
@@ -120,8 +120,8 @@ class UzzapParityActivity : BaseChromeActivity() {
 
         section(root, "PROFILE")
         val nickname = EditText(this).apply {
-            hint = "Nickname or [cNN] color markup"
-            setText(AppState.nickname)
+            hint = "Nickname"
+            setText(currentNickname)
             isSingleLine = true
             maxLines = 1
             maxEms = 64
@@ -130,30 +130,6 @@ class UzzapParityActivity : BaseChromeActivity() {
             contentDescription = "Nickname"
         }
         root.addView(nickname, rowParams())
-
-        val preview = TextView(this).apply {
-            text = "Preview: ${UzzapColorCodeParser.parse(currentNickname)}"
-            textSize = 18f
-            setPadding(16, 12, 16, 12)
-            background = rounded(Color.WHITE, 14f)
-            contentDescription = "Nickname preview"
-        }
-        root.addView(preview, rowParams())
-        nickname.addTextChangedListener(SimpleTextWatcher { value ->
-            val raw = value.toString()
-            val visible = UzzapColorCodeParser.parse(raw)
-            preview.text = "Preview: $visible"
-            avatar.text = UzzapColorCodeParser.plainText(raw).trim().firstOrNull()?.uppercase() ?: "U"
-            name.text = visible
-        })
-
-        val help = TextView(this).apply {
-            text = "Color codes: [c01] black  [c02] green  [c03] red  [c04] blue  [c05] yellow\nExample: [c02 cY"
-            textSize = 13f
-            setTextColor(Color.DKGRAY)
-            setPadding(16, 10, 16, 14)
-        }
-        root.addView(help, rowParams())
 
         section(root, "PRESENCE")
         val presence = TextView(this).apply {
@@ -181,29 +157,22 @@ class UzzapParityActivity : BaseChromeActivity() {
 
         section(root, "ACCOUNT")
         val account = TextView(this).apply {
-            text = "Username\n${AppState.username}\n\nNickname\n${AppState.nickname.ifBlank { AppState.username }}"
+            text = "Username\n${AppState.username}\n\nNickname\n${currentNickname}"
             textSize = 14f
             setPadding(16, 14, 16, 14)
             background = rounded(Color.WHITE, 14f)
         }
         root.addView(account, rowParams())
-        root.tag = ProfileFields(nickname, status, preview, avatar, name, account)
+        root.tag = ProfileFields(nickname, status, avatar, name, account)
     }
 
     private data class ProfileFields(
         val nickname: EditText,
         val status: EditText,
-        val preview: TextView,
         val avatar: TextView,
         val name: TextView,
         val account: TextView
     )
-
-    private class SimpleTextWatcher(private val changed: (CharSequence?) -> Unit) : android.text.TextWatcher {
-        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = changed(s)
-        override fun afterTextChanged(s: android.text.Editable?) = Unit
-    }
 
     private fun section(root: LinearLayout, label: String) {
         root.addView(TextView(this).apply {
@@ -228,9 +197,11 @@ class UzzapParityActivity : BaseChromeActivity() {
             rawNickname.length > 64 -> Toast.makeText(this, "Nickname is limited to 64 characters.", Toast.LENGTH_SHORT).show()
             visibleNickname.isBlank() -> Toast.makeText(this, "Nickname must contain visible text.", Toast.LENGTH_SHORT).show()
             else -> {
-                AppState.nickname = rawNickname
+                AppState.nickname = visibleNickname
                 AppState.statusMessage = fields.status.text.toString().trim()
-                fields.account.text = "Username\n${AppState.username}\n\nNickname\n${AppState.nickname}"
+                fields.account.text = "Username\n${AppState.username}\n\nNickname\n${visibleNickname}"
+                fields.avatar.text = visibleNickname.firstOrNull()?.uppercase() ?: "U"
+                fields.name.text = visibleNickname
                 AppState.syncProfileToSupabase()
                 Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show()
             }
