@@ -1,31 +1,24 @@
 package com.kolipri.uzzap.ui.util
 
-import android.graphics.Color
-import android.text.style.ForegroundColorSpan
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
 class UzzapColorCodeParserTest {
     @Test
     fun singleColorMarkupIsStrippedAndColored() {
-        val result = UzzapColorCodeParser.parse("[c03 test]", Color.DKGRAY)
-        assertEquals("test", result.toString())
-        val spans = result.getSpans(0, result.length, ForegroundColorSpan::class.java)
-        assertEquals(1, spans.size)
-        assertEquals(Color.RED, spans[0].foregroundColor)
+        val result = UzzapColorCodeParser.parseMarkup("[c03 test]")
+        assertEquals("test", result.text)
+        assertEquals(1, result.ranges.size)
+        assertEquals(3, result.ranges[0].color)
     }
 
     @Test
     fun inlineColorsCanSwitchWithoutClosingTag() {
-        val result = UzzapColorCodeParser.parse("[c03 A [c04 I", Color.DKGRAY)
-        assertEquals(" A I", result.toString())
-        val spans = result.getSpans(0, result.length, ForegroundColorSpan::class.java)
-        assertTrue(spans.any { it.foregroundColor == Color.RED })
-        assertTrue(spans.any { it.foregroundColor == Color.BLUE })
+        val result = UzzapColorCodeParser.parseMarkup("[c03 A [c04 I")
+        assertEquals(" A I", result.text)
+        assertTrue(result.ranges.any { it.color == UzzapColorCodeParser.colorFor(3) })
+        assertTrue(result.ranges.any { it.color == UzzapColorCodeParser.colorFor(4) })
     }
 
     @Test
@@ -35,7 +28,15 @@ class UzzapColorCodeParserTest {
 
     @Test
     fun unknownColorCodeDoesNotCrash() {
-        val result = UzzapColorCodeParser.parse("[c99 test]", Color.DKGRAY)
-        assertEquals("test", result.toString())
+        val result = UzzapColorCodeParser.parseMarkup("[c99 test]")
+        assertEquals("test", result.text)
+        assertTrue(result.ranges.isEmpty())
+    }
+
+    @Test
+    fun allThirtyColorCodesAreDefined() {
+        for (code in 1..30) {
+            assertTrue("Missing color code c${code.toString().padStart(2, '0')}", UzzapColorCodeParser.colorFor(code) != null)
+        }
     }
 }
