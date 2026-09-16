@@ -14,9 +14,17 @@ class UzzapColorCodeParserTest {
     }
 
     @Test
-    fun inlineColorsCanSwitchWithoutClosingTag() {
+    fun singleSpaceAfterColorCodeIsMarkupSeparator() {
         val result = UzzapColorCodeParser.parseMarkup("[c03 A [c04 I")
-        assertEquals(" A I", result.text)
+        assertEquals("AI", result.text)
+        assertTrue(result.ranges.any { it.color == UzzapColorCodeParser.colorFor(3) })
+        assertTrue(result.ranges.any { it.color == UzzapColorCodeParser.colorFor(4) })
+    }
+
+    @Test
+    fun doubleSpacePreservesOneVisibleSpace() {
+        val result = UzzapColorCodeParser.parseMarkup("[c03 A  [c04 I")
+        assertEquals("A I", result.text)
         assertTrue(result.ranges.any { it.color == UzzapColorCodeParser.colorFor(3) })
         assertTrue(result.ranges.any { it.color == UzzapColorCodeParser.colorFor(4) })
     }
