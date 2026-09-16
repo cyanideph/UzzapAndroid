@@ -57,11 +57,6 @@ object PasswordRecoveryClient {
         })
     }
 
-    /**
-     * JVM-safe validation of a recovery deep-link string. It deliberately does
-     * not touch Android Uri APIs, making the security rules testable in local
-     * unit tests as well as usable by Android runtime code.
-     */
     fun isValidRecoveryLink(link: String?): Boolean {
         if (link.isNullOrBlank() || link.length > 8192) return false
         val separator = link.indexOf('#')
@@ -69,18 +64,15 @@ object PasswordRecoveryClient {
         val base = link.substring(0, separator)
         val fragment = link.substring(separator + 1)
         if (base != RESET_URI || base.contains('?')) return false
-
         val values = parseParams(fragment)
         val type = values["type"].orEmpty()
         val access = values["access_token"].orEmpty()
         return type == "recovery" && access.isNotBlank() && access.length <= 4096
     }
 
-    /** Android entry point; converts the intent URI to the pure validator input. */
     fun isValidRecoveryIntent(uri: Uri?): Boolean =
         uri != null && isValidRecoveryLink(uri.toString())
 
-    /** Extracts the recovery access token delivered in the Android deep-link fragment. */
     fun consumeRecoveryIntent(uri: Uri?): Boolean {
         if (!isValidRecoveryIntent(uri)) return false
         val values = parseParams(uri?.fragment.orEmpty())
@@ -102,7 +94,7 @@ object PasswordRecoveryClient {
             .header("apikey", publishableKey)
             .header("Authorization", "Bearer $accessToken")
             .header("Content-Type", "application/json")
-            .patch(body.toString().toRequestBody(jsonType))
+            .put(body.toString().toRequestBody(jsonType))
             .build()
         http.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
