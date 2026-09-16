@@ -239,10 +239,48 @@ class UzzapParityActivity : BaseChromeActivity() {
         title.text = "Room Members"; setScreenTitle("Members - $room"); setSoftkeys("Options", "Back", onLeft = { showTopOptions() }, onRight = { finish() })
         SupabaseClient.fetchParticipants(room) { members ->
             if (isFinishing) return@fetchParticipants
-            val result = (members ?: emptyList()).toMutableList(); if (!result.contains(AppState.nickname)) result.add(0, AppState.nickname)
+
+            // A nickname can differ from the stable username only by case (for example
+            // "CY" vs "cy"). The previous implementation used case-sensitive contains(),
+            // which added the current user a second time when the backend already returned
+            // the same member under a different case. Normalize and de-duplicate display
+            // names before rendering, while preserving the current saved nickname.
+            val currentNickname = UzzapColorCodeParser.plainText(AppState.nickname).trim()
+                .ifBlank { AppState.username.trim() }
+            val currentKey = currentNickname.trim().lowercase()
+
+            val normalizedMembers = (members ?: emptyList())
+                .asSequence()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .distinctBy { it.lowercase() }
+                .toMutableList()
+
+            // Do not add the current user if the backend already returned the same
+            // account under a different case. If it did, replace that display value
+            // with the current saved nickname so the room reflects profile changes.
+            val existingCurrentIndex = normalizedMembers.indexOfFirst { it.lowercase() == currentKey }
+            if (existingCurrentIndex >= 0) {
+                normalizedMembers[existingCurrentIndex] = currentNickname
+            } else if (currentNickname.isNotEmpty()) {
+                normalizedMembers.add(0, currentNickname)
+            }
+
+            // Final case-insensitive de-duplication protects against duplicate rows
+            // returned by the backend as well as username/nickname casing differences.
+            val result = normalizedMembers
+                .asSequence()
+                .filter { it.isNotBlank() }
+                .distinctBy { it.lowercase() }
+                .toList()
+
             val display = if (result.isEmpty()) listOf("No members online") else result.map { "● $it" }
             list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, display)
-            list.setOnItemClickListener { _, _, position, _ -> result.getOrNull(position)?.takeIf { it != AppState.nickname }?.let { open(MODE_PRIVATE_CHAT, buddy = it) } }
+            list.setOnItemClickListener { _, _, position, _ ->
+                result.getOrNull(position)
+                    ?.takeIf { !it.equals(currentNickname, true) }
+                    ?.let { open(MODE_PRIVATE_CHAT, buddy = it) }
+            }
         }
     }
 
