@@ -74,8 +74,6 @@ object SessionStore {
         username: String = ""
     ) {
         ensureReady()
-        // Refresh responses do not carry the profile username. Preserve the
-        // existing canonical username instead of replacing it with an empty value.
         val effectiveUsername = username.trim().ifBlank { this.username() }
         val effectiveRole = role.trim().ifBlank { this.role() }
         prefs.edit()
@@ -86,6 +84,15 @@ object SessionStore {
             .putString(USERNAME, effectiveUsername)
             .putString(NICKNAME, nickname)
             .putString(ROLE, effectiveRole)
+            .apply()
+    }
+
+    /** Updates only profile display fields without replacing the current auth session. */
+    fun updateProfile(nickname: String, email: String) {
+        ensureReady()
+        prefs.edit()
+            .putString(EMAIL, email)
+            .putString(NICKNAME, nickname)
             .apply()
     }
 
