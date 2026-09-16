@@ -272,7 +272,10 @@ class LegacySettingsActivity : BaseChromeActivity() {
         { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }, { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }, { toast("Groups are available from the Buddy List") }, { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }
     ), listOf("Open your buddies", "Add a contact", "Manage buddy groups", "View unread private messages"))
 
-    private fun instantMessagingScreen() = rows("Instant Messaging", listOf("Choose a buddy", "Back"), listOf({ startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }, { finish() }), listOf("Open the private messaging list", "Return to Settings"))
+    private fun instantMessagingScreen() = rows("Instant Messaging", listOf("Choose a buddy", "Back"), listOf(
+        { startActivity(InstantMessagingActivity.intent(this)) },
+        { finish() }
+    ), listOf("Open the private messaging list", "Return to Settings"))
 
     private fun privacyScreen() = toggleScreen("Privacy", listOf("Allow buddy invitations", "Allow room invitations", "Show my online presence"), "privacy")
 
