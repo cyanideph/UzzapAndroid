@@ -1,9 +1,6 @@
 -- Phase 2: bind FCM registrations to the authenticated auth.uid().
 -- Do not authorize rows from user-controlled JWT metadata such as user_metadata.
 
-ALTER TABLE public.user_fcm_tokens
-  ALTER COLUMN user_id SET NOT NULL;
-
 DROP POLICY IF EXISTS "Users can manage their own fcm tokens" ON public.user_fcm_tokens;
 
 CREATE POLICY "Users can manage their own fcm tokens"
