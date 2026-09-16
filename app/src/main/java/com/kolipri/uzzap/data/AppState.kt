@@ -8,7 +8,7 @@ import com.kolipri.uzzap.model.Presence
 /** Process-local UI/session state. Supabase is the authoritative backend. */
 object AppState {
     var username: String = "unknown-user"
-    var nickname: String = "cy"
+    var nickname: String = ""
     var email: String = ""
     var authToken: String = ""
     var presence: Presence = Presence.INVISIBLE
@@ -19,8 +19,6 @@ object AppState {
     var role: String = "user"
     val isModerator: Boolean get() = role.equals("moderator", ignoreCase = true) || role.equals("admin", ignoreCase = true)
 
-    // Keep the legacy Uzzap buddy-group structure available immediately. Supabase
-    // supplies the actual buddy rows; this list is only the local UI container.
     val buddyGroups: MutableList<BuddyGroup> = mutableListOf(
         BuddyGroup("all", "All Buddies", expandable = false, expanded = true),
         BuddyGroup("frequent", "Most Frequent", expanded = true),
@@ -29,40 +27,24 @@ object AppState {
         BuddyGroup("pending", "Pending Buddies", expanded = true)
     )
 
-    // Never seed fake rooms here. The authoritative room hierarchy comes from Supabase:
-    // Philippine region categories -> province chatrooms.
     var categories: List<ChatRoomCategory> = emptyList()
-
-    // Track active joined rooms in the current process
     val joinedRooms: MutableSet<String> = mutableSetOf()
-
     fun isRoomJoined(roomName: String): Boolean = joinedRooms.contains(roomName)
-
-    // Messages are cached only for the lifetime of the current process.
     val roomMessages: MutableMap<String, MutableList<ChatMessage>> = mutableMapOf()
-
-    fun messagesFor(room: String): MutableList<ChatMessage> =
-        roomMessages.getOrPut(room) { mutableListOf() }
+    fun messagesFor(room: String): MutableList<ChatMessage> = roomMessages.getOrPut(room) { mutableListOf() }
 
     fun addOrUpdateMessages(room: String, incoming: List<ChatMessage>): Int {
         val list = messagesFor(room)
         var addedCount = 0
         for (msg in incoming) {
-            val exists = if (msg.id > 0) {
-                list.any { it.id == msg.id }
-            } else {
-                list.any { it.sender == msg.sender && it.body == msg.body && it.isSystem == msg.isSystem }
-            }
-            if (!exists) {
-                list.add(msg)
-                addedCount++
-            }
+            val exists = if (msg.id > 0) list.any { it.id == msg.id } else list.any { it.sender == msg.sender && it.body == msg.body && it.isSystem == msg.isSystem }
+            if (!exists) { list.add(msg); addedCount++ }
         }
         return addedCount
     }
 
     fun syncProfileToSupabase() {
-        if (SupabaseClient.userAccessToken.isNullOrBlank()) return
+        if (SupabaseClient.userAccessToken.isNullOrBlank() || nickname.isBlank()) return
         SupabaseClient.upsertProfile(
             username = username,
             nickname = nickname,
@@ -76,14 +58,10 @@ object AppState {
 
     fun resetSession() {
         presence = Presence.INVISIBLE
-        // Give the backend one final authenticated update so last state is offline.
         syncProfileToSupabase()
-        roomMessages.clear()
-        joinedRooms.clear()
-        buddyGroups.forEach { it.buddies.clear() }
-        categories = emptyList()
+        roomMessages.clear(); joinedRooms.clear(); buddyGroups.forEach { it.buddies.clear() }; categories = emptyList()
         username = "unknown-user"
-        nickname = "cy"
+        nickname = ""
         email = ""
         authToken = ""
         role = "user"
