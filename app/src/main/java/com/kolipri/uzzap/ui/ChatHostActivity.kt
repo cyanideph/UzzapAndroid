@@ -11,6 +11,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.FragmentTransaction
 import com.kolipri.uzzap.R
+import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.PrivateMessageStateClient
 import com.kolipri.uzzap.data.PresenceClient
@@ -30,9 +31,9 @@ class ChatHostActivity:BaseChromeActivity(){
         val fragment=roomFragments[room] ?: return
         if(!fragment.isAdded) return
         AppDiagnostics.started("Room.foregroundRefresh", "room=$room")
-        // ChatRoomFragment already owns the authoritative REST history refresh in its
-        // visible lifecycle path. Re-enter that path explicitly here because an
-        // Activity can return from background without a Realtime reconnect event.
+        // ChatRoomFragment owns the authoritative REST history refresh in its visible
+        // lifecycle path. Re-enter that path explicitly because an Activity can return
+        // from background without a Realtime reconnect event.
         fragment.onHiddenChanged(false)
         AppDiagnostics.success("Room.foregroundRefresh", "room=$room requested")
     }
