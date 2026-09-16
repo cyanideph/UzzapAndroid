@@ -10,15 +10,12 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.model.ChatMessage
-import com.kolipri.uzzap.ui.util.EmoticonParser
+import com.kolipri.uzzap.ui.util.UzzapColorCodeParser
 import com.kolipri.uzzap.ui.util.UzzapEmoticonRenderer
 
 /** RecyclerView adapter for room history. System messages are centered; normal messages keep the classic layout. */
 class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-    companion object {
-        private const val TYPE_SYSTEM = 1
-        private const val TYPE_NORMAL = 2
-    }
+    companion object { private const val TYPE_SYSTEM = 1; private const val TYPE_NORMAL = 2 }
 
     private val items = mutableListOf<ChatMessage>()
     var onMessageLongClickListener: ((ChatMessage) -> Unit)? = null
@@ -30,6 +27,8 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
     fun replaceAt(index: Int, message: ChatMessage) { if (index !in items.indices) return; items[index] = message; notifyItemChanged(index) }
     fun indexOf(message: ChatMessage): Int = items.indexOf(message)
     override fun getItemCount(): Int = items.size
+
+    private fun render(text: String): CharSequence = UzzapColorCodeParser.parse(UzzapEmoticonRenderer.render(text), ColorDefaults.TEXT)
 
     override fun getItemViewType(position: Int): Int {
         val msg = items[position]
@@ -54,20 +53,21 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
         holder.itemView.setOnLongClickListener { onMessageLongClickListener?.invoke(message); true }
         if (holder is SystemHolder) {
             val raw = if (message.sender.equals("uzzapbot", true) && !message.body.startsWith("uzzapbot", true)) "uzzapbot: ${message.body}" else message.body.ifEmpty { message.sender }
-            holder.text.text = UzzapEmoticonRenderer.render(raw)
+            holder.text.text = render(raw)
         } else if (holder is NormalHolder) {
             holder.container.removeAllViews()
             holder.container.addView(TextView(context).apply {
-                text = UzzapEmoticonRenderer.render(message.sender) + ":"
+                text = render(message.sender + ":")
                 textSize = 15f; setTextColor(ContextCompat.getColor(context, R.color.uzzap_special_red))
             })
             holder.container.addView(TextView(context).apply {
-                text = UzzapEmoticonRenderer.render(message.body)
+                text = render(message.body)
                 textSize = 15f; setTextColor(ContextCompat.getColor(context, R.color.uzzap_text))
             })
         }
     }
 
+    private object ColorDefaults { const val TEXT = 0xFF333333.toInt() }
     class SystemHolder(val text: TextView) : RecyclerView.ViewHolder(text)
     class NormalHolder(val container: LinearLayout) : RecyclerView.ViewHolder(container)
 }
