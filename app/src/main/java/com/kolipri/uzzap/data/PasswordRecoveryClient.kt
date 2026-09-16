@@ -14,8 +14,8 @@ import java.util.concurrent.TimeUnit
 
 /** Password recovery flow for the native Android Uzzap client. */
 object PasswordRecoveryClient {
-    // Keep Android runtime initialization lazy so JVM unit tests can exercise
-    // deep-link validation without requiring a prepared Android Looper.
+    // Android runtime objects are lazy so pure deep-link validation can run in
+    // local JVM tests without requiring an Android main Looper.
     private val mainHandler by lazy(LazyThreadSafetyMode.NONE) { Handler(Looper.getMainLooper()) }
     private val jsonType by lazy(LazyThreadSafetyMode.NONE) { "application/json; charset=utf-8".toMediaType() }
     private val http by lazy(LazyThreadSafetyMode.NONE) {
@@ -59,14 +59,24 @@ object PasswordRecoveryClient {
         })
     }
 
-    /** Extracts the recovery access token delivered in the Android deep-link fragment. */
-    fun consumeRecoveryIntent(uri: Uri?): Boolean {
+    /**
+     * Pure validation of the recovery deep-link shape. This method has no
+     * Android runtime or network side effects and is safe for JVM unit tests.
+     */
+    fun isValidRecoveryIntent(uri: Uri?): Boolean {
         if (uri == null || uri.scheme != "uzzap" || uri.host != "auth" || uri.path != "/reset") return false
-        val fragment = uri.fragment.orEmpty()
-        val values = parseParams(fragment)
+        if (!uri.query.isNullOrEmpty()) return false
+        val values = parseParams(uri.fragment.orEmpty())
         val type = values["type"].orEmpty()
         val access = values["access_token"].orEmpty()
-        if (type != "recovery" || access.isBlank()) return false
+        return type == "recovery" && access.isNotBlank() && access.length <= 4096
+    }
+
+    /** Extracts the recovery access token delivered in the Android deep-link fragment. */
+    fun consumeRecoveryIntent(uri: Uri?): Boolean {
+        if (!isValidRecoveryIntent(uri)) return false
+        val values = parseParams(uri?.fragment.orEmpty())
+        val access = values["access_token"].orEmpty()
         val refresh = values["refresh_token"].orEmpty()
         val expiresIn = values["expires_in"]?.toLongOrNull() ?: 3600L
         SupabaseClient.setAccessTokenForLegacy(access)
