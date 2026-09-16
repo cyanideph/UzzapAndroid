@@ -95,7 +95,7 @@ The publishable/anon key is not a privilege boundary; PostgreSQL RLS and authent
 
 Apply every migration in filename order. If the repository is linked to the project, `supabase db push` can be used; otherwise apply the SQL files through the Supabase SQL Editor.
 
-Enable Email authentication in Supabase Auth and configure the Android build with `SUPABASE_URL` and `SUPABASE_ANON_KEY` (or the publishable-key equivalent).
+Enable Email authentication in Supabase Auth and configure the Android build with `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (or the legacy anon-key equivalent).
 
 ## Build
 
@@ -104,7 +104,7 @@ The repository contains the Gradle wrapper. From the project root:
 ```bash
 chmod +x gradlew
 export SUPABASE_URL="https://YOUR_PROJECT_REF.supabase.co"
-export SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY"
+export SUPABASE_PUBLISHABLE_KEY="YOUR_SUPABASE_PUBLISHABLE_KEY"
 ./gradlew assembleDebug
 ```
 
@@ -121,12 +121,12 @@ The checked-in project targets **Gradle 9.3.1**, Android Gradle Plugin **9.1.1**
 
 ## GitHub Actions
 
-The repository includes Android CI workflows for debug and release builds. The debug workflow builds on pushes to `main` and manual dispatch and uploads the APK as an artifact.
+The repository includes Android CI workflows for debug and release builds. The debug workflow builds on pushes to `main` and manual dispatch and uploads the APK as an artifact named **`Uzzap-debug-apk`**.
 
 Required Actions configuration:
 
 - `SUPABASE_URL`
-- `SUPABASE_ANON_KEY` or publishable-key equivalent
+- `SUPABASE_PUBLISHABLE_KEY` (or legacy anon-key equivalent)
 - Production signing variables only for signed release builds
 
 Workflows must never contain or print a Supabase service-role/secret key.
@@ -181,7 +181,7 @@ The **About Uzzap** screen reports the live application version/build and docume
 
 ## Project status
 
-The current `main` branch contains the Phase 1–4 work plus the beta.7 messaging, emoticon, profile, welcome-system and moderation fixes. The app is still a **Beta** release and should receive additional integration/UI testing and production release-signing validation before public distribution.
+The current `main` branch contains the Phase 1–4 work plus the beta.7 messaging, emoticon, profile, welcome-system and moderation fixes. The app is still a **Beta** release. Every push to `main` starts the debug Android CI workflow, which runs unit tests, assembles the debug APK and publishes the `Uzzap-debug-apk` artifact for device testing.
 
 ## Before public release
 
