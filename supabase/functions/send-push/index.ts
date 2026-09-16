@@ -19,7 +19,6 @@ async function getAccessToken(clientEmail: string, privateKey: string): Promise<
   const pem = privateKey.replace(/\\n/g, "\n");
   const key = await importPKCS8(pem, "RS256");
   const now = Math.floor(Date.now() / 1000);
-
   return await new SignJWT({
     iss: clientEmail,
     sub: clientEmail,
@@ -27,66 +26,51 @@ async function getAccessToken(clientEmail: string, privateKey: string): Promise<
     scope: "https://www.googleapis.com/auth/firebase.messaging",
     iat: now,
     exp: now + 3600,
-  })
-    .setProtectedHeader({ alg: "RS256", typ: "JWT" })
-    .sign(key);
+  }).setProtectedHeader({ alg: "RS256", typ: "JWT" }).sign(key);
 }
 
 serve(async (req) => {
   try {
-    const raw = await req.json();
-    const payload = raw as WebhookPayload;
+    const payload = (await req.json()) as WebhookPayload;
     const record = payload.record;
-
-    if (!record || !record.recipient || !record.sender) {
-      return new Response(JSON.stringify({ message: "No recipient or sender" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+    if (!record?.recipient || !record?.sender) {
+      return new Response(JSON.stringify({ message: "No recipient or sender" }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return new Response(JSON.stringify({ error: "Missing Supabase server configuration" }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 1. Fetch recipient's active FCM tokens
     const { data: tokens, error } = await supabase
       .from("user_fcm_tokens")
-      .select("fcm_token")
+      .select("id,fcm_token")
       .eq("username", record.recipient.trim().toLowerCase());
 
-    if (error || !tokens || tokens.length === 0) {
-      return new Response(JSON.stringify({ message: "No registered tokens for recipient" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+    if (error || !tokens?.length) {
+      return new Response(JSON.stringify({ message: "No registered tokens for recipient" }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
 
-    // 2. Parse Firebase service account credentials
     const rawCreds = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
     if (!rawCreds) {
-      console.error("Missing FIREBASE_SERVICE_ACCOUNT environment variable");
-      return new Response(JSON.stringify({ error: "Missing FIREBASE_SERVICE_ACCOUNT" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "Missing FIREBASE_SERVICE_ACCOUNT" }), { status: 500, headers: { "Content-Type": "application/json" } });
     }
 
     const serviceAccount = JSON.parse(rawCreds);
     const accessToken = await getAccessToken(serviceAccount.client_email, serviceAccount.private_key);
-
-    const projectId = serviceAccount.project_id || "expo-340f1";
+    const projectId = serviceAccount.project_id;
+    if (!projectId) throw new Error("Firebase service account is missing project_id");
     const fcmEndpoint = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
 
-    const results = [];
+    let sent = 0;
+    let removed = 0;
     for (const row of tokens) {
       const fcmMessage = {
         message: {
           token: row.fcm_token,
-          notification: {
-            title: `Message from ${record.sender}`,
-            body: record.body || "",
-          },
+          notification: { title: `Message from ${record.sender}`, body: record.body || "" },
           data: {
             sender: record.sender,
             body: record.body || "",
@@ -94,36 +78,39 @@ serve(async (req) => {
           },
           android: {
             priority: "high",
-            notification: {
-              sound: "alert",
-              channel_id: "uzzap_messages_v2",
-            },
+            notification: { sound: "alert", channel_id: "uzzap_messages_v2" },
           },
         },
       };
 
       const fcmResponse = await fetch(fcmEndpoint, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify(fcmMessage),
       });
 
       const resText = await fcmResponse.text();
-      results.push({ token: row.fcm_token, status: fcmResponse.status, result: resText });
+      if (fcmResponse.ok) {
+        sent++;
+        continue;
+      }
+
+      // Firebase reports permanently invalid/unregistered tokens with 404 or
+      // an INVALID_ARGUMENT/UNREGISTERED error. Remove those tokens so future
+      // pushes do not repeatedly fail. Keep transient failures for retry.
+      const permanent = fcmResponse.status === 404 ||
+        (fcmResponse.status === 400 && /UNREGISTERED|INVALID_ARGUMENT/i.test(resText));
+      if (permanent && row.id) {
+        const { error: deleteError } = await supabase.from("user_fcm_tokens").delete().eq("id", row.id);
+        if (!deleteError) removed++;
+      } else {
+        console.warn("FCM delivery failed", fcmResponse.status, resText);
+      }
     }
 
-    return new Response(JSON.stringify({ success: true, count: results.length, details: results }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ success: true, sent, removed, attempted: tokens.length }), { status: 200, headers: { "Content-Type": "application/json" } });
   } catch (err) {
     console.error("Error sending FCM notification:", err);
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 });
