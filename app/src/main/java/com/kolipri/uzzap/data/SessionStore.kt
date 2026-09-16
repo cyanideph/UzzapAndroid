@@ -55,6 +55,7 @@ object SessionStore {
     private fun decrypt(value: String): String? = runCatching {
         ensureReady()
         val combined = Base64.decode(value, Base64.NO_WRAP)
+        if (combined.size <= 12) return@runCatching null
         val iv = combined.copyOfRange(0, 12)
         val ciphertext = combined.copyOfRange(12, combined.size)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -73,14 +74,18 @@ object SessionStore {
         username: String = ""
     ) {
         ensureReady()
+        // Refresh responses do not carry the profile username. Preserve the
+        // existing canonical username instead of replacing it with an empty value.
+        val effectiveUsername = username.trim().ifBlank { this.username() }
+        val effectiveRole = role.trim().ifBlank { this.role() }
         prefs.edit()
             .putString(ACCESS, encrypt(accessToken))
             .putString(REFRESH, refreshToken?.let(::encrypt))
             .putLong(EXPIRES_AT, expiresAtMs)
             .putString(EMAIL, email)
-            .putString(USERNAME, username)
+            .putString(USERNAME, effectiveUsername)
             .putString(NICKNAME, nickname)
-            .putString(ROLE, role)
+            .putString(ROLE, effectiveRole)
             .apply()
     }
 
