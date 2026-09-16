@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.drawable.Drawable
-import android.text.Editable
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -14,14 +13,7 @@ import com.kolipri.uzzap.R
 import java.util.regex.Pattern
 
 class CenteredImageSpan(drawable: Drawable) : ImageSpan(drawable) {
-
-    override fun getSize(
-        paint: Paint,
-        text: CharSequence?,
-        start: Int,
-        end: Int,
-        fm: Paint.FontMetricsInt?
-    ): Int {
+    override fun getSize(paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?): Int {
         val rect = drawable.bounds
         if (fm != null) {
             val fontMetrics = paint.fontMetricsInt
@@ -37,17 +29,7 @@ class CenteredImageSpan(drawable: Drawable) : ImageSpan(drawable) {
         return rect.right
     }
 
-    override fun draw(
-        canvas: Canvas,
-        text: CharSequence?,
-        start: Int,
-        end: Int,
-        x: Float,
-        top: Int,
-        y: Int,
-        bottom: Int,
-        paint: Paint
-    ) {
+    override fun draw(canvas: Canvas, text: CharSequence?, start: Int, end: Int, x: Float, top: Int, y: Int, bottom: Int, paint: Paint) {
         val b = drawable
         canvas.save()
         val fontMetrics = paint.fontMetricsInt
@@ -59,83 +41,67 @@ class CenteredImageSpan(drawable: Drawable) : ImageSpan(drawable) {
 }
 
 object EmoticonParser {
-
     private val CODE_TO_DRAWABLE: Map<String, Int> = buildMap {
-        // Smile
         listOf(":)", ":-)", "(:", "(:-", "🙂", "😊", "☺️", "😀", "😃", "😄", "😸").forEach { put(it, R.drawable.d_emoticon_smile) }
-
-        // Wink
         listOf(";)", ";-)", ";D", ";d", "😉", "😜").forEach { put(it, R.drawable.d_emoticon_wink) }
-
-        // Sad
         listOf(":(", ":-(", "):", ")-:", "🙁", "☹️", "😞", "😔", "😟").forEach { put(it, R.drawable.d_emoticon_sad) }
-
-        // Laugh
         listOf(":D", ":-D", ":d", ":-d", "xD", "XD", "😆", "😹", "🤣", "😂", "😁").forEach { put(it, R.drawable.d_emoticon_laugh) }
-
-        // Tongue
         listOf(":p", ":-p", ":P", ":-P", "😛", "😋", "😝").forEach { put(it, R.drawable.d_emoticon_tongue) }
-
-        // Love
         listOf("<3", "[love]", "[heart]", "❤️", "💖", "💕", "💗", "💓", "💘", "💌", "😍", "🥰").forEach { put(it, R.drawable.d_emoticon_love) }
-
-        // Cry
         listOf(";(", ";-(", ":'(", ":'-(", "T_T", "T.T", "😢", "😭", "😿").forEach { put(it, R.drawable.d_emoticon_cry) }
-
-        // Angry
         listOf(">:(", ">:-(", ":-@", ":@", "😡", "😠", "🤬").forEach { put(it, R.drawable.d_emoticon_angry) }
-
-        // Surprise
         listOf(":o", ":-o", ":O", ":-O", "=o", "=O", "😮", "😲", "😯", "😱", "🤯").forEach { put(it, R.drawable.d_emoticon_surprise) }
-
-        // Sick
         listOf(":s", ":-s", ":S", ":-S", "🤢", "🤮", "🤒", "🥴", "🤧").forEach { put(it, R.drawable.d_emoticon_sick) }
-
-        // Clown
         listOf(":o)", ":-o)", "🤡").forEach { put(it, R.drawable.d_emoticon_clown) }
-
-        // Party
         listOf("\\o/", "\\\\o/", "[party]", "🎉", "🥳", "🎊", "🍾", "🥂").forEach { put(it, R.drawable.d_emoticon_party) }
-
-        // Drink
         listOf("[drink]", "[beer]", "🍺", "🍻", "🍹", "🍸", "🍷", "☕").forEach { put(it, R.drawable.d_emoticon_drink) }
-
-        // Rose
         listOf("[rose]", "[flower]", "@}->--", "🌹", "🥀", "🌸", "💐").forEach { put(it, R.drawable.d_emoticon_rose) }
-
-        // Kiss
         listOf("[kiss]", ":*", ":-*", "💋", "😘", "😽").forEach { put(it, R.drawable.d_kiss) }
+
+        // Numbered Uzzap emoji assets. The picker stores these markers in Supabase;
+        // this display parser converts them back to the actual drawable locally.
+        for (code in listOf(11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 47)) {
+            put("[emoticon-$code]", when (code) {
+                11 -> R.drawable.d_emoticon_11
+                12 -> R.drawable.d_emoticon_12
+                13 -> R.drawable.d_emoticon_13
+                14 -> R.drawable.d_emoticon_14
+                15 -> R.drawable.d_emoticon_15
+                16 -> R.drawable.d_emoticon_16
+                17 -> R.drawable.d_emoticon_17
+                18 -> R.drawable.d_emoticon_18
+                19 -> R.drawable.d_emoticon_19
+                20 -> R.drawable.d_emoticon_20
+                47 -> R.drawable.d_emoticon_47
+                else -> error("Unsupported numbered emoticon: $code")
+            })
+        }
+
+        put("[head-buntis]", R.drawable.d_head_buntis)
+        put("[head-deckard]", R.drawable.d_head_deckard)
+        put("[head-jp]", R.drawable.d_head_jp)
+        put("[head-kool]", R.drawable.d_head_kool)
+        put("[head-lupz]", R.drawable.d_head_lupz)
+        put("[head-requiem]", R.drawable.d_head_requiem)
+        put("[head-root]", R.drawable.d_head_root)
+        put("[head-saiyan]", R.drawable.d_head_saiyan)
+        put("[head-valkyrie]", R.drawable.d_head_valkyrie)
     }
 
     private val EMOTICON_PATTERN: Pattern = Pattern.compile(
-        CODE_TO_DRAWABLE.keys
-            .sortedByDescending { it.length }
-            .joinToString("|") { Pattern.quote(it) }
+        CODE_TO_DRAWABLE.keys.sortedByDescending { it.length }.joinToString("|") { Pattern.quote(it) }
     )
 
     private fun getSizedDrawable(context: Context, resId: Int, targetHeightPx: Int): Drawable? {
         val original = ContextCompat.getDrawable(context, resId) ?: return null
         val d = original.constantState?.newDrawable(context.resources)?.mutate() ?: original.mutate()
-        val widthPx = if (d.intrinsicHeight > 0) {
-            (targetHeightPx * d.intrinsicWidth) / d.intrinsicHeight
-        } else {
-            targetHeightPx
-        }
+        val widthPx = if (d.intrinsicHeight > 0) (targetHeightPx * d.intrinsicWidth) / d.intrinsicHeight else targetHeightPx
         d.setBounds(0, 0, widthPx, targetHeightPx)
         return d
     }
 
-    /**
-     * Checks if the given text contains any recognizable Uzzap emoticon codes.
-     */
-    fun hasEmoticons(text: CharSequence?): Boolean {
-        if (text.isNullOrEmpty()) return false
-        return EMOTICON_PATTERN.matcher(text).find()
-    }
+    fun hasEmoticons(text: CharSequence?): Boolean = !text.isNullOrEmpty() && EMOTICON_PATTERN.matcher(text).find()
 
-    /**
-     * Converts raw text into a CharSequence with authentic retro Uzzap emoticon images.
-     */
     fun parse(context: Context, text: CharSequence?, textSizeSp: Float = 15f): CharSequence {
         if (text.isNullOrEmpty()) return ""
         val ssb = SpannableStringBuilder(text)
@@ -143,29 +109,16 @@ object EmoticonParser {
         return ssb
     }
 
-    /**
-     * Applies ImageSpans in-place to an existing Spannable (such as an EditText's Editable).
-     */
     fun applySpans(context: Context, text: Spannable, textSizeSp: Float = 15f) {
         val oldSpans = text.getSpans(0, text.length, CenteredImageSpan::class.java)
-        for (old in oldSpans) {
-            text.removeSpan(old)
-        }
-
+        for (old in oldSpans) text.removeSpan(old)
         val density = context.resources.displayMetrics.scaledDensity
         val targetHeightPx = (textSizeSp * density * 1.25f).toInt().coerceAtLeast(18)
-
         val matcher = EMOTICON_PATTERN.matcher(text)
         while (matcher.find()) {
-            val code = matcher.group()
-            val resId = CODE_TO_DRAWABLE[code] ?: continue
+            val resId = CODE_TO_DRAWABLE[matcher.group()] ?: continue
             val drawable = getSizedDrawable(context, resId, targetHeightPx) ?: continue
-            text.setSpan(
-                CenteredImageSpan(drawable),
-                matcher.start(),
-                matcher.end(),
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
+            text.setSpan(CenteredImageSpan(drawable), matcher.start(), matcher.end(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }
 }
