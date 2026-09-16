@@ -11,6 +11,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.FragmentTransaction
 import com.kolipri.uzzap.R
+import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.PrivateMessageStateClient
 import com.kolipri.uzzap.data.PresenceClient
@@ -24,7 +25,18 @@ class ChatHostActivity:BaseChromeActivity(){
     private val notificationPoll=object:Runnable{override fun run(){if(!monitoring||isFinishing)return;PresenceClient.heartbeat(AppState.presence!=com.kolipri.uzzap.model.Presence.INVISIBLE);PrivateMessageStateClient.fetchUnread(AppState.username){state->if(!isFinishing&&!isDestroyed&&state!=null&&state.count>0)UzzapNotificationManager.notifyPrivateMessages(this@ChatHostActivity,state.count,state.senders)};RoomInvitationClient.fetchPending(AppState.username){invitations->if(isFinishing||isDestroyed)return@fetchPending;val pending=invitations?.firstOrNull{!handledInvitationIds.contains(it.id)};if(pending!=null){handledInvitationIds.add(pending.id);AlertDialog.Builder(this@ChatHostActivity).setTitle("Room Invitation").setMessage("${pending.inviterUsername} invited you to join '${pending.roomName}' chatroom.\nWould you like to join?").setPositiveButton("Join"){_,_->RoomInvitationClient.respond(pending.id,true){};openRoom(pending.roomName)}.setNegativeButton("Decline"){_,_->RoomInvitationClient.respond(pending.id,false){}}.setNeutralButton("Later",null).show()}};handler.postDelayed(this,8000)}}
     override fun contentLayoutRes():Int?=null
     override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);UzzapNotificationManager.initialize(this);showConnectedBall(true);showTabStrip(true);supportFragmentManager.beginTransaction().add(R.id.content_frame,buddyFragment,TAG_BUDDY).add(R.id.content_frame,roomsFragment,TAG_ROOMS).hide(roomsFragment).commitNow();currentTab=if(intent.getStringExtra(EXTRA_MODE)==MODE_CHAT)1 else 0;applyVisibility();renderTabs();onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){when{currentTab>=ROOM_TAB_START->confirmLeaveSelectedRoom();currentTab==1&&roomsFragment.onBackPressed()->Unit;currentTab==1&&intent.getStringExtra(EXTRA_MODE)==MODE_CHAT->finish();currentTab==1->goToBuddyList();else->finish()}}})}
-    override fun onResume(){super.onResume();monitoring=true;SupabaseRealtimeClient.start();handler.removeCallbacks(notificationPoll);handler.post(notificationPoll)}
+    override fun onResume(){super.onResume();monitoring=true;SupabaseRealtimeClient.start();handler.removeCallbacks(notificationPoll);handler.post(notificationPoll);refreshSelectedRoomOnForeground()}
+    private fun refreshSelectedRoomOnForeground(){
+        val room=selectedRoomName ?: return
+        val fragment=roomFragments[room] ?: return
+        if(!fragment.isAdded) return
+        AppDiagnostics.started("Room.foregroundRefresh", "room=$room")
+        // ChatRoomFragment owns the authoritative REST history refresh in its visible
+        // lifecycle path. Re-enter that path explicitly because an Activity can return
+        // from background without a Realtime reconnect event.
+        fragment.onHiddenChanged(false)
+        AppDiagnostics.success("Room.foregroundRefresh", "room=$room requested")
+    }
     override fun onPause(){monitoring=false;handler.removeCallbacks(notificationPoll);PresenceClient.heartbeat(false);super.onPause()}
     override fun onDestroy(){monitoring=false;handler.removeCallbacksAndMessages(null);PresenceClient.heartbeat(false);joinedRooms.forEach{RoomPresenceClient.leave(it,AppState.nickname)};AppState.joinedRooms.clear();SupabaseRealtimeClient.stop();super.onDestroy()}
     override fun onNetworkRestored(){super.onNetworkRestored();SupabaseRealtimeClient.start();PresenceClient.heartbeat(AppState.presence!=com.kolipri.uzzap.model.Presence.INVISIBLE);buddyFragment.syncBuddiesFromSupabase();PrivateMessageStateClient.fetchUnread(AppState.username){state->if(!isFinishing&&!isDestroyed&&state!=null&&state.count>0)UzzapNotificationManager.notifyPrivateMessages(this@ChatHostActivity,state.count,state.senders)}}
