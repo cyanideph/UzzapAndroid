@@ -12,9 +12,13 @@ import android.text.method.ScrollingMovementMethod
 import android.util.Patterns
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -83,7 +87,64 @@ class SplashMenuActivity : BaseChromeActivity() {
     private fun onForgotPassword() { val input = EditText(this).apply { hint = "Registered Email Address"; inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS; setText(AppState.email) }; AlertDialog.Builder(this).setTitle(getString(R.string.menu_forgot)).setMessage("Enter your registered email to receive a password reset link. The link will open Uzzap directly.").setView(input).setPositiveButton("Send Reset Link") { _, _ -> val email = input.text.toString().trim(); if (!validEmail(email)) { Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show(); return@setPositiveButton }; showLoading("Sending reset link..."); PasswordRecoveryClient.sendResetEmail(email) { success, error -> runOnUiThread { hideLoading(); AlertDialog.Builder(this).setTitle(if (success) "Reset Link Sent" else "Password Reset Failed").setMessage(if (success) "Check your email and tap Reset Password. Uzzap will open automatically so you can choose a new password." else (error ?: "Password reset failed")).setPositiveButton("OK", null).show() } } }.setNegativeButton(getString(R.string.softkey_cancel), null).show() }
     private fun showBackendInfo() = AlertDialog.Builder(this).setTitle("Supabase Backend").setMessage("Host: ${SupabaseClient.supabaseUrl}\n\nStatus: ${SupabaseClient.connectionStatus}\n\nSession: ${if (sessionActive()) "Authenticated as ${AppState.nickname}" else "Signed out"}").setPositiveButton("OK", null).show()
     private fun openHelp() = startActivity(SimpleTextActivity.intentForAsset(this, "Help", "help.txt"))
-    private fun openAbout() = AlertDialog.Builder(this).setTitle("About Uzzap").setMessage("UZZAP\n\nModern Recreation by CY\n\nA modern Android/Kotlin recreation of the classic Nokia/J2ME Uzzap mobile chat experience.\n\nDeveloped by CY using Android/Kotlin and Supabase.\n\nThis is an independent, unofficial recreation. The original Nokia/J2ME Uzzap application, its decompiled source, historical assets and trademarks are separate materials and are not claimed as original CY work. See NOTICE.md for attribution and licensing details.\n\n© 2026 CY").setPositiveButton("Close", null).show()
+    private fun openAbout() {
+        val red = resources.getColor(R.color.uzzap_special_red, theme)
+        val text = resources.getColor(R.color.uzzap_text, theme)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(8), dp(16), dp(10))
+        }
+
+        ImageView(this).apply {
+            setImageResource(R.drawable.d_logo_large)
+            contentDescription = getString(R.string.app_name)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            layoutParams = LinearLayout.LayoutParams(dp(64), dp(64)).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+            }
+        }.also { root.addView(it) }
+
+        addAboutHeading(root, "UZZAP", red)
+        addAboutText(root, "Modern Recreation by CY", text, 16, true)
+        addAboutText(root, "A modern Android/Kotlin recreation of the classic Nokia/J2ME Uzzap mobile chat experience.", text, 15, false)
+        addAboutText(root, "Developed by CY using Android/Kotlin and Supabase.", text, 15, false)
+        addAboutText(root, "This is an independent, unofficial recreation. The original Nokia/J2ME Uzzap application, its decompiled source, historical assets and trademarks are separate materials and are not claimed as original CY work. See NOTICE.md for attribution and licensing details.", text, 15, false)
+        addAboutText(root, "2026 CY", text, 14, true)
+
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+
+        AlertDialog.Builder(this)
+            .setView(scroll)
+            .setPositiveButton("Close", null)
+            .show()
+    }
+
+    private fun addAboutHeading(parent: LinearLayout, value: String, color: Int) {
+        parent.addView(TextView(this).apply {
+            text = value
+            textSize = 22f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(color)
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(0, dp(8), 0, dp(10))
+        })
+    }
+
+    private fun addAboutText(parent: LinearLayout, value: String, color: Int, size: Int, bold: Boolean) {
+        parent.addView(TextView(this).apply {
+            text = value
+            textSize = size.toFloat()
+            if (bold) typeface = Typeface.DEFAULT_BOLD
+            setTextColor(color)
+            setPadding(0, dp(3), 0, dp(9))
+        })
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
     override fun onDestroy() { hideLoading(); super.onDestroy() }
     companion object { private const val NOTIFICATION_PERMISSION_REQUEST = 4107 }
 }
