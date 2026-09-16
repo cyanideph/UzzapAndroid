@@ -6,6 +6,7 @@ on:
       - main
       - phase-1-core-chat
       - phase-2-auth-notifications-sync
+      - phase-3-notifications
       - feature/uzzap-parity
       - feature/deep-implementation-fixes
       - fix/keyboard-chatroom-composer
