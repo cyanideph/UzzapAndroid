@@ -14,8 +14,6 @@ import java.util.concurrent.TimeUnit
 
 /** Password recovery flow for the native Android Uzzap client. */
 object PasswordRecoveryClient {
-    // Android runtime objects are lazy so pure deep-link validation can run in
-    // local JVM tests without requiring an Android main Looper.
     private val mainHandler by lazy(LazyThreadSafetyMode.NONE) { Handler(Looper.getMainLooper()) }
     private val jsonType by lazy(LazyThreadSafetyMode.NONE) { "application/json; charset=utf-8".toMediaType() }
     private val http by lazy(LazyThreadSafetyMode.NONE) {
@@ -60,17 +58,27 @@ object PasswordRecoveryClient {
     }
 
     /**
-     * Pure validation of the recovery deep-link shape. This method has no
-     * Android runtime or network side effects and is safe for JVM unit tests.
+     * JVM-safe validation of a recovery deep-link string. It deliberately does
+     * not touch Android Uri APIs, making the security rules testable in local
+     * unit tests as well as usable by Android runtime code.
      */
-    fun isValidRecoveryIntent(uri: Uri?): Boolean {
-        if (uri == null || uri.scheme != "uzzap" || uri.host != "auth" || uri.path != "/reset") return false
-        if (!uri.query.isNullOrEmpty()) return false
-        val values = parseParams(uri.fragment.orEmpty())
+    fun isValidRecoveryLink(link: String?): Boolean {
+        if (link.isNullOrBlank() || link.length > 8192) return false
+        val separator = link.indexOf('#')
+        if (separator <= 0 || separator == link.lastIndex) return false
+        val base = link.substring(0, separator)
+        val fragment = link.substring(separator + 1)
+        if (base != RESET_URI || base.contains('?')) return false
+
+        val values = parseParams(fragment)
         val type = values["type"].orEmpty()
         val access = values["access_token"].orEmpty()
         return type == "recovery" && access.isNotBlank() && access.length <= 4096
     }
+
+    /** Android entry point; converts the intent URI to the pure validator input. */
+    fun isValidRecoveryIntent(uri: Uri?): Boolean =
+        uri != null && isValidRecoveryLink(uri.toString())
 
     /** Extracts the recovery access token delivered in the Android deep-link fragment. */
     fun consumeRecoveryIntent(uri: Uri?): Boolean {
@@ -118,9 +126,12 @@ object PasswordRecoveryClient {
         value.split('&').forEach { pair ->
             if (pair.isBlank()) return@forEach
             val parts = pair.split('=', limit = 2)
-            val key = Uri.decode(parts[0])
-            val v = Uri.decode(parts.getOrElse(1) { "" })
+            val key = decode(parts[0])
+            val v = decode(parts.getOrElse(1) { "" })
             put(key, v)
         }
     }
+
+    private fun decode(value: String): String =
+        runCatching { java.net.URLDecoder.decode(value, "UTF-8") }.getOrDefault("")
 }
