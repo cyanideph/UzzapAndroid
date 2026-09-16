@@ -49,21 +49,17 @@ object UnifiedRoomClient {
         SupabaseClient.fetchLatestMessages(roomName, limit, onResult)
 
     /**
-     * Realtime-first incremental message delivery.
-     *
-     * While the Supabase WebSocket is connected, room INSERT/UPDATE/DELETE events
-     * are delivered through SupabaseRealtimeClient, so this REST fallback does not
-     * hit the database on every UI poll. If Realtime is disconnected, REST is
-     * throttled to one request per room every 15 seconds as a reliability fallback.
+     * Realtime-first incremental delivery with an explicit REST escape hatch.
+     * forceRest is used after reconnect so events missed while offline are recovered.
      */
-    fun fetchMessages(roomName: String, afterId: Long = 0, onResult: (List<ChatMessage>?) -> Unit) {
-        if (SupabaseRealtimeClient.isConnected()) {
+    fun fetchMessages(roomName: String, afterId: Long = 0, forceRest: Boolean = false, onResult: (List<ChatMessage>?) -> Unit) {
+        if (SupabaseRealtimeClient.isConnected() && !forceRest) {
             mainHandler.post { onResult(emptyList()) }
             return
         }
 
         val now = System.currentTimeMillis()
-        val shouldFetch = synchronized(fallbackFetchAt) {
+        val shouldFetch = if (forceRest) true else synchronized(fallbackFetchAt) {
             val last = fallbackFetchAt[roomName] ?: 0L
             if (now - last >= FALLBACK_POLL_INTERVAL_MS) {
                 fallbackFetchAt[roomName] = now
@@ -75,7 +71,6 @@ object UnifiedRoomClient {
             mainHandler.post { onResult(emptyList()) }
             return
         }
-
         SupabaseClient.fetchMessages(roomName, afterId, onResult)
     }
 
