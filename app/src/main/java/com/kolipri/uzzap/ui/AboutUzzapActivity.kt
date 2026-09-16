@@ -53,7 +53,7 @@ class AboutUzzapActivity : BaseChromeActivity() {
         addText(root, "Modern Android Uzzap client • Created by CY", 16, true)
         addText(root, "Version ${BuildConfig.VERSION_NAME}  •  Build ${BuildConfig.VERSION_CODE}", 15, false)
         addText(root, "Release channel: Beta", 14, false)
-        addText(root, "Android/Kotlin modernization of the classic Uzzap chat experience, with a Supabase-backed realtime service and modern security controls.", 15, false)
+        addText(root, "Android/Kotlin modernization of the classic Uzzap chat experience with modern security and realtime messaging.", 15, false)
 
         addHeading(root, "What's New in ${BuildConfig.VERSION_NAME}")
         addText(root, "Beta 7 — Uzzap identity, colors and emoticons\n• Added all 30 Uzzap message color codes: c01-c30\n• Messages support color markup and multiple color segments\n• Nicknames remain text-only and keep the normal Uzzap nickname color\n• Added Uzzap emoticon/emoji picker\n• Added numbered emoticons 11-20 and 47\n• Numbered emoticon markers render as their actual Uzzap images\n• Added legacy text emoticon rendering such as :), :D, :(, ;), :P and <3\n• Color codes and emoticons can be used together in messages\n• Added pure centered UzzapBot system welcome messages\n• Hardened nickname sanitization and room sender identity\n• Added secure moderator/admin room message deletion\n• Fixed password recovery HTTP 405 update failure", 15, false)
@@ -76,7 +76,7 @@ class AboutUzzapActivity : BaseChromeActivity() {
         addText(root, "• Added FCM push notification delivery\n• Added notification tap-to-chat navigation\n• Added duplicate-notification suppression and push-token cleanup\n• Added moderator report queue and audit history\n• Added moderator assignment and role-aware controls\n• Added warn, mute, kick, ban, expiry and revoke workflows\n• Added moderator-only room support", 15, false)
 
         addText(root, "v1.0-beta.6 — Reliability & Security", 17, true)
-        addText(root, "• Hardened Supabase Auth and persistent sessions\n• Added token refresh and expired-session recovery\n• Strengthened PostgreSQL/RLS ownership and authorization checks\n• Added protected server-side moderation functions\n• Added message rate limiting and safer synchronization\n• Improved realtime reconnect and duplicate-message protection\n• Added notification cleanup and delivery safeguards\n• Added Android CI APK build and diagnostic workflows", 15, false)
+        addText(root, "• Hardened authentication and persistent sessions\n• Added token refresh and expired-session recovery\n• Strengthened database ownership and authorization checks\n• Added protected server-side moderation functions\n• Added message rate limiting and safer synchronization\n• Improved realtime reconnect and duplicate-message protection\n• Added notification cleanup and delivery safeguards\n• Added Android CI APK build and diagnostic workflows", 15, false)
 
         addText(root, "v1.0-beta.7 — Uzzap Identity & Messaging", 17, true)
         addText(root, "• Added 30 Uzzap message color codes: c01-c30\n• Added multi-color message rendering\n• Kept nickname editing text-only; nickname colors are not user-selectable\n• Added Uzzap emoticon/emoji picker\n• Added numbered emoticons 11-20 and 47\n• Added legacy text emoticon rendering\n• Added color + emoticon combinations in messages\n• Added pure system-style UzzapBot welcome messages\n• Sanitized nickname markup at the database boundary\n• Added secure moderator/admin room message deletion\n• Fixed password recovery HTTP 405 update failure\n• Updated the Android application to version code 7", 15, false)
@@ -87,7 +87,7 @@ class AboutUzzapActivity : BaseChromeActivity() {
         }
 
         addHeading(root, "Build Information")
-        addText(root, "Application ID: ${BuildConfig.APPLICATION_ID}\nBuild type: ${BuildConfig.BUILD_TYPE}\nTarget SDK: 36\nBackend: Supabase Auth + PostgreSQL/RLS\nPush: Firebase Cloud Messaging\nRelease channel: Beta", 14, false)
+        addText(root, "Application ID: ${BuildConfig.APPLICATION_ID}\nBuild type: ${BuildConfig.BUILD_TYPE}\nTarget SDK: 36\nPush: Firebase Cloud Messaging\nRelease channel: Beta", 14, false)
 
         addText(root, "Uzzap • Created by CY", 14, true)
         return ScrollView(this).apply {
