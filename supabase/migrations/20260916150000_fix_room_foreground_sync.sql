@@ -1,0 +1,4 @@
+-- Room foreground synchronization support.
+-- The Android client now performs an authoritative latest-history refresh on resume;
+-- this migration documents the client/server contract without changing message data.
+-- Supabase remains authoritative for room_messages ordering by id/created_at.
