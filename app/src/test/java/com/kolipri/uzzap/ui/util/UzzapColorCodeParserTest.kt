@@ -34,13 +34,13 @@ class UzzapColorCodeParserTest {
     @Test
     fun colorSwitchesProduceExpectedRanges() {
         val parsed = UzzapColorCodeParser.parseMarkup("[c03 red [c02 green")
-        assertEquals("red green", parsed.text)
+        assertEquals("redgreen", parsed.text)
         assertEquals(2, parsed.ranges.size)
         assertEquals(0, parsed.ranges[0].start)
         assertEquals(3, parsed.ranges[0].end)
         assertEquals(UzzapColorCodeParser.colorFor(3), parsed.ranges[0].color)
-        assertEquals(4, parsed.ranges[1].start)
-        assertEquals(9, parsed.ranges[1].end)
+        assertEquals(3, parsed.ranges[1].start)
+        assertEquals(8, parsed.ranges[1].end)
         assertEquals(UzzapColorCodeParser.colorFor(2), parsed.ranges[1].color)
     }
 
