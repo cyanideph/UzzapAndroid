@@ -67,19 +67,9 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
 
     private fun refreshSoftkeys() {
         if (selectedCategory == null) {
-            host.setSoftkeys(
-                getString(R.string.softkey_options),
-                getString(R.string.softkey_menu),
-                onLeft = { showOptionsMenu() },
-                onRight = { showOptionsMenu() }
-            )
+            host.setSoftkeys(getString(R.string.softkey_options), getString(R.string.softkey_menu), onLeft = { showOptionsMenu() }, onRight = { showOptionsMenu() })
         } else {
-            host.setSoftkeys(
-                getString(R.string.softkey_options),
-                getString(R.string.softkey_back),
-                onLeft = { showOptionsMenu() },
-                onRight = { showCategories() }
-            )
+            host.setSoftkeys(getString(R.string.softkey_options), getString(R.string.softkey_back), onLeft = { showOptionsMenu() }, onRight = { showCategories() })
         }
     }
 
@@ -116,11 +106,8 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
                         loadInFlight = false
                         return@liveCounts
                     }
-                    if (counts == null) {
-                        AppDiagnostics.failed("RoomList.liveCounts", "No live room counts returned")
-                    } else {
-                        AppDiagnostics.success("RoomList.liveCounts", "rooms=${counts.size}")
-                    }
+                    if (counts == null) AppDiagnostics.failed("RoomList.liveCounts", "No live room counts returned")
+                    else AppDiagnostics.success("RoomList.liveCounts", "rooms=${counts.size}")
                     val live = counts ?: emptyMap()
                     val updated = remoteCats.map { category ->
                         val rooms = category.rooms.map { room ->
@@ -191,7 +178,6 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
         listView.setOnItemClickListener { _, _, position, _ ->
             val clickedRoom = category.rooms[position]
             AppDiagnostics.info(requireContext(), "RoomList.openRoom", "room=${clickedRoom.name}")
-            AppState.joinedRooms.add(clickedRoom.name)
             host.openRoom(clickedRoom.name)
         }
         refreshSoftkeys()
