@@ -5,7 +5,6 @@ import android.content.Context
 import android.view.Gravity
 import android.widget.GridLayout
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.ScrollView
 import com.kolipri.uzzap.R
 
@@ -26,7 +25,18 @@ object EmoticonPickerDialog {
         R.drawable.d_emoticon_party to "\\o/",
         R.drawable.d_emoticon_drink to "[drink]",
         R.drawable.d_emoticon_rose to "[rose]",
-        R.drawable.d_kiss to "[kiss]" // shares kiss.png
+        R.drawable.d_kiss to "[kiss]",
+        R.drawable.d_emoticon_11 to "[emoticon-11]",
+        R.drawable.d_emoticon_12 to "[emoticon-12]",
+        R.drawable.d_emoticon_13 to "[emoticon-13]",
+        R.drawable.d_emoticon_14 to "[emoticon-14]",
+        R.drawable.d_emoticon_15 to "[emoticon-15]",
+        R.drawable.d_emoticon_16 to "[emoticon-16]",
+        R.drawable.d_emoticon_17 to "[emoticon-17]",
+        R.drawable.d_emoticon_18 to "[emoticon-18]",
+        R.drawable.d_emoticon_19 to "[emoticon-19]",
+        R.drawable.d_emoticon_20 to "[emoticon-20]",
+        R.drawable.d_emoticon_47 to "[emoticon-47]"
     )
 
     fun show(context: Context, onPick: (String) -> Unit) {
