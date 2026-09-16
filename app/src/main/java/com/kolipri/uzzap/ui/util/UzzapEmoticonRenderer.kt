@@ -1,5 +1,6 @@
 package com.kolipri.uzzap.ui.util
 
+import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 /** Display-only conversion of legacy Uzzap ASCII emoticon codes to visible emoji. */
