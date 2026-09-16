@@ -6,10 +6,12 @@ import android.util.Log
 import com.kolipri.uzzap.model.ChatMessage
 import com.kolipri.uzzap.model.ChatRoomCategory
 
-/** Room facade backed by the populated KOTLINJARZAP Supabase schema. */
+/** Room facade backed by the populated Supabase schema. */
 object UnifiedRoomClient {
     private const val TAG = "UnifiedRoomClient"
-    private const val FALLBACK_POLL_INTERVAL_MS = 15_000L
+    // The room UI polls every 2.5s. Keep a small REST throttle so a lifecycle/realtime
+    // reconnect cannot leave the client displaying a stale message snapshot.
+    private const val FALLBACK_POLL_INTERVAL_MS = 2_000L
     private val mainHandler = Handler(Looper.getMainLooper())
     private val fallbackFetchAt = mutableMapOf<String, Long>()
 
@@ -49,28 +51,41 @@ object UnifiedRoomClient {
         SupabaseClient.fetchLatestMessages(roomName, limit, onResult)
 
     /**
-     * Realtime-first incremental delivery with an explicit REST escape hatch.
-     * forceRest is used after reconnect so events missed while offline are recovered.
+     * Incremental room synchronization.
+     *
+     * REST is intentionally used even while Realtime is connected. Realtime delivers
+     * low-latency events, but it cannot be treated as the authoritative history after
+     * Android background/foreground transitions or a channel reconnect. The server
+     * history query closes that gap and the fragment de-duplicates by message id.
+     * forceRest bypasses the small throttle for an explicit reconnect sync.
      */
-    fun fetchMessages(roomName: String, afterId: Long = 0, forceRest: Boolean = false, onResult: (List<ChatMessage>?) -> Unit) {
-        if (SupabaseRealtimeClient.isConnected() && !forceRest) {
-            mainHandler.post { onResult(emptyList()) }
-            return
-        }
-
+    fun fetchMessages(
+        roomName: String,
+        afterId: Long = 0,
+        forceRest: Boolean = false,
+        onResult: (List<ChatMessage>?) -> Unit
+    ) {
         val now = System.currentTimeMillis()
-        val shouldFetch = if (forceRest) true else synchronized(fallbackFetchAt) {
-            val last = fallbackFetchAt[roomName] ?: 0L
-            if (now - last >= FALLBACK_POLL_INTERVAL_MS) {
-                fallbackFetchAt[roomName] = now
-                true
-            } else false
+        val shouldFetch = if (forceRest) {
+            synchronized(fallbackFetchAt) { fallbackFetchAt[roomName] = now }
+            true
+        } else {
+            synchronized(fallbackFetchAt) {
+                val last = fallbackFetchAt[roomName] ?: 0L
+                if (now - last >= FALLBACK_POLL_INTERVAL_MS) {
+                    fallbackFetchAt[roomName] = now
+                    true
+                } else {
+                    false
+                }
+            }
         }
 
         if (!shouldFetch) {
             mainHandler.post { onResult(emptyList()) }
             return
         }
+
         SupabaseClient.fetchMessages(roomName, afterId, onResult)
     }
 
