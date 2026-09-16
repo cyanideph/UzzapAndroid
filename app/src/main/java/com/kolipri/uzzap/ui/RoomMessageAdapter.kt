@@ -9,6 +9,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.kolipri.uzzap.R
+import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.model.ChatMessage
 import com.kolipri.uzzap.ui.util.EmoticonParser
 import com.kolipri.uzzap.ui.util.UzzapColorCodeParser
@@ -103,7 +104,7 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
         } else if (holder is NormalHolder) {
             holder.container.removeAllViews()
             holder.container.addView(TextView(context).apply {
-                text = renderFormatted("${message.sender}:", R.color.uzzap_special_red)
+                text = renderFormatted(displaySender(message.sender) + ":", R.color.uzzap_special_red)
                 textSize = 15f
             })
             holder.container.addView(TextView(context).apply {
@@ -111,6 +112,19 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
                 textSize = 15f
             })
         }
+    }
+
+    /**
+     * The database historically stored the canonical username in sender. For the
+     * current user's own history, replace that legacy value with the authoritative
+     * editable nickname so old messages also immediately use the selected color.
+     */
+    private fun displaySender(sender: String): String {
+        val currentUsername = AppState.username.trim()
+        val currentNickname = AppState.nickname.trim()
+        return if (currentUsername.isNotBlank() && currentNickname.isNotBlank() &&
+            sender.trim().equals(currentUsername, ignoreCase = true)
+        ) currentNickname else sender
     }
 
     /** Apply Uzzap color markup first, then add legacy emoticon image spans without losing color spans. */
