@@ -14,7 +14,8 @@ class AboutUzzapActivity : BaseChromeActivity() {
     private val features = listOf(
         "Login and signup", "Logout and password recovery", "Profile creation and editing", "Avatar support", "Online/offline presence",
         "Philippine region/category selection", "Province chat rooms", "Room joining and leaving", "Realtime room messaging", "Message history pagination",
-        "Message retry and reconnect recovery", "Message deletion", "Buddies", "Buddy requests", "Add/remove buddies", "Block and report users",
+        "Message retry and reconnect recovery", "Message deletion", "30 Uzzap message color codes (c01-c30)", "Color-coded messages with multiple colors", "Uzzap emoticon/emoji picker",
+        "Numbered Uzzap emoticons 11-20 and 47", "Legacy text emoticon rendering", "Buddies", "Buddy requests", "Add/remove buddies", "Block and report users",
         "Private chat", "Delivery receipts", "Read receipts", "Unread synchronization", "Room invitations", "Uzzap bot system messages",
         "FCM push notifications", "Notification tap-to-chat", "Duplicate notification suppression", "Moderator report queue", "Moderator assignment/removal",
         "Moderator-only room", "Warn", "Mute", "Kick", "Ban", "Sanction expiry", "Sanction revoke", "Moderator audit log",
@@ -55,12 +56,14 @@ class AboutUzzapActivity : BaseChromeActivity() {
         addText(root, "Android/Kotlin modernization of the classic Uzzap chat experience, with a Supabase-backed realtime service and modern security controls.", 15, false)
 
         addHeading(root, "What's New in ${BuildConfig.VERSION_NAME}")
+        addText(root, "Beta 7 messaging and emoticons\n• Added 30 Uzzap message color codes: c01-c30\n• Messages support color markup and multiple color segments\n• Nicknames remain text-only; color codes are not used for nicknames\n• Added Uzzap emoticon/emoji picker\n• Added numbered emoticons 11-20 and 47\n• Numbered emoticon markers render as their actual Uzzap images\n• Added legacy text emoticon rendering such as :), :D, :(, ;), :P and <3\n• Color codes and emoticons can be used together in messages", 15, false)
         addText(root, "Core chat reliability\n• Cursor-based private-message history and pagination\n• Retry-safe message sending and failed-message recovery\n• Realtime reconnect synchronization and duplicate-message protection\n• Room DELETE events and polling fallback", 15, false)
         addText(root, "Authentication and sync\n• Persistent Supabase sessions\n• Token refresh and expired-session recovery\n• Canonical username handling\n• Safer logout/session cleanup\n• Hardened RLS policies and authenticated ownership checks", 15, false)
         addText(root, "Notifications\n• FCM data-only notification flow\n• Private-message and buddy-request notifications\n• Room-invitation notifications\n• Tap-to-chat navigation\n• Duplicate-notification suppression\n• Automatic cleanup of invalid push tokens", 15, false)
-        addText(root, "Moderation\n• Authenticated-only reporting and moderation operations\n• Moderator-only room\n• Moderator assignment/removal\n• Report queue and moderation audit history\n• Warn, mute, kick, ban, expiry and revoke controls\n• Role hierarchy and self-sanction safeguards\n• Protected server-side sanction materialization", 15, false)
-        addText(root, "Messaging and community\n• Philippine regions as chat categories\n• Provinces as chat rooms\n• Buddies and private chat\n• Delivery/read receipts\n• Room invitations\n• Uzzap bot welcome/system messages\n• Block and report controls", 15, false)
-        addText(root, "Build and security\n• Supabase PostgreSQL/RLS backend\n• Protected SECURITY DEFINER database paths\n• Push-token RLS hardening\n• Message rate limiting\n• Android CI debug/release build workflows\n• No service-role/secret key in the Android client", 15, false)
+        addText(root, "Moderation\n• Authenticated-only reporting and moderation operations\n• Moderator-only room\n• Moderator assignment/removal\n• Report queue and moderation audit history\n• Warn, mute, kick, ban, expiry and revoke controls\n• Role hierarchy and self-sanction safeguards\n• Protected server-side sanction materialization\n• Role-aware room message deletion", 15, false)
+        addText(root, "Messaging and community\n• Philippine regions as chat categories\n• Provinces as chat rooms\n• Buddies and private chat\n• Delivery/read receipts\n• Room invitations\n• Uzzap bot welcome/system messages\n• Welcome messages render as pure centered system text\n• Block and report controls", 15, false)
+        addText(root, "Profile and security\n• Nicknames are editable as text only\n• Nickname color markup is sanitized at the database boundary\n• Password recovery update path fixed for HTTP 405 failures\n• Supabase PostgreSQL/RLS backend\n• Protected SECURITY DEFINER database paths\n• Push-token RLS hardening\n• Message rate limiting", 15, false)
+        addText(root, "Build and security\n• Android CI debug/release build workflows\n• Supabase publishable/anon key only in the Android client\n• No service-role/secret key in the Android client", 15, false)
 
         addHeading(root, "Features")
         features.forEachIndexed { index, feature ->
@@ -68,6 +71,8 @@ class AboutUzzapActivity : BaseChromeActivity() {
         }
 
         addHeading(root, "Version History")
+        addText(root, "v1.0-beta.7", 16, true)
+        addText(root, "September 2026\n• Added 30 Uzzap message color codes (c01-c30)\n• Added Uzzap emoticon/emoji picker and numbered emoticons 11-20 and 47\n• Added legacy text emoticon rendering\n• Preserved color markup for messages while keeping nicknames text-only\n• Added pure system-style UzzapBot welcome messages\n• Hardened nickname sanitization and room sender identity\n• Added secure moderator/admin room message deletion\n• Fixed password recovery HTTP 405 update failure\n• Updated version code to 7", 15, false)
         addText(root, "v1.0-beta.6", 16, true)
         addText(root, "September 2026\n• Consolidates Phase 1 core chat reliability\n• Consolidates Phase 2 authentication, sync and security hardening\n• Consolidates Phase 3 notification delivery and push cleanup\n• Consolidates Phase 4 moderation hardening\n• Expands the About screen to document the current feature set\n• Updates the Android build to versionCode 6", 15, false)
         addText(root, "v1.0-beta.5", 16, true)
