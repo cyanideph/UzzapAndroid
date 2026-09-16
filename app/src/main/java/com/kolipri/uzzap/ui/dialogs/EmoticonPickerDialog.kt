@@ -36,7 +36,16 @@ object EmoticonPickerDialog {
         R.drawable.d_emoticon_18 to "[emoticon-18]",
         R.drawable.d_emoticon_19 to "[emoticon-19]",
         R.drawable.d_emoticon_20 to "[emoticon-20]",
-        R.drawable.d_emoticon_47 to "[emoticon-47]"
+        R.drawable.d_emoticon_47 to "[emoticon-47]",
+        R.drawable.d_head_buntis to "[head-buntis]",
+        R.drawable.d_head_deckard to "[head-deckard]",
+        R.drawable.d_head_jp to "[head-jp]",
+        R.drawable.d_head_kool to "[head-kool]",
+        R.drawable.d_head_lupz to "[head-lupz]",
+        R.drawable.d_head_requiem to "[head-requiem]",
+        R.drawable.d_head_root to "[head-root]",
+        R.drawable.d_head_saiyan to "[head-saiyan]",
+        R.drawable.d_head_valkyrie to "[head-valkyrie]"
     )
 
     fun show(context: Context, onPick: (String) -> Unit) {
