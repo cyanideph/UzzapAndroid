@@ -21,6 +21,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.DirectMessageClient
 import com.kolipri.uzzap.data.PrivateMessageStateClient
@@ -30,6 +31,7 @@ import com.kolipri.uzzap.data.SupabaseRealtimeClient
 import com.kolipri.uzzap.data.UzzapNotificationManager
 import com.kolipri.uzzap.model.DirectMessage
 import com.kolipri.uzzap.ui.dialogs.EmoticonPickerDialog
+import com.kolipri.uzzap.ui.util.UzzapColorCodeParser
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -56,11 +58,7 @@ class PrivateChatActivity : BaseChromeActivity() {
     private val realtimeListener: (DirectMessage) -> Unit = { dm ->
         val me = AppState.username
         val isForThisChat = (dm.sender.equals(buddy, true) && dm.recipient.equals(me, true)) || (dm.sender.equals(me, true) && dm.recipient.equals(buddy, true))
-        if (isForThisChat && dm.id > lastId && renderedIds.add(dm.id)) {
-            lastId = dm.id
-            appendMessage(dm, true)
-            markReadAndRefreshNotification()
-        }
+        if (isForThisChat && dm.id > lastId && renderedIds.add(dm.id)) { lastId = dm.id; appendMessage(dm, true); markReadAndRefreshNotification() }
     }
 
     private val poll = object : Runnable {
@@ -80,21 +78,14 @@ class PrivateChatActivity : BaseChromeActivity() {
         super.onCreate(savedInstanceState)
         buddy = intent.getStringExtra(EXTRA_BUDDY).orEmpty()
         if (buddy.isBlank()) { finish(); return }
-        buildUi()
-        setScreenTitle("")
-        showConnectedBall(false)
-        setSoftkeys(null, null)
+        buildUi(); setScreenTitle(""); showConnectedBall(false); setSoftkeys(null, null)
         SupabaseRealtimeClient.addDirectMessageListener(realtimeListener)
         ViewCompat.setOnApplyWindowInsetsListener(chatRoot) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-            keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            view.updatePadding(bottom = if (keyboardVisible) ime.bottom else bars.bottom)
-            insets
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()); val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime()); view.updatePadding(bottom = if (keyboardVisible) ime.bottom else bars.bottom); insets
         }
         scroll.setOnScrollChangeListener { _, _, y, _, _ -> if (y <= dp(80)) loadOlderHistory() }
-        loadConversation()
-        loadPresence()
+        loadConversation(); loadPresence()
     }
 
     private fun buildUi() {
@@ -104,10 +95,9 @@ class PrivateChatActivity : BaseChromeActivity() {
         header.addView(actionButton("‹", 30).apply { setOnClickListener { finish() }; contentDescription = "Back" }, LinearLayout.LayoutParams(dp(44), dp(48)))
         header.addView(TextView(this).apply { text = buddy.take(1).uppercase(Locale.getDefault()); textSize = 18f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; typeface = Typeface.DEFAULT_BOLD; background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.rgb(55, 112, 82)) } }, LinearLayout.LayoutParams(dp(42), dp(42)))
         val identity = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, dp(6), 0) }
-        identity.addView(TextView(this).apply { text = buddy; textSize = 17f; typeface = Typeface.DEFAULT_BOLD; setTextColor(Color.rgb(25, 27, 31)); maxLines = 1 })
+        identity.addView(TextView(this).apply { text = UzzapColorCodeParser.parse(buddy, Color.rgb(25, 27, 31)); textSize = 17f; typeface = Typeface.DEFAULT_BOLD; maxLines = 1 })
         statusText = TextView(this).apply { text = "Checking status…"; textSize = 12f; setTextColor(Color.rgb(100, 105, 112)) }
-        identity.addView(statusText)
-        header.addView(identity, LinearLayout.LayoutParams(0, -2, 1f))
+        identity.addView(statusText); header.addView(identity, LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(actionButton("ⓘ", 21).apply { contentDescription = "View profile"; setOnClickListener { viewProfile() } }, LinearLayout.LayoutParams(dp(44), dp(48)))
         header.addView(actionButton("⋮", 25).apply { contentDescription = "$buddy options"; setOnClickListener { showOptions() } }, LinearLayout.LayoutParams(dp(44), dp(48)))
         chatRoot.addView(header, LinearLayout.LayoutParams(-1, -2))
@@ -140,15 +130,12 @@ class PrivateChatActivity : BaseChromeActivity() {
 
     private fun loadOlderHistory() {
         if (historyLoading || !hasMoreHistory || oldestId <= 0L || isFinishing) return
-        historyLoading = true
-        val oldHeight = messagesContainer.height; val oldY = scroll.scrollY
+        historyLoading = true; val oldHeight = messagesContainer.height; val oldY = scroll.scrollY
         DirectMessageClient.fetchConversationBefore(AppState.username, buddy, oldestId, 50) { older ->
-            historyLoading = false
-            if (isFinishing || older == null) return@fetchConversationBefore
+            historyLoading = false; if (isFinishing || older == null) return@fetchConversationBefore
             val unique = older.filter { it.id > 0 && renderedIds.add(it.id) }
             if (unique.isEmpty()) { hasMoreHistory = false; return@fetchConversationBefore }
-            unique.asReversed().forEach { appendMessage(it, false, true) }
-            oldestId = unique.first().id
+            unique.asReversed().forEach { appendMessage(it, false, true) }; oldestId = unique.first().id
             if (unique.size < 50) hasMoreHistory = false
             scroll.post { scroll.scrollTo(0, (oldY + messagesContainer.height - oldHeight).coerceAtLeast(0)) }
         }
@@ -158,7 +145,11 @@ class PrivateChatActivity : BaseChromeActivity() {
         emptyState.visibility = View.GONE
         val mine = message.sender.equals(AppState.username, true)
         val row = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = if (mine) Gravity.END else Gravity.START; setPadding(dp(4), dp(2), dp(4), dp(2)) }
-        val bubble = TextView(this).apply { text = message.body; textSize = 15f; setTextColor(if (mine) Color.WHITE else Color.rgb(35, 37, 41)); setPadding(dp(13), dp(9), dp(13), dp(6)); maxWidth = (resources.displayMetrics.widthPixels * 0.78f).toInt(); background = GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(if (mine) Color.rgb(47, 116, 78) else Color.WHITE); if (!mine) setStroke(dp(1), Color.rgb(229, 231, 235)) } }
+        val bubble = TextView(this).apply {
+            text = UzzapColorCodeParser.parse(message.body, if (mine) Color.WHITE else Color.rgb(35, 37, 41)); textSize = 15f
+            setTextColor(if (mine) Color.WHITE else Color.rgb(35, 37, 41)); setPadding(dp(13), dp(9), dp(13), dp(6)); maxWidth = (resources.displayMetrics.widthPixels * 0.78f).toInt()
+            background = GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(if (mine) Color.rgb(47, 116, 78) else Color.WHITE); if (!mine) setStroke(dp(1), Color.rgb(229, 231, 235)) }
+        }
         row.addView(bubble, LinearLayout.LayoutParams(-2, -2))
         val time = if (message.createdAt.isNotBlank()) message.createdAt else SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
         row.addView(TextView(this).apply { text = if (mine) "$time  ✓" else time; textSize = 10f; setTextColor(Color.rgb(125, 130, 138)); setPadding(dp(5), dp(2), dp(5), 0) })
@@ -174,13 +165,27 @@ class PrivateChatActivity : BaseChromeActivity() {
             input.isEnabled = true
             if (sent != null && sent.id > 0 && renderedIds.add(sent.id)) { lastId = maxOf(lastId, sent.id); oldestId = if (oldestId == 0L) sent.id else minOf(oldestId, sent.id); appendMessage(sent, true) }
             updateSendState()
-        }, { error ->
-            input.isEnabled = true; failedBody = body; input.setText(body); input.setSelection(input.text.length); updateSendState(); Toast.makeText(this, "$error\nPress Send to retry.", Toast.LENGTH_LONG).show()
-        })
+        }, { error -> input.isEnabled = true; failedBody = body; input.setText(body); input.setSelection(input.text.length); updateSendState(); Toast.makeText(this, "$error\nPress Send to retry.", Toast.LENGTH_LONG).show() })
     }
 
     private fun loadPresence() { PresenceClient.fetch(buddy) { p -> if (p?.isOnline == true) { statusText.text = "● Online"; statusText.setTextColor(Color.rgb(38, 133, 75)) } else { statusText.text = if (p?.lastSeen != null) "Offline · Last seen recently" else "Offline" } } }
-    private fun showOptions() { AlertDialog.Builder(this).setTitle("$buddy Options").setItems(arrayOf("Send Message", "Add Emoticon", "View Profile", "Block User", "Report User", "Cancel")) { _, which -> when (which) { 0 -> { input.requestFocus(); (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(input, InputMethodManager.SHOW_IMPLICIT) }; 1 -> EmoticonPickerDialog.show(this) { code -> input.append(if (input.text.isNotEmpty()) " $code " else "$code ") }; 2 -> viewProfile(); 3 -> blockUser(); 4 -> reportUser() } }.show() }
+    private fun showOptions() {
+        AlertDialog.Builder(this).setTitle("$buddy Options").setItems(arrayOf("Send Message", "Add Emoticon", "Color Codes", "View Profile", "Block User", "Report User", "Cancel")) { _, which ->
+            when (which) {
+                0 -> { input.requestFocus(); (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(input, InputMethodManager.SHOW_IMPLICIT) }
+                1 -> EmoticonPickerDialog.show(this) { code -> input.append(if (input.text.isNotEmpty()) " $code " else "$code ") }
+                2 -> showColorCodes()
+                3 -> viewProfile()
+                4 -> blockUser()
+                5 -> reportUser()
+            }
+        }.show()
+    }
+    private fun showColorCodes() {
+        val colors = (1..30).joinToString("\n") { code -> "[c${code.toString().padStart(2, '0')}]  ${colorName(code)}" }
+        AlertDialog.Builder(this).setTitle("Uzzap Color Codes").setMessage(colors).setPositiveButton("OK", null).show()
+    }
+    private fun colorName(code: Int): String = mapOf(1 to "Black", 2 to "Green", 3 to "Red", 4 to "Blue", 5 to "Yellow", 6 to "Orange", 7 to "Purple", 8 to "Pink", 9 to "Gray", 10 to "White", 11 to "Cyan", 12 to "Magenta", 13 to "Lime", 14 to "Gold", 15 to "Brown", 16 to "Navy", 17 to "Sky Blue", 18 to "Violet", 19 to "Teal", 20 to "Maroon", 21 to "Olive", 22 to "Silver", 23 to "Coral", 24 to "Turquoise", 25 to "Indigo", 26 to "Crimson", 27 to "Dark Green", 28 to "Dark Blue", 29 to "Hot Pink", 30 to "Dark Orange")[code] ?: "Color $code"
     private fun viewProfile() { PresenceClient.fetch(buddy) { p -> AlertDialog.Builder(this).setTitle(buddy).setMessage("Nickname: $buddy\nStatus: ${p?.status ?: "Unknown"}\nPresence: ${if (p?.isOnline == true) "Online" else "Offline"}").setPositiveButton("Close", null).show() } }
     private fun blockUser() { AlertDialog.Builder(this).setTitle("Block $buddy?").setMessage("Blocked users cannot send you private messages, and you cannot send them private messages.").setPositiveButton("Block") { _, _ -> SafetyClient.block(buddy) { ok -> Toast.makeText(this, if (ok) "$buddy blocked" else "Could not block user", Toast.LENGTH_SHORT).show(); if (ok) finish() } }.setNegativeButton("Cancel", null).show() }
     private fun reportUser() { val reasons = arrayOf("Spam", "Harassment", "Impersonation", "Other"); AlertDialog.Builder(this).setTitle("Report $buddy").setItems(reasons) { _, which -> SafetyClient.report(buddy, reasons[which], "Reported from private chat") { ok -> Toast.makeText(this, if (ok) "Report submitted" else "Report failed", Toast.LENGTH_SHORT).show() } }.show() }
