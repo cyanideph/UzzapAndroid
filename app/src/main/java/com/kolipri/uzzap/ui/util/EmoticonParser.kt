@@ -76,6 +76,16 @@ object EmoticonParser {
                 else -> error("Unsupported numbered emoticon: $code")
             })
         }
+
+        put("[head-buntis]", R.drawable.d_head_buntis)
+        put("[head-deckard]", R.drawable.d_head_deckard)
+        put("[head-jp]", R.drawable.d_head_jp)
+        put("[head-kool]", R.drawable.d_head_kool)
+        put("[head-lupz]", R.drawable.d_head_lupz)
+        put("[head-requiem]", R.drawable.d_head_requiem)
+        put("[head-root]", R.drawable.d_head_root)
+        put("[head-saiyan]", R.drawable.d_head_saiyan)
+        put("[head-valkyrie]", R.drawable.d_head_valkyrie)
     }
 
     private val EMOTICON_PATTERN: Pattern = Pattern.compile(
