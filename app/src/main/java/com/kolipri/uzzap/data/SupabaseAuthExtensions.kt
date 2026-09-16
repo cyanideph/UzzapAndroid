@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -36,6 +37,42 @@ private fun String?.ifNullOrBlank(fallback: String): String = if (isNullOrBlank(
 private fun utcNow(): String = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(Date())
 private data class ProfileIdentity(val username: String, val nickname: String)
 
+/** Maps only backend-supported roles to client roles. Unknown/missing values are ordinary users. */
+internal fun normalizeApplicationRole(value: String?): String = when (value?.trim()?.lowercase(Locale.US)) {
+    "admin" -> "admin"
+    "moderator" -> "moderator"
+    else -> "user"
+}
+
+/** Resolves the authoritative application role from moderator_roles. */
+internal fun resolveApplicationRole(userId: String, token: String, callback: (String) -> Unit) {
+    if (userId.isBlank() || token.isBlank()) { callback("user"); return }
+    val encodedUserId = java.net.URLEncoder.encode(userId, "UTF-8")
+    val request = SupabaseAuthCompat.request("/rest/v1/moderator_roles?select=role&user_id=eq.$encodedUserId&limit=1", true)
+        .header("Authorization", "Bearer $token").get().build()
+    SupabaseAuthCompat.client().newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+            Log.w("SupabaseAuthCompat", "Role lookup failed; defaulting to user", e)
+            SupabaseAuthCompat.handler().post { callback("user") }
+        }
+        override fun onResponse(call: Call, response: Response) {
+            response.use {
+                val raw = it.body?.string().orEmpty()
+                if (!it.isSuccessful) {
+                    Log.w("SupabaseAuthCompat", "Role lookup HTTP ${it.code}; defaulting to user")
+                    SupabaseAuthCompat.handler().post { callback("user") }
+                    return
+                }
+                val role = runCatching {
+                    val arr = JSONArray(raw)
+                    normalizeApplicationRole(if (arr.length() == 0) null else arr.getJSONObject(0).optString("role"))
+                }.getOrDefault("user")
+                SupabaseAuthCompat.handler().post { callback(role) }
+            }
+        }
+    })
+}
+
 fun SupabaseClient.signInWithEmail(email: String, password: String, callback: (Boolean, String?, String?, String?) -> Unit) {
     val body = JSONObject().put("email", email).put("password", password)
     SupabaseAuthCompat.client().newCall(SupabaseAuthCompat.post("/auth/v1/token?grant_type=password", body)).enqueue(object : Callback {
@@ -54,14 +91,16 @@ fun SupabaseClient.signInWithEmail(email: String, password: String, callback: (B
                     SupabaseClient.setAccessTokenForLegacy(access)
                     AppState.authToken = access
                     AppState.email = user?.optString("email").ifNullOrBlank(email)
-                    val profile = loadProfileData(userId)
+                    val profile = loadProfileData(userId, access)
                     val username = profile.username.ifBlank { error("No profile username found for this account") }
                     val nickname = profile.nickname.ifBlank { username }
                     AppState.username = username
                     AppState.nickname = nickname
-                    AppState.role = "user"
-                    SessionStore.save(access, refresh, expires, AppState.email, nickname, "user", username)
-                    SupabaseAuthCompat.handler().post { callback(true, nickname, access, null) }
+                    resolveApplicationRole(userId, access) { role ->
+                        AppState.role = role
+                        SessionStore.save(access, refresh, expires, AppState.email, nickname, role, username)
+                        callback(true, nickname, access, null)
+                    }
                 }.onFailure { e ->
                     Log.e("SupabaseAuthCompat", "Login identity resolution failed", e)
                     SupabaseClient.setAccessTokenForLegacy(null)
@@ -106,12 +145,17 @@ fun SupabaseClient.verifySession(token: String, callback: (Boolean, String?, Str
                 runCatching {
                     val user = JSONObject(raw); val id = user.optString("id"); val email = user.optString("email"); val profile = loadProfileData(id, token)
                     if (profile.username.isNotBlank()) {
-                        AppState.username = profile.username; AppState.nickname = profile.nickname.ifBlank { profile.username }; AppState.role = "user"
-                        SessionStore.save(token, SessionStore.refreshToken(), SessionStore.expiresAtMs(), email, AppState.nickname, "user", AppState.username)
+                        AppState.username = profile.username; AppState.nickname = profile.nickname.ifBlank { profile.username }
+                        resolveApplicationRole(id, token) { role ->
+                            AppState.role = role
+                            SessionStore.save(token, SessionStore.refreshToken(), SessionStore.expiresAtMs(), email, AppState.nickname, role, AppState.username)
+                            callback(true, email, AppState.nickname)
+                        }
                     } else {
-                        AppState.username = SessionStore.username().ifBlank { error("No saved username for this account") }; AppState.nickname = SessionStore.nickname().ifBlank { AppState.username }; AppState.role = "user"
+                        AppState.username = SessionStore.username().ifBlank { error("No saved username for this account") }; AppState.nickname = SessionStore.nickname().ifBlank { AppState.username }
+                        AppState.role = normalizeApplicationRole(SessionStore.role())
+                        SupabaseAuthCompat.handler().post { callback(true, email, AppState.nickname) }
                     }
-                    SupabaseAuthCompat.handler().post { callback(true, email, AppState.nickname) }
                 }.onFailure { SupabaseAuthCompat.handler().post { callback(false, null, null) } }
             }
         }
