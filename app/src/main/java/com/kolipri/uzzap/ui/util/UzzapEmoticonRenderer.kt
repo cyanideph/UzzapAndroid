@@ -2,13 +2,7 @@ package com.kolipri.uzzap.ui.util
 
 import java.util.regex.Pattern
 
-/**
- * Reliable text fallback for Uzzap emoticon codes.
- *
- * Raw codes remain unchanged in Supabase. This renderer is display-only and
- * replaces legacy ASCII codes with visible Unicode emoji so they cannot leak
- * through when ImageSpan resources are unavailable.
- */
+/** Display-only conversion of legacy Uzzap ASCII emoticon codes to visible emoji. */
 object UzzapEmoticonRenderer {
     private val replacements = linkedMapOf(
         ":-o)" to "🤡", ":o)" to "🤡",
@@ -32,11 +26,15 @@ object UzzapEmoticonRenderer {
         replacements.keys.sortedByDescending { it.length }.joinToString("|") { Pattern.quote(it) }
     )
 
-    /** Converts only recognized legacy codes; all other text is preserved. */
     fun render(text: String?): String {
         if (text.isNullOrEmpty()) return ""
-        return pattern.matcher(text).replaceAll { match ->
-            replacements[match.group()] ?: match.group()
+        val matcher = pattern.matcher(text)
+        val out = StringBuffer()
+        while (matcher.find()) {
+            val replacement = replacements[matcher.group()] ?: matcher.group()
+            matcher.appendReplacement(out, Matcher.quoteReplacement(replacement))
         }
+        matcher.appendTail(out)
+        return out.toString()
     }
 }
