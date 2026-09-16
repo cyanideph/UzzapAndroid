@@ -30,6 +30,7 @@ object UzzapColorCodeParser {
         val ranges = mutableListOf<ColorRange>()
         var activeColor = defaultColor
         var activeStart = 0
+        var markupActive = false
         var i = 0
 
         fun close(end: Int) {
@@ -40,16 +41,21 @@ object UzzapColorCodeParser {
         while (i < source.length) {
             val token = tokenAt(source, i)
             if (token != null) {
+                // A single space before a color switch is also syntax. With two
+                // spaces, keep one visible space (e.g. "A  [c04 I" -> "A I").
+                if (text.isNotEmpty() && text.last() == ' ') text.setLength(text.length - 1)
                 close(text.length)
                 activeColor = token.color ?: defaultColor
                 activeStart = text.length
+                markupActive = true
                 i = token.nextIndex
                 continue
             }
-            if (source[i] == ']' && activeColor != null) {
+            if (source[i] == ']' && markupActive) {
                 close(text.length)
                 activeColor = defaultColor
                 activeStart = text.length
+                markupActive = false
                 i++
                 continue
             }
