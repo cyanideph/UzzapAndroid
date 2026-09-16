@@ -81,6 +81,9 @@ object UzzapColorCodeParser {
         val code = (a - '0') * 10 + (b - '0')
         var next = index + 4
         if (next < value.length && value[next] == ']') next++
+        // A single space immediately after a color token is markup syntax.
+        // Two spaces intentionally preserve one visible space.
+        if (next < value.length && value[next] == ' ') next++
         return Token(colors[code], next)
     }
 }
