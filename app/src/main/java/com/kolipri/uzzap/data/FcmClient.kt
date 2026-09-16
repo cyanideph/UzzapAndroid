@@ -19,6 +19,10 @@ object FcmClient {
     private const val TAG = "UzzapFCM"
     private const val PREFS_NAME = "uzzap_fcm_prefs"
     private const val KEY_FCM_TOKEN = "fcm_token"
+    private const val KEY_LAST_TOO_MANY_ERROR = "fcm_too_many_reg_timestamp"
+
+    // Throttle retries after TOO_MANY_REGISTRATIONS for at least 1 hour to avoid log spam & hard loops
+    private const val TOO_MANY_REG_BACKOFF_MS = 60 * 60 * 1000L
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -43,14 +47,54 @@ object FcmClient {
     }
 
     fun initializeAndSync(context: Context) {
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (!task.isSuccessful) {
-                Log.w(TAG, "Fetching FCM registration token failed", task.exception)
-                return@addOnCompleteListener
+        val cachedToken = getLocalToken(context)
+        if (!cachedToken.isNullOrBlank()) {
+            syncTokenWithSupabase(context, cachedToken)
+        }
+
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val lastTooManyError = prefs.getLong(KEY_LAST_TOO_MANY_ERROR, 0L)
+        val now = System.currentTimeMillis()
+        if (lastTooManyError > 0 && (now - lastTooManyError) < TOO_MANY_REG_BACKOFF_MS) {
+            Log.d(TAG, "Skipping FCM token request due to active TOO_MANY_REGISTRATIONS cooldown")
+            return
+        }
+
+        try {
+            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (!task.isSuccessful) {
+                    val exc = task.exception
+                    val errorMsg = exc?.message ?: "Token retrieval failed"
+                    Log.w(TAG, "Fetching FCM registration token failed: $errorMsg", exc)
+                    AppDiagnostics.warn(context, "FCM", "Token retrieval failed: $errorMsg")
+
+                    // When Google Play Services reports TOO_MANY_REGISTRATIONS, mark timestamp to avoid repeated attempts
+                    if (errorMsg.contains("TOO_MANY_REGISTRATIONS", ignoreCase = true)) {
+                        prefs.edit().putLong(KEY_LAST_TOO_MANY_ERROR, System.currentTimeMillis()).apply()
+                        Log.i(TAG, "TOO_MANY_REGISTRATIONS detected; clearing stale FCM token registration")
+                        runCatching {
+                            FirebaseMessaging.getInstance().deleteToken().addOnCompleteListener { delTask ->
+                                if (delTask.isSuccessful) {
+                                    AppDiagnostics.info(context, "FCM", "Stale FCM registration reset successfully")
+                                    // Reset cooldown once deleted so next session or restart can re-attempt cleanly
+                                    prefs.edit().remove(KEY_LAST_TOO_MANY_ERROR).apply()
+                                } else {
+                                    Log.w(TAG, "FCM deleteToken completed with error", delTask.exception)
+                                }
+                            }
+                        }
+                    }
+                    return@addOnCompleteListener
+                }
+                val token = task.result ?: return@addOnCompleteListener
+                prefs.edit().remove(KEY_LAST_TOO_MANY_ERROR).apply()
+                saveTokenLocally(context, token)
+                AppDiagnostics.success("Notifications.FCM.token", "Token acquired")
+                syncTokenWithSupabase(context, token)
             }
-            val token = task.result ?: return@addOnCompleteListener
-            saveTokenLocally(context, token)
-            syncTokenWithSupabase(context, token)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Exception initiating FCM token retrieval", t)
+            AppDiagnostics.exception(context, "FCM", t)
         }
     }
 
