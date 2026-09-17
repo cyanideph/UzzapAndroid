@@ -100,7 +100,7 @@ object RoomPresenceClient {
             .put("room_name", roomName)
             .put("username", username)
         val request = Request.Builder()
-            .url("${BuildConfig.SUPABASE_URL.trimEnd('/')}/rest/v1/room_participants")
+            .url("${BuildConfig.SUPABASE_URL.trimEnd('/')}/rest/v1/room_participants?on_conflict=room_name,username")
             .header("apikey", BuildConfig.SUPABASE_ANON_KEY)
             .header("Authorization", "Bearer $token")
             .header("Content-Type", "application/json")
