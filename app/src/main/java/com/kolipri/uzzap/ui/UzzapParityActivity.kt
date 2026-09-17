@@ -228,7 +228,7 @@ class UzzapParityActivity : BaseChromeActivity() {
 
     private fun roomActions(room: String) = showRows("Room Actions", listOf("Room Members", "Room Info", "Whisper / Private Message", "Invite Buddy", "Leave Room", "Report", "Back"), listOf(
         { open(MODE_ROOM_MEMBERS, room = room) },
-        { AlertDialog.Builder(this).setTitle(room).setMessage("Province chatroom\nRoom: $room\nBackend: Supabase").setPositiveButton("Close", null).show() },
+        { AlertDialog.Builder(this).setTitle(room).setMessage("Province chatroom\nRoom: $room\nBackend: Network").setPositiveButton("Close", null).show() },
         { open(MODE_ROOM_MEMBERS, room = room) },
         { inviteBuddy(room) },
         { setResult(RESULT_OK, Intent().putExtra("leave_room", room)); finish() },
@@ -292,7 +292,7 @@ class UzzapParityActivity : BaseChromeActivity() {
         val themes = arrayOf("Classic Uzzap", "Dark", "Black", "Blue", "Green")
         val current = getSharedPreferences(PREFS, MODE_PRIVATE).getString("theme", "Classic Uzzap")
         AlertDialog.Builder(this).setTitle("Choose Theme").setSingleChoiceItems(themes, themes.indexOf(current).coerceAtLeast(0)) { dialog, which ->
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString("theme", themes[which]).apply(); AppState.themeName = themes[which]; dialog.dismiss(); Toast.makeText(this, "${themes[which]} selected", Toast.LENGTH_SHORT).show()
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString("theme", themes[which]).apply(); AppState.themeName = themes[which]; dialog.dismiss(); Toast.makeText(this, "${themes[which]} selected", Toast.LENGTH_SHORT).show(); ThemeManager.setTheme(this, themes[which]); recreate()
         }.show()
     }
 

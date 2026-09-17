@@ -28,7 +28,7 @@
             android:layout_weight="1"
             android:layout_marginStart="12dp"
             android:textSize="18sp"
-            android:textColor="@color/uzzap_text"/>
+            android:textColor="?attr/uzzapColorText"/>
     </LinearLayout>
 
     <LinearLayout

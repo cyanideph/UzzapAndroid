@@ -34,7 +34,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginStart="12dp"
-        android:textColor="@color/uzzap_text"
+        android:textColor="?attr/uzzapColorText"
         android:textSize="18sp"
         android:text="Item"/>
 </LinearLayout>

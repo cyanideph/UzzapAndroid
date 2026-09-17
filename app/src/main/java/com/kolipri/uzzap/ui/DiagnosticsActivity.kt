@@ -220,7 +220,7 @@ class DiagnosticsActivity : BaseChromeActivity() {
 
     private fun runChecks() {
         AppDiagnostics.started(this, "HealthCheck.run")
-        summaryView.text = "RUNNING HEALTH CHECK…\nChecking Supabase, database and authentication."
+        summaryView.text = "RUNNING HEALTH CHECK…\nChecking network, database and authentication."
         SupabaseClient.checkHealth { online, tables, status ->
             if (online) AppDiagnostics.success(this, "HealthCheck.Supabase", status)
             else AppDiagnostics.failed(this, "HealthCheck.Supabase", status)

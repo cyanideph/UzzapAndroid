@@ -59,6 +59,7 @@ abstract class BaseChromeActivity : AppCompatActivity() {
     protected open fun contentLayoutRes(): Int? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        ThemeManager.apply(this)
         super.onCreate(savedInstanceState)
         AppDiagnostics.monitorActivity(this, "chrome_create")
         supportFragmentManager.registerFragmentLifecycleCallbacks(fragmentDiagnostics, true)

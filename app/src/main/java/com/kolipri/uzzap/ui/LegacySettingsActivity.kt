@@ -10,12 +10,14 @@ import android.view.View
 import android.content.Intent
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.kolipri.uzzap.BuildConfig
+import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.PresenceClient
 import com.kolipri.uzzap.data.SessionStore
@@ -80,39 +82,71 @@ class LegacySettingsActivity : BaseChromeActivity() {
         contentFrame.addView(view, FrameLayout.LayoutParams(-1, -1))
     }
 
-    private fun row(title: String, subtitle: String? = null, onClick: (() -> Unit)? = null): TextView = TextView(this).apply {
-        text = if (subtitle.isNullOrBlank()) title else "$title\n$subtitle"
-        textSize = 16f
-        setTextColor(Color.rgb(25, 25, 25))
-        setPadding(dp(16), dp(14), dp(16), dp(if (subtitle.isNullOrBlank()) 14 else 13))
-        background = rounded(Color.WHITE, 14f)
-        elevation = dp(2).toFloat()
-        minHeight = dp(54)
-        gravity = Gravity.CENTER_VERTICAL
-        contentDescription = title
-        isClickable = onClick != null
-        if (onClick != null) setOnClickListener { onClick.invoke() }
+    private fun row(title: String, subtitle: String? = null, iconRes: Int = 0, onClick: (() -> Unit)? = null): LinearLayout {
+        val rowView = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            setBackgroundResource(R.drawable.bg_menu_row_selector)
+            tag = "j2me_row"
+            contentDescription = title
+            isClickable = onClick != null
+            if (onClick != null) setOnClickListener { onClick.invoke() }
+        }
+        if (iconRes != 0) {
+            rowView.addView(ImageView(this).apply { setImageResource(iconRes) }, LinearLayout.LayoutParams(dp(28), dp(28)))
+        }
+        val textCol = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), 0, 0, 0)
+        }
+        textCol.addView(TextView(this).apply {
+            text = title
+            textSize = 17f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ThemeManager.resolve(this@LegacySettingsActivity, R.attr.uzzapColorText))
+        })
+        if (!subtitle.isNullOrBlank()) {
+            textCol.addView(TextView(this).apply {
+                text = subtitle
+                textSize = 12f
+                setTextColor(ThemeManager.resolve(this@LegacySettingsActivity, R.attr.uzzapColorMuted))
+                setPadding(0, dp(2), 0, 0)
+            })
+        }
+        rowView.addView(textCol, LinearLayout.LayoutParams(0, -2, 1f))
+        rowView.addView(ImageView(this).apply { setImageResource(R.drawable.d_small_arrow) }, LinearLayout.LayoutParams(dp(14), dp(14)))
+        return rowView
     }
 
     private fun addRow(root: LinearLayout, view: View) {
-        root.addView(view, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+        root.addView(view, LinearLayout.LayoutParams(-1, -2))
+        if (view.tag == "j2me_row") root.addView(hairline(dp(14)))
+    }
+
+    private fun hairline(marginStart: Int): View {
+        return View(this).apply {
+            setBackgroundColor(ThemeManager.resolve(this@LegacySettingsActivity, R.attr.uzzapColorDivider))
+            layoutParams = LinearLayout.LayoutParams(-1, dp(1)).apply { this.marginStart = marginStart }
+        }
     }
 
     private fun section(root: LinearLayout, label: String) {
         root.addView(TextView(this).apply {
             text = label
-            textSize = 12f
+            textSize = 18f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(13, 12, 175))
-            setPadding(dp(4), dp(12), dp(4), dp(7))
+            setTextColor(ThemeManager.resolve(this@LegacySettingsActivity, R.attr.uzzapColorHeader))
+            setPadding(dp(12), dp(12), dp(12), dp(8))
         })
+        root.addView(hairline(0))
     }
 
-    private fun rows(title: String, values: List<String>, handlers: List<() -> Unit>, subtitles: List<String?> = emptyList()) {
+    private fun rows(title: String, values: List<String>, handlers: List<() -> Unit>, subtitles: List<String?> = emptyList(), icons: List<Int> = emptyList()) {
         prepareScreen(title)
         val root = container()
-        section(root, title.uppercase())
-        values.forEachIndexed { index, label -> addRow(root, row(label, subtitles.getOrNull(index), handlers[index])) }
+        section(root, title)
+        values.forEachIndexed { index, label -> addRow(root, row(label, subtitles.getOrNull(index), icons.getOrNull(index) ?: 0, handlers[index])) }
         showContent(scroll(root))
     }
 
@@ -138,7 +172,13 @@ class LegacySettingsActivity : BaseChromeActivity() {
                     else -> finish()
                 }
             }
-        }, subtitles)
+        }, subtitles, listOf(
+            R.drawable.d_edit, R.drawable.d_d003_status_small, R.drawable.d_settings,
+            R.drawable.d_n001_abm_small, R.drawable.d_outbox, R.drawable.d_n008_ringtone_small,
+            R.drawable.d_n007_batteryinfo_small, R.drawable.d_d000_em_small, R.drawable.d_d001_im_small,
+            R.drawable.d_padlock, R.drawable.d_n005_themes_small, R.drawable.d_billing,
+            R.drawable.d_minus, 0
+        ))
     }
 
     private fun confirmDeleteAccount() {
@@ -282,7 +322,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
     private fun subscriptionScreen() {
         prepareScreen("Subscription", null, "Back", onLeft = null, onRight = { finish() })
         val root = container(); section(root, "ACCOUNT")
-        addRow(root, row("Uzzap Subscription", "Classic carrier subscription is not required for this modern Supabase build."))
+        addRow(root, row("Uzzap Subscription", "Classic carrier subscription is not required for this modern cloud build."))
         showContent(scroll(root))
     }
 

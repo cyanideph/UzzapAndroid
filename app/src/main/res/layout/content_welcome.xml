@@ -41,7 +41,7 @@
             android:layout_marginTop="5dp"
             android:gravity="center"
             android:text="Your quick introduction and help guide"
-            android:textColor="@color/uzzap_text"
+            android:textColor="?attr/uzzapColorText"
             android:textSize="15sp" />
 
         <TextView
@@ -53,7 +53,7 @@
             android:padding="12dp"
             android:background="@drawable/bg_welcome_card"
             android:text="@string/welcome_intro"
-            android:textColor="@color/uzzap_text"
+            android:textColor="?attr/uzzapColorText"
             android:textSize="15sp"
             android:lineSpacingExtra="3dp" />
 
@@ -80,7 +80,7 @@
             android:background="@drawable/bg_welcome_card"
             android:gravity="center"
             android:text="Tip: Open Help anytime from the Uzzap menu for the complete guide to chatrooms, private messages, invitations, reports and moderation."
-            android:textColor="@color/uzzap_text"
+            android:textColor="?attr/uzzapColorText"
             android:textSize="14sp" />
 
     </LinearLayout>

@@ -33,7 +33,7 @@
             android:gravity="center"
             android:padding="10dp"
             android:text="Uzzap Help • Learn how chatrooms, buddies, private chat, safety and moderation work."
-            android:textColor="@color/uzzap_text"
+            android:textColor="?attr/uzzapColorText"
             android:textSize="14sp" />
 
         <TextView
@@ -42,6 +42,6 @@
             android:layout_height="wrap_content"
             android:textSize="15sp"
             android:lineSpacingExtra="4dp"
-            android:textColor="@color/uzzap_text"/>
+            android:textColor="?attr/uzzapColorText"/>
     </LinearLayout>
 </ScrollView>

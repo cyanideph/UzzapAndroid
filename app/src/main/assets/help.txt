@@ -135,7 +135,7 @@ Uzzap is designed to preserve important local state and recover gracefully from 
 14. RATE LIMITING AND SECURITY
 
 Uzzap uses server-side security controls to protect messaging and moderation features.
-Examples include message rate limits, room participation rules and Supabase Row Level Security (RLS).
+Examples include message rate limits, room participation rules and database row-level security (RLS).
 
 Do not share your password, authentication tokens or private account information with anyone.
 
@@ -195,7 +195,7 @@ Be respectful to other users. Do not share sensitive personal information in pub
 20. UZZAP PROJECT
 
 Uzzap is a modern Kotlin Android recreation/continuation project inspired by the classic Smart Uzzap experience.
-The current application uses a Supabase backend and includes modern authentication, chat, buddy, private messaging and moderation features.
+The current application uses a secure cloud backend and includes modern authentication, chat, buddy, private messaging and moderation features.
 
 Created by CY.
 

@@ -11,6 +11,7 @@ import androidx.appcompat.app.AlertDialog
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.ModeratorRoleClient
+import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.ui.dialogs.J2mePopup
 import com.kolipri.uzzap.ui.dialogs.PopupItem
 import java.text.SimpleDateFormat
@@ -21,7 +22,11 @@ class AppGridActivity : BaseChromeActivity() {
     override fun contentLayoutRes() = R.layout.content_app_grid
     private val handler = Handler(Looper.getMainLooper())
     private val clockFormat = SimpleDateFormat("h:mm a", Locale.US)
-    private val tickRunnable = object : Runnable { override fun run() { setScreenTitle(clockFormat.format(Date())); handler.postDelayed(this, 1000) } }
+    private val tickRunnable = object : Runnable { override fun run() { updateTitle(); handler.postDelayed(this, 1000) } }
+    private val onlineRunnable = object : Runnable { override fun run() { refreshOnlineCount(); handler.postDelayed(this, 30_000L) } }
+    private var onlineCount = -1
+    private fun updateTitle() { val online = if (onlineCount >= 0) "  ·  ● $onlineCount online" else ""; setScreenTitle(clockFormat.format(Date()) + online) }
+    private fun refreshOnlineCount() = SupabaseClient.fetchOnlineCount { count -> if (count >= 0 && count != onlineCount) { onlineCount = count; updateTitle() } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,8 +55,8 @@ class AppGridActivity : BaseChromeActivity() {
         if (!AppState.firstLoginShown) { AppState.firstLoginShown = true; handler.postDelayed({ openWelcome() }, 300) }
     }
 
-    override fun onResume() { super.onResume(); handler.post(tickRunnable) }
-    override fun onPause() { super.onPause(); handler.removeCallbacks(tickRunnable) }
+    override fun onResume() { super.onResume(); handler.post(tickRunnable); refreshOnlineCount(); handler.post(onlineRunnable) }
+    override fun onPause() { super.onPause(); handler.removeCallbacks(tickRunnable); handler.removeCallbacks(onlineRunnable) }
     private fun openWelcome() = startActivity(Intent(this, WelcomeActivity::class.java))
     private fun openParity(mode: String, room: String? = null, buddy: String? = null) = startActivity(UzzapParityActivity.intent(this, mode, room, buddy))
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()

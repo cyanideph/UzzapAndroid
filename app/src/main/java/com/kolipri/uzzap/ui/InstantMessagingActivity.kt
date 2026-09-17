@@ -6,10 +6,12 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 
 /**
@@ -40,16 +42,7 @@ class InstantMessagingActivity : BaseChromeActivity() {
         contentFrame.removeAllViews()
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(10), dp(12), dp(18))
         }
-
-        root.addView(TextView(this).apply {
-            text = "PRIVATE MESSAGES"
-            textSize = 12f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(13, 12, 175))
-            setPadding(dp(4), dp(8), dp(4), dp(8))
-        })
 
         val buddies = AppState.buddyGroups
             .flatMap { it.buddies }
@@ -57,6 +50,16 @@ class InstantMessagingActivity : BaseChromeActivity() {
             .filter { it.isNotBlank() && !it.equals(AppState.username, true) }
             .distinctBy { it.lowercase() }
             .sortedBy { it.lowercase() }
+
+        // J2ME-style list header, e.g. "Regions (1/1)"
+        root.addView(TextView(this).apply {
+            text = "Private Messages (${buddies.size})"
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ThemeManager.resolve(this@InstantMessagingActivity, R.attr.uzzapColorHeader))
+            setPadding(dp(12), dp(12), dp(12), dp(8))
+        })
+        root.addView(hairline(0))
 
         if (buddies.isEmpty()) {
             root.addView(TextView(this).apply {
@@ -67,28 +70,9 @@ class InstantMessagingActivity : BaseChromeActivity() {
                 setPadding(dp(20), dp(40), dp(20), dp(40))
             }, LinearLayout.LayoutParams(-1, -2))
         } else {
-            buddies.forEach { buddy ->
-                root.addView(TextView(this).apply {
-                    text = buddy
-                    textSize = 17f
-                    typeface = Typeface.DEFAULT_BOLD
-                    setTextColor(Color.rgb(25, 25, 25))
-                    gravity = Gravity.CENTER_VERTICAL
-                    setPadding(dp(16), dp(14), dp(16), dp(14))
-                    minHeight = dp(56)
-                    background = GradientDrawable().apply {
-                        setColor(Color.WHITE)
-                        cornerRadius = dp(14).toFloat()
-                    }
-                    elevation = dp(2).toFloat()
-                    contentDescription = "Message $buddy"
-                    isClickable = true
-                    setOnClickListener {
-                        startActivity(PrivateChatActivity.intent(this@InstantMessagingActivity, buddy))
-                    }
-                }, LinearLayout.LayoutParams(-1, -2).apply {
-                    bottomMargin = dp(8)
-                })
+            buddies.forEachIndexed { index, buddy ->
+                root.addView(buddyRow(buddy), LinearLayout.LayoutParams(-1, -2))
+                if (index < buddies.size - 1) root.addView(hairline(dp(14)))
             }
         }
 
@@ -97,6 +81,44 @@ class InstantMessagingActivity : BaseChromeActivity() {
             addView(root, LinearLayout.LayoutParams(-1, -2))
         }
         contentFrame.addView(scroll, android.widget.FrameLayout.LayoutParams(-1, -1))
+    }
+
+    private fun buddyRow(buddy: String): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            setBackgroundResource(R.drawable.bg_menu_row_selector)
+            contentDescription = "Message $buddy"
+            isClickable = true
+            setOnClickListener {
+                startActivity(PrivateChatActivity.intent(this@InstantMessagingActivity, buddy))
+            }
+            addView(ImageView(this@InstantMessagingActivity).apply {
+                setImageResource(R.drawable.d_buddylist_icon)
+                contentDescription = null
+            }, LinearLayout.LayoutParams(dp(28), dp(28)))
+            addView(TextView(this@InstantMessagingActivity).apply {
+                text = buddy
+                textSize = 17f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(ThemeManager.resolve(this@InstantMessagingActivity, R.attr.uzzapColorText))
+                setPadding(dp(12), 0, 0, 0)
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(ImageView(this@InstantMessagingActivity).apply {
+                setImageResource(R.drawable.d_small_arrow)
+                contentDescription = null
+            }, LinearLayout.LayoutParams(dp(14), dp(14)))
+        }
+    }
+
+    private fun hairline(marginStart: Int): View {
+        return View(this).apply {
+            setBackgroundColor(ThemeManager.resolve(this@InstantMessagingActivity, R.attr.uzzapColorDivider))
+            layoutParams = LinearLayout.LayoutParams(-1, dp(1)).apply {
+                this.marginStart = marginStart
+            }
+        }
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
