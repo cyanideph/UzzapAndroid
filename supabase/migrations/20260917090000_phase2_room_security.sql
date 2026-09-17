@@ -50,7 +50,7 @@ with check (
   and not exists (
     select 1 from public.room_sanctions s
     where s.user_id = (select auth.uid())
-      and s.room_name = room_name
+      and s.room_name = room_participants.room_name
       and s.sanction = 'kick'
       and s.active = true
       and (s.expires_at is null or s.expires_at > now())
@@ -96,7 +96,7 @@ with check (
   and not exists (
     select 1 from public.room_sanctions s
     where s.user_id = (select auth.uid())
-      and s.room_name = room_name
+      and s.room_name = room_messages.room_name
       and s.sanction in ('mute','kick')
       and s.active = true
       and (s.expires_at is null or s.expires_at > now())
