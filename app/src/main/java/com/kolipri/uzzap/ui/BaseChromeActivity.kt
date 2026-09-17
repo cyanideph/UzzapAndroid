@@ -38,7 +38,7 @@ abstract class BaseChromeActivity : AppCompatActivity() {
         private set
 
     private val fragmentDiagnostics = object : FragmentManager.FragmentLifecycleCallbacks() {
-        override fun onFragmentCreated(fm: Fragment, f: Fragment, savedInstanceState: Bundle?) {
+        override fun onFragmentCreated(fm: FragmentManager, f: Fragment, savedInstanceState: Bundle?) {
             AppDiagnostics.event("Page.${f.javaClass.simpleName}", AppDiagnostics.Status.PASS, "FRAGMENT_CREATED")
         }
         override fun onFragmentStarted(fm: FragmentManager, f: Fragment) {
