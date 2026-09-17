@@ -26,12 +26,10 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
         override fun run() {
             if (!foreground) return
             if (SupabaseClient.userAccessToken.isNullOrBlank()) { handler.postDelayed(this, 10_000L); return }
-            val presenceFn = "Presence.heartbeat"
-            val presenceOp = AppDiagnostics.begin(presenceFn)
+            val presenceOp = AppDiagnostics.begin("Presence.heartbeat")
             runCatching { PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE); presenceOp.pass() }
                 .onFailure { presenceOp.fail(it.message ?: it.javaClass.simpleName); AppDiagnostics.exception(this@UzzapApplication, "Presence", it) }
-            val unreadFn = "Notifications.fetchUnread"
-            val unreadOp = AppDiagnostics.begin(unreadFn, "user=${AppState.username}")
+            val unreadOp = AppDiagnostics.begin("Notifications.fetchUnread", "user=${AppState.username}")
             runCatching {
                 PrivateMessageStateClient.fetchUnread(AppState.username) { unread ->
                     if (unread != null) {
@@ -55,6 +53,21 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
         AppDiagnostics.init(this)
         CrashDiagnostics.install(this)
         AppDiagnostics.info(this, "Application", "UzzapApplication started; whole-app monitor enabled")
+        AppDiagnostics.register(
+            "Auth.Login", "Auth.Signup", "Auth.Logout", "Auth.RestoreSession", "Auth.verifySession",
+            "Profile.Load", "Profile.Update", "Profile.ChangeNickname", "Profile.ChangeNicknameColor",
+            "Rooms.LoadCategories", "Rooms.LoadProvinces", "Rooms.LoadList", "Room.join", "Room.leave",
+            "Room.history", "Room.historyOlder", "Room.participants", "Room.sendMessage", "Room.realtimeMessage",
+            "Presence.heartbeat", "Presence.join", "Presence.leave", "Presence.ping",
+            "Buddies.load", "BuddyRequests.fetchPending", "BuddyRequests.send", "BuddyRequests.accept", "BuddyRequests.reject",
+            "PrivateChat.open", "PrivateChat.load", "PrivateChat.send", "PrivateChat.delete", "PrivateChat.block", "PrivateChat.report",
+            "Receipts.delivery", "Receipts.read", "Notifications.initialize", "Notifications.FCM.initialize", "Notifications.fetchUnread",
+            "Invitations.create", "Invitations.accept", "Invitations.reject",
+            "Moderation.loadReports", "Moderation.deleteMessage", "Moderation.kick", "Moderation.mute", "Moderation.sanction", "Moderation.roles",
+            "Settings.open", "Settings.profile", "Settings.notifications", "Settings.privacy", "Settings.appearance", "Settings.about",
+            "Diagnostics.open", "Diagnostics.runChecks", "Diagnostics.export", "Diagnostics.clear",
+            "Supabase.health", "Supabase.auth", "Supabase.database", "CrashDiagnostics.capture"
+        )
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, state: Bundle?) = AppDiagnostics.monitorActivity(activity, "created")
             override fun onActivityStarted(activity: Activity) = AppDiagnostics.monitorActivity(activity, "started")
