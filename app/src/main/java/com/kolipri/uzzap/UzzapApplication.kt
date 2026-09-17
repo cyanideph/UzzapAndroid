@@ -27,15 +27,15 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
             if (!foreground) return
             if (SupabaseClient.userAccessToken.isNullOrBlank()) { handler.postDelayed(this, 10_000L); return }
             val presenceFn = "Presence.heartbeat"
-            AppDiagnostics.started(presenceFn)
-            runCatching { PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE); AppDiagnostics.success(presenceFn) }
-                .onFailure { AppDiagnostics.failed(presenceFn, it.message ?: it.javaClass.simpleName); AppDiagnostics.exception(this@UzzapApplication, "Presence", it) }
+            val presenceOp = AppDiagnostics.begin(presenceFn)
+            runCatching { PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE); presenceOp.pass() }
+                .onFailure { presenceOp.fail(it.message ?: it.javaClass.simpleName); AppDiagnostics.exception(this@UzzapApplication, "Presence", it) }
             val unreadFn = "Notifications.fetchUnread"
-            AppDiagnostics.started(unreadFn, "user=${AppState.username}")
+            val unreadOp = AppDiagnostics.begin(unreadFn, "user=${AppState.username}")
             runCatching {
                 PrivateMessageStateClient.fetchUnread(AppState.username) { unread ->
                     if (unread != null) {
-                        AppDiagnostics.success(unreadFn, "${unread.messageIds.size} unread messages")
+                        unreadOp.pass("${unread.messageIds.size} unread messages")
                         if (foreground) {
                             val active = AppState.activeChatBuddy
                             val relevantSenders = if (active != null) unread.senders.filter { !it.equals(active, ignoreCase = true) } else unread.senders
@@ -43,9 +43,9 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
                             if (relevantCount > 0) UzzapNotificationManager.notifyPrivateMessages(this@UzzapApplication, relevantCount, relevantSenders, unread.messageIds)
                             else if (active != null) UzzapNotificationManager.clearPrivateMessageNotification(this@UzzapApplication)
                         }
-                    } else AppDiagnostics.failed(unreadFn, "Unread check returned no data")
+                    } else unreadOp.fail("Unread check returned no data")
                 }
-            }.onFailure { AppDiagnostics.failed(unreadFn, it.message ?: it.javaClass.simpleName); AppDiagnostics.exception(this@UzzapApplication, "UnreadMessages", it) }
+            }.onFailure { unreadOp.fail(it.message ?: it.javaClass.simpleName); AppDiagnostics.exception(this@UzzapApplication, "UnreadMessages", it) }
             handler.postDelayed(this, 10_000L)
         }
     }
@@ -54,15 +54,15 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
         super<Application>.onCreate()
         AppDiagnostics.init(this)
         CrashDiagnostics.install(this)
-        AppDiagnostics.info(this, "Application", "UzzapApplication started")
+        AppDiagnostics.info(this, "Application", "UzzapApplication started; whole-app monitor enabled")
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
-            override fun onActivityCreated(activity: Activity, state: Bundle?) = AppDiagnostics.activity(this@UzzapApplication, activity.javaClass.simpleName, "created")
-            override fun onActivityStarted(activity: Activity) = AppDiagnostics.activity(this@UzzapApplication, activity.javaClass.simpleName, "started")
-            override fun onActivityResumed(activity: Activity) = AppDiagnostics.activity(this@UzzapApplication, activity.javaClass.simpleName, "resumed")
-            override fun onActivityPaused(activity: Activity) = AppDiagnostics.activity(this@UzzapApplication, activity.javaClass.simpleName, "paused")
-            override fun onActivityStopped(activity: Activity) = AppDiagnostics.activity(this@UzzapApplication, activity.javaClass.simpleName, "stopped")
+            override fun onActivityCreated(activity: Activity, state: Bundle?) = AppDiagnostics.monitorActivity(activity, "created")
+            override fun onActivityStarted(activity: Activity) = AppDiagnostics.monitorActivity(activity, "started")
+            override fun onActivityResumed(activity: Activity) = AppDiagnostics.monitorActivity(activity, "resumed")
+            override fun onActivityPaused(activity: Activity) = AppDiagnostics.monitorActivity(activity, "paused")
+            override fun onActivityStopped(activity: Activity) = AppDiagnostics.monitorActivity(activity, "stopped")
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
-            override fun onActivityDestroyed(activity: Activity) = AppDiagnostics.activity(this@UzzapApplication, activity.javaClass.simpleName, "destroyed")
+            override fun onActivityDestroyed(activity: Activity) = AppDiagnostics.monitorActivity(activity, "destroyed")
         })
 
         runCatching { SessionStore.init(this); AppDiagnostics.ok(this, "SessionStore", "Initialized") }.onFailure { AppDiagnostics.exception(this, "SessionStore", it); CrashDiagnostics.write(this, Thread.currentThread(), it) }
