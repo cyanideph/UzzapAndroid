@@ -12,22 +12,19 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import androidx.annotation.LayoutRes
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import com.kolipri.uzzap.R
+import com.kolipri.uzzap.data.AppDiagnostics
 
-/**
- * Every screen in the clone shares the same "phone chrome": a black gradient
- * title bar up top (with an optional green connection ball), a white content
- * area in the middle, and a two button softkey bar at the bottom - exactly
- * like the reference J2ME screenshots.
- */
+/** Shared phone chrome plus automatic diagnostics for screens and hosted fragments. */
 abstract class BaseChromeActivity : AppCompatActivity() {
-
     protected lateinit var contentFrame: FrameLayout
     protected lateinit var tvTitle: TextView
     protected lateinit var ivStatusBall: ImageView
@@ -40,11 +37,31 @@ abstract class BaseChromeActivity : AppCompatActivity() {
     protected var isNetworkConnected: Boolean = true
         private set
 
+    private val fragmentDiagnostics = object : FragmentManager.FragmentLifecycleCallbacks() {
+        override fun onFragmentCreated(fm: FragmentManager, f: Fragment, savedInstanceState: Bundle?) {
+            AppDiagnostics.event("Page.${f.javaClass.simpleName}", AppDiagnostics.Status.PASS, "FRAGMENT_CREATED")
+        }
+        override fun onFragmentStarted(fm: FragmentManager, f: Fragment) {
+            AppDiagnostics.event("Page.${f.javaClass.simpleName}", AppDiagnostics.Status.PASS, "FRAGMENT_STARTED")
+        }
+        override fun onFragmentResumed(fm: FragmentManager, f: Fragment) {
+            AppDiagnostics.event("Page.${f.javaClass.simpleName}", AppDiagnostics.Status.PASS, "FRAGMENT_RESUMED")
+        }
+        override fun onFragmentPaused(fm: FragmentManager, f: Fragment) {
+            AppDiagnostics.info(this@BaseChromeActivity, "Page", "${f.javaClass.simpleName} FRAGMENT_PAUSED")
+        }
+        override fun onFragmentDestroyed(fm: FragmentManager, f: Fragment) {
+            AppDiagnostics.info(this@BaseChromeActivity, "Page", "${f.javaClass.simpleName} FRAGMENT_DESTROYED")
+        }
+    }
+
     @LayoutRes
     protected open fun contentLayoutRes(): Int? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppDiagnostics.monitorActivity(this, "chrome_create")
+        supportFragmentManager.registerFragmentLifecycleCallbacks(fragmentDiagnostics, true)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = Color.TRANSPARENT
@@ -55,12 +72,10 @@ abstract class BaseChromeActivity : AppCompatActivity() {
         }
 
         setContentView(R.layout.activity_chrome)
-
         val chromeRoot = findViewById<View>(R.id.chrome_root)
         val statusBarSpacer = findViewById<View>(R.id.status_bar_spacer)
         val navBarSpacer = findViewById<View>(R.id.nav_bar_spacer)
         val softkeyBar = findViewById<View>(R.id.softkey_bar_root)
-
         contentFrame = findViewById(R.id.content_frame)
         tvTitle = findViewById(R.id.tv_title)
         ivStatusBall = findViewById(R.id.iv_status_ball)
@@ -70,57 +85,40 @@ abstract class BaseChromeActivity : AppCompatActivity() {
 
         connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         val activeNetwork = connectivityManager?.activeNetworkInfo
-        val initialConnected = activeNetwork?.isConnectedOrConnecting == true
-        setConnectionStatus(initialConnected)
-
+        setConnectionStatus(activeNetwork?.isConnectedOrConnecting == true)
         networkCallback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                runOnUiThread {
-                    setConnectionStatus(true)
-                    onNetworkRestored()
-                }
+            override fun onAvailable(network: Network) = runOnUiThread {
+                setConnectionStatus(true)
+                AppDiagnostics.event("Network", AppDiagnostics.Status.PASS, "AVAILABLE")
+                onNetworkRestored()
             }
-            override fun onLost(network: Network) {
-                runOnUiThread {
-                    setConnectionStatus(false)
-                    onNetworkLost()
-                }
+            override fun onLost(network: Network) = runOnUiThread {
+                setConnectionStatus(false)
+                AppDiagnostics.event("Network", AppDiagnostics.Status.WARN, "LOST")
+                onNetworkLost()
             }
         }
-        runCatching {
-            connectivityManager?.registerNetworkCallback(
-                NetworkRequest.Builder().build(),
-                networkCallback!!
-            )
-        }
+        runCatching { connectivityManager?.registerNetworkCallback(NetworkRequest.Builder().build(), networkCallback!!) }
 
         ViewCompat.setOnApplyWindowInsetsListener(chromeRoot) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-
             statusBarSpacer.layoutParams = statusBarSpacer.layoutParams.apply { height = bars.top }
             navBarSpacer.layoutParams = navBarSpacer.layoutParams.apply { height = if (imeVisible) 0 else bars.bottom }
             statusBarSpacer.requestLayout()
             navBarSpacer.requestLayout()
-
-            // Chat/edit screens must use the area above the IME. The legacy
-            // softkey bar would otherwise sit underneath the keyboard and
-            // reduce the usable area for the message composer.
             softkeyBar.visibility = if (imeVisible) View.GONE else View.VISIBLE
             contentFrame.updatePadding(bottom = if (imeVisible) ime.bottom else 0)
-
             insets
         }
         ViewCompat.requestApplyInsets(chromeRoot)
-
-        contentLayoutRes()?.let { res ->
-            LayoutInflater.from(this).inflate(res, contentFrame, true)
-        }
+        contentLayoutRes()?.let { res -> LayoutInflater.from(this).inflate(res, contentFrame, true) }
     }
 
     fun setScreenTitle(title: String) {
         tvTitle.text = title
+        AppDiagnostics.event("Page.${javaClass.simpleName}", AppDiagnostics.Status.PASS, "TITLE=${title.take(80)}")
     }
 
     fun showConnectedBall(show: Boolean) {
@@ -129,38 +127,35 @@ abstract class BaseChromeActivity : AppCompatActivity() {
 
     fun setConnectionStatus(connected: Boolean) {
         isNetworkConnected = connected
-        if (::ivStatusBall.isInitialized) {
-            ivStatusBall.setImageResource(if (connected) R.drawable.d_online else R.drawable.d_disconnected)
-        }
+        if (::ivStatusBall.isInitialized) ivStatusBall.setImageResource(if (connected) R.drawable.d_online else R.drawable.d_disconnected)
     }
 
     protected open fun onNetworkRestored() {}
     protected open fun onNetworkLost() {}
 
     override fun onDestroy() {
-        super.onDestroy()
+        supportFragmentManager.unregisterFragmentLifecycleCallbacks(fragmentDiagnostics)
         networkCallback?.let { runCatching { connectivityManager?.unregisterNetworkCallback(it) } }
+        AppDiagnostics.monitorActivity(this, "chrome_destroy")
+        super.onDestroy()
     }
 
-    fun setSoftkeys(
-        leftText: String?,
-        rightText: String?,
-        onLeft: (() -> Unit)? = null,
-        onRight: (() -> Unit)? = null
-    ) {
-        if (leftText == null) {
-            btnLeft.visibility = View.INVISIBLE
-        } else {
+    fun setSoftkeys(leftText: String?, rightText: String?, onLeft: (() -> Unit)? = null, onRight: (() -> Unit)? = null) {
+        if (leftText == null) btnLeft.visibility = View.INVISIBLE else {
             btnLeft.visibility = View.VISIBLE
             btnLeft.text = leftText
-            btnLeft.setOnClickListener { onLeft?.invoke() }
+            btnLeft.setOnClickListener {
+                AppDiagnostics.event("UI.${javaClass.simpleName}.softkey.left", AppDiagnostics.Status.RUNNING, "clicked")
+                runCatching { onLeft?.invoke() }.onFailure { AppDiagnostics.failed("UI.${javaClass.simpleName}.softkey.left", it.message ?: it.javaClass.simpleName) }
+            }
         }
-        if (rightText == null) {
-            btnRight.visibility = View.INVISIBLE
-        } else {
+        if (rightText == null) btnRight.visibility = View.INVISIBLE else {
             btnRight.visibility = View.VISIBLE
             btnRight.text = rightText
-            btnRight.setOnClickListener { onRight?.invoke() }
+            btnRight.setOnClickListener {
+                AppDiagnostics.event("UI.${javaClass.simpleName}.softkey.right", AppDiagnostics.Status.RUNNING, "clicked")
+                runCatching { onRight?.invoke() }.onFailure { AppDiagnostics.failed("UI.${javaClass.simpleName}.softkey.right", it.message ?: it.javaClass.simpleName) }
+            }
         }
     }
 
