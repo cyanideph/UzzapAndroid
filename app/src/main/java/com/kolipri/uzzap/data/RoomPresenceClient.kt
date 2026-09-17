@@ -30,35 +30,36 @@ object RoomPresenceClient {
 
     private val heartbeat = object : Runnable {
         override fun run() {
-            synchronized(activeRooms) {
-                activeRooms.toList().forEach { room ->
-                    pingPresence(room, AppState.nickname, null)
-                }
-            }
+            synchronized(activeRooms) { activeRooms.toList().forEach { room -> pingPresence(room, null) } }
             if (hasActiveRooms()) main.postDelayed(this, HEARTBEAT_INTERVAL_MS)
         }
     }
 
     fun liveCounts(onResult: (Map<String, Int>?) -> Unit) = UnifiedRoomClient.liveCounts(onResult)
 
-    /** Join is confirmed only after Supabase accepts the participant upsert. */
+    /** Join is confirmed only after the secure Supabase RPC completes. */
     fun join(roomName: String, username: String, onResult: (Boolean, String?) -> Unit) {
         if (SupabaseClient.userAccessToken.isNullOrBlank()) {
             main.post { onResult(false, "Your session has expired. Please sign in again.") }
             return
         }
-        pingPresence(roomName, username, onResult)
+        pingPresence(roomName) { success, error ->
+            if (success) {
+                synchronized(activeRooms) { activeRooms.add(roomName) }
+                AppState.joinedRooms.add(roomName)
+                startHeartbeat()
+            }
+            main.post { onResult(success, error) }
+        }
     }
 
     fun resumeAll() {
         val rooms = synchronized(activeRooms) { activeRooms.toList() }
-        rooms.forEach { room -> pingPresence(room, AppState.nickname, null) }
+        rooms.forEach { room -> pingPresence(room, null) }
         if (rooms.isNotEmpty()) startHeartbeat()
     }
 
-    fun pauseHeartbeat() {
-        main.removeCallbacks(heartbeat)
-    }
+    fun pauseHeartbeat() { main.removeCallbacks(heartbeat) }
 
     fun leave(roomName: String, username: String, onResult: ((Boolean) -> Unit)? = null) {
         synchronized(activeRooms) { activeRooms.remove(roomName) }
@@ -79,65 +80,40 @@ object RoomPresenceClient {
     }
 
     private fun hasActiveRooms(): Boolean = synchronized(activeRooms) { activeRooms.isNotEmpty() }
+    private fun startHeartbeat() { main.removeCallbacks(heartbeat); main.postDelayed(heartbeat, HEARTBEAT_INTERVAL_MS) }
 
-    private fun startHeartbeat() {
-        main.removeCallbacks(heartbeat)
-        main.postDelayed(heartbeat, HEARTBEAT_INTERVAL_MS)
-    }
-
-    private fun pingPresence(
-        roomName: String,
-        username: String,
-        onResult: ((Boolean, String?) -> Unit)?
-    ) {
+    private fun pingPresence(roomName: String, onResult: ((Boolean, String?) -> Unit)?) {
         val token = SupabaseClient.userAccessToken
         if (token.isNullOrBlank()) {
             onResult?.let { main.post { it(false, "Your session has expired. Please sign in again.") } }
             return
         }
-
-        val json = JSONObject()
-            .put("room_name", roomName)
-            .put("username", username)
         val request = Request.Builder()
-            .url("${BuildConfig.SUPABASE_URL.trimEnd('/')}/rest/v1/room_participants?on_conflict=room_name,username")
+            .url("${BuildConfig.SUPABASE_URL.trimEnd('/')}/rest/v1/rpc/join_room")
             .header("apikey", BuildConfig.SUPABASE_ANON_KEY)
             .header("Authorization", "Bearer $token")
             .header("Content-Type", "application/json")
-            .header("Prefer", "resolution=merge-duplicates,return=minimal")
-            .post(json.toString().toRequestBody(jsonMediaType))
+            .post(JSONObject().put("p_room_name", roomName).toString().toRequestBody(jsonMediaType))
             .build()
 
         http.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                Log.w(TAG, "Presence request failed for $roomName", e)
+                Log.w(TAG, "Room join RPC failed for $roomName", e)
                 onResult?.let { main.post { it(false, "Unable to join room. Check your connection and try again.") } }
             }
-
             override fun onResponse(call: Call, response: Response) {
                 response.use {
                     val body = it.body?.string().orEmpty()
                     if (!it.isSuccessful) {
                         val message = try {
                             val obj = JSONObject(body)
-                            obj.optString("message")
-                                .ifBlank { obj.optString("details") }
-                                .ifBlank { obj.optString("hint") }
-                                .ifBlank { "Supabase HTTP ${it.code}" }
-                        } catch (_: Exception) {
-                            "Supabase HTTP ${it.code}"
-                        }
-                        Log.w(TAG, "Presence rejected for $roomName: $message")
+                            obj.optString("message").ifBlank { obj.optString("details") }.ifBlank { obj.optString("hint") }.ifBlank { "Supabase HTTP ${it.code}" }
+                        } catch (_: Exception) { "Supabase HTTP ${it.code}" }
+                        Log.w(TAG, "Room join rejected for $roomName: $message")
                         onResult?.let { callback -> main.post { callback(false, message) } }
                         return
                     }
-
-                    if (onResult != null) {
-                        synchronized(activeRooms) { activeRooms.add(roomName) }
-                        AppState.joinedRooms.add(roomName)
-                        startHeartbeat()
-                        main.post { onResult(true, null) }
-                    }
+                    onResult?.let { callback -> main.post { callback(true, null) } }
                 }
             }
         })
