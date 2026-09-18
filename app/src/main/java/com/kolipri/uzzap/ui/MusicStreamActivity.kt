@@ -12,7 +12,11 @@ import android.widget.Toast
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import okhttp3.OkHttpClient
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.YouTubeMusicClient
@@ -109,9 +113,14 @@ class MusicStreamActivity : BaseChromeActivity() {
 
     private fun startStream(track: YouTubeMusicClient.Track, url: String) {
         releasePlayer()
-        // ExoPlayer: own HTTP stack (no MediaPlayer URL-length/redirect quirks),
-        // software-decodes opus/webm, explicit buffering states
-        val exo = ExoPlayer.Builder(this).build().also { player = it }
+        // ExoPlayer fed through OkHttp: identical fetch layer to our preflight probe
+        // (the default HttpURLConnection stack gets different GVS treatment), and it
+        // software-decodes every codec.
+        val dataSourceFactory = OkHttpDataSource.Factory(OkHttpClient())
+            .setUserAgent("Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36")
+        val exo = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .build().also { player = it }
         exo.setMediaItem(MediaItem.fromUri(url))
         exo.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
@@ -138,7 +147,12 @@ class MusicStreamActivity : BaseChromeActivity() {
                 if (playing) handler.post(ticker) else handler.removeCallbacks(ticker)
             }
             override fun onPlayerError(error: PlaybackException) {
-                AppDiagnostics.failed("Music.stream", "ExoPlayer ${error.errorCodeName}")
+                val cause = error.cause
+                val httpCode = (cause as? InvalidResponseCodeException)?.responseCode
+                AppDiagnostics.failed(
+                    "Music.stream",
+                    "ExoPlayer ${error.errorCodeName} http=$httpCode cause=${cause?.javaClass?.simpleName}: ${cause?.message?.take(120)}"
+                )
                 toast("Stream failed to play")
                 tvNowPlaying.text = "Nothing playing"
                 btnPlay.text = "▶"

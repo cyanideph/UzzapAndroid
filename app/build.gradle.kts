@@ -110,6 +110,7 @@ dependencies {
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.media3:media3-exoplayer:1.6.1")
+    implementation("androidx.media3:media3-datasource-okhttp:1.6.1")
     implementation("io.coil-kt:coil:2.6.0")
     implementation("io.coil-kt:coil-gif:2.6.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
