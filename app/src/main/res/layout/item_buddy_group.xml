@@ -77,7 +77,7 @@
         android:paddingEnd="14dp"
         android:paddingBottom="10dp"
         android:textSize="14sp"
-        android:textColor="@color/uzzap_scroll_fill"
+        android:textColor="?attr/uzzapColorMuted"
         android:text="No buddies yet."
         android:visibility="gone"/>
 </LinearLayout>

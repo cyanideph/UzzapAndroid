@@ -24,7 +24,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
         android:textSize="18sp"
-        android:textColor="@color/uzzap_black"
+        android:textColor="?attr/uzzapColorText"
         android:text="@string/status_connecting"/>
 
     <ImageView

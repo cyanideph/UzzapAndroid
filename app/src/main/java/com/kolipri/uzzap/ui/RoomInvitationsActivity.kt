@@ -30,7 +30,7 @@ class RoomInvitationsActivity : BaseChromeActivity() {
         val header = TextView(this).apply {
             text = "Invitations to Philippine chatrooms"
             textSize = 16f
-            setTextColor(Color.DKGRAY)
+            setTextColor(ThemeManager.resolve(this, R.attr.uzzapColorMuted))
             setPadding(dp(8), dp(8), dp(8), dp(12))
         }
         root.addView(header)
