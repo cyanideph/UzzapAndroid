@@ -58,6 +58,7 @@ object UzzapDialogs {
         val surface = ThemeManager.resolve(context, R.attr.uzzapColorSurface)
         val text = ThemeManager.resolve(context, R.attr.uzzapColorText)
         val muted = ThemeManager.resolve(context, R.attr.uzzapColorMuted)
+        val asset = iconAsset ?: "anim-icons/dialog_default.gif"
 
         val card = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
