@@ -25,6 +25,12 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
 
+      - name: Checkout Android source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: android
+
       - name: Prepare publication metadata
         id: meta
         shell: bash
@@ -36,6 +42,12 @@ jobs:
           size_bytes="$(stat -c '%s' dist/uzzap-debug.apk)"
           size_mb="$(awk "BEGIN {printf \"%.1f\", $size_bytes/1048576}")"
           sha256="$(sha256sum dist/uzzap-debug.apk | awk '{print $1}')"
+          version_name="$(sed -n 's/.*versionName[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' android/app/build.gradle.kts | head -n 1)"
+          version_code="$(sed -n 's/.*versionCode[[:space:]]*=[[:space:]]*\([0-9][0-9]*\).*/\1/p' android/app/build.gradle.kts | head -n 1)"
+          test -n "$version_name"
+          test -n "$version_code"
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
           echo "apk=$PWD/dist/uzzap-debug.apk" >> "$GITHUB_OUTPUT"
           echo "size_bytes=$size_bytes" >> "$GITHUB_OUTPUT"
           echo "size_mb=$size_mb" >> "$GITHUB_OUTPUT"
@@ -54,6 +66,8 @@ jobs:
           APK_PATH: ${{ steps.meta.outputs.apk }}
           SIZE_MB: ${{ steps.meta.outputs.size_mb }}
           SHA256: ${{ steps.meta.outputs.sha256 }}
+          VERSION_NAME: ${{ steps.meta.outputs.version_name }}
+          VERSION_CODE: ${{ steps.meta.outputs.version_code }}
           BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
@@ -65,6 +79,10 @@ jobs:
           s = p.read_text()
           size = os.environ['SIZE_MB']
           build_sha = os.environ['BUILD_SHA']
+          version = os.environ['VERSION_NAME']
+          version_code = os.environ['VERSION_CODE']
+          s = re.sub(r'v1\\.0-[^<]+', f'v{version}', s, count=1)
+          s = re.sub(r'1\\.0-[^<]+</span><span class="b-log">', f'{version}</span><span class="b-log">', s, count=1)
           s = re.sub(r'·\\s*<b>[^<]+ MB</b>\\s*· Debug build', f'· <b>{size} MB</b> · Debug build', s, count=1)
           s = re.sub(r'APK ·\\s*[0-9.]+ MB', f'APK · {size} MB', s, count=1)
           p.write_text(s)
