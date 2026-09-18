@@ -3,6 +3,7 @@ package com.kolipri.uzzap.ui
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.ColorDrawable
 import android.graphics.ImageDecoder
 import android.graphics.drawable.AnimatedImageDrawable
 import android.os.Build
@@ -212,11 +213,18 @@ class LegacySettingsActivity : BaseChromeActivity() {
     }
 
     private fun performAccountDeletion() {
-        val progress = AlertDialog.Builder(this)
-            .setTitle("Deleting Account")
-            .setMessage("Please wait while your account is deleted...")
-            .setCancelable(false)
-            .show()
+        val textColor = ThemeManager.resolve(this, R.attr.uzzapColorText)
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = GradientDrawable().apply { setColor(0x2B8EEF04); cornerRadius = dp(14).toFloat() } }
+        tile.addView(ImageView(this).apply { loadAnimIcon(this, "anim-icons/delete_trash.gif") }, LinearLayout.LayoutParams(dp(30), dp(30)))
+        row.addView(tile, LinearLayout.LayoutParams(dp(48), dp(48)))
+        row.addView(TextView(this).apply { text = "Please wait while your account is deleted..."; textSize = 14f; setTextColor(textColor); setPadding(dp(12), 0, 0, 0) })
+        val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(18), dp(26), dp(18)); background = GradientDrawable().apply { setColor(ThemeManager.resolve(this@LegacySettingsActivity, R.attr.uzzapColorSurface)); cornerRadius = dp(24).toFloat() } }
+        card.addView(row)
+        val root = FrameLayout(this).apply { setPadding(dp(36), dp(36), dp(36), dp(36)); addView(card, FrameLayout.LayoutParams(-1, -2)) }
+        val progress = AlertDialog.Builder(this).setView(root).setCancelable(false).create()
+        progress.setOnShowListener { progress.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT)) }
+        progress.show()
 
         SupabaseClient.deleteAccount { success ->
             progress.dismiss()

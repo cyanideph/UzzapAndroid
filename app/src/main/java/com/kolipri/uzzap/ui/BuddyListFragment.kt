@@ -279,9 +279,9 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
                 1 -> PresenceClient.fetch(buddy) { p -> if (isAdded) UzzapDialogs.show(requireContext(), iconAsset = "anim-icons/im_profile.gif", title = buddy, message = "Nickname: $buddy\nStatus: ${p?.status ?: "Unknown"}\nPresence: ${if (p?.isOnline == true) "Online" else "Offline"}", positive = "Close") }
                 2 -> SafetyClient.block(buddy) { ok -> if (isAdded) { if (ok) group.buddies.remove(buddy); adapter.notifyDataSetChanged(); Toast.makeText(ctx, if (ok) "$buddy blocked" else "Could not block $buddy", Toast.LENGTH_SHORT).show() } }
                 3 -> showReportDialog(buddy)
-                4 -> AlertDialog.Builder(ctx).setTitle("Delete Buddy").setMessage("Remove '$buddy' from your buddies?").setPositiveButton(getString(R.string.softkey_yes)) { _, _ ->
+                4 -> UzzapDialogs.show(ctx, iconAsset = "anim-icons/delete_trash.gif", title = "Delete Buddy", message = "Remove '$buddy' from your buddies?", positive = "Remove", onPositive = {
                     SupabaseClient.deleteBuddy(AppState.username, buddy) { success -> if (isAdded) { if (success) { group.buddies.remove(buddy); adapter.notifyDataSetChanged(); Toast.makeText(ctx, "Removed '$buddy'", Toast.LENGTH_SHORT).show() } else Toast.makeText(ctx, "Could not remove '$buddy'", Toast.LENGTH_SHORT).show() } }
-                }.setNegativeButton(getString(R.string.softkey_no), null).show()
+                })
             }
         }
     }

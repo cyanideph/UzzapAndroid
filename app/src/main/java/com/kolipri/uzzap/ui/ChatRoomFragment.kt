@@ -196,13 +196,13 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
     }
 
     private fun showModeratorMessageActions(message: ChatMessage) {
-        AlertDialog.Builder(requireContext()).setTitle("Moderator: Message #${message.id}").setMessage("${message.sender}:\n${message.body}").setItems(arrayOf("Delete Message", "Mute ${message.sender}", "Kick ${message.sender}", "Report ${message.sender}")) { _, which ->
+        UzzapDialogs.items(requireContext(), title = "Moderator: Message #${message.id}", message = "${message.sender}:\n${message.body}", items = arrayOf("Delete Message", "Mute ${message.sender}", "Kick ${message.sender}", "Report ${message.sender}"), onPick = { which ->
             when (which) { 0 -> confirmDeleteMessage(message); 1 -> applyQuickModeration("mute", message.sender); 2 -> applyQuickModeration("kick", message.sender); 3 -> promptReportReason(message.sender) }
-        }.setNegativeButton("Cancel", null).show()
+        })
     }
 
     private fun confirmDeleteMessage(message: ChatMessage) {
-        AlertDialog.Builder(requireContext()).setTitle("Delete message?").setMessage("Delete this message from $roomName?").setPositiveButton("Delete") { _, _ ->
+        UzzapDialogs.show(requireContext(), iconAsset = "anim-icons/delete_trash.gif", title = "Delete Message", message = "Delete this message from $roomName?", positive = "Delete", onPositive = {
             SafetyClient.deleteRoomMessage(message.id) { success ->
                 if (isAdded) Toast.makeText(requireContext(), if (success) "Message deleted" else "Message deletion failed", Toast.LENGTH_SHORT).show()
                 if (success) {
@@ -210,7 +210,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
                     messageAdapter.removeById(message.id)
                 }
             }
-        }.setNegativeButton("Cancel", null).show()
+        })
     }
 
     private fun applyQuickModeration(action: String, target: String) {
