@@ -297,11 +297,12 @@ class UzzapParityActivity : BaseChromeActivity() {
     }
 
     private fun inviteBuddy(room: String) {
-        val input = EditText(this).apply { hint = "Buddy nickname" }
-        AlertDialog.Builder(this).setTitle("Invite to $room").setView(input).setPositiveButton("Invite") { _, _ ->
-            val buddy = input.text.toString().trim(); if (buddy.isBlank()) return@setPositiveButton
+        UzzapDialogs.form(this, iconAsset = "anim-icons/menu_connect.gif", title = "Invite to $room", fields = listOf(UzzapDialogs.FieldSpec("Buddy nickname")), positive = "Invite", onPositive = { f ->
+            val buddy = f[0].text.toString().trim()
+            if (buddy.isBlank()) { f[0].error = "Enter a buddy nickname"; return@form false }
             RoomInvitationClient.send(room, AppState.username, buddy) { ok -> Toast.makeText(this, if (ok) "Invitation sent to $buddy" else "Could not send invitation", Toast.LENGTH_SHORT).show() }
-        }.setNegativeButton("Cancel", null).show()
+            true
+        })
     }
 
     private fun showTopOptions() {

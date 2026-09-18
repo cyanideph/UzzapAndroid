@@ -212,10 +212,11 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
     }
 
     private fun showRenameDialog(group: BuddyGroup) {
-        val input = EditText(requireContext()).apply { setText(group.name) }
-        AlertDialog.Builder(requireContext()).setTitle(getString(R.string.menu_rename_group)).setView(input)
-            .setPositiveButton("OK") { _, _ -> input.text.toString().trim().takeIf { it.isNotEmpty() }?.let { group.name = it; adapter.notifyDataSetChanged() } }
-            .setNegativeButton(getString(R.string.softkey_cancel), null).show()
+        UzzapDialogs.form(requireContext(), iconAsset = "anim-icons/edit_write.gif", title = getString(R.string.menu_rename_group), fields = listOf(UzzapDialogs.FieldSpec("Group name", group.name)), positive = "OK", onPositive = { f ->
+            val name = f[0].text.toString().trim()
+            if (name.isEmpty()) { f[0].error = "Enter a group name"; return@form false }
+            group.name = name; adapter.notifyDataSetChanged(); true
+        })
     }
 
     private fun showOptionsMenu() {
@@ -232,31 +233,26 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
     }
 
     private fun showAddBuddyDialog() {
-        val input = EditText(requireContext()).apply { hint = "Enter buddy nickname/handle" }
-        AlertDialog.Builder(requireContext()).setTitle("Add Buddy").setView(input)
-            .setPositiveButton("Send Request") { _, _ ->
-                val handle = input.text.toString().trim()
-                if (handle.isBlank()) return@setPositiveButton
-                if (handle.equals(AppState.username, ignoreCase = true) || handle.equals(AppState.nickname, ignoreCase = true)) {
-                    Toast.makeText(requireContext(), "You cannot add yourself as a buddy.", Toast.LENGTH_SHORT).show(); return@setPositiveButton
-                }
-                BuddyRequestClient.send(AppState.username, handle) { success, error ->
-                    if (!isAdded) return@send
-                    Toast.makeText(requireContext(), if (success) "Buddy request sent to '$handle'." else (error ?: "Buddy request failed."), Toast.LENGTH_SHORT).show()
-                    if (success) checkBuddyRequests(false)
-                }
+        UzzapDialogs.form(requireContext(), iconAsset = "anim-icons/im_profile.gif", title = "Add Buddy", fields = listOf(UzzapDialogs.FieldSpec("Enter buddy nickname/handle")), positive = "Send Request", onPositive = { f ->
+            val handle = f[0].text.toString().trim()
+            if (handle.isBlank()) { f[0].error = "Enter a buddy nickname"; return@form false }
+            if (handle.equals(AppState.username, ignoreCase = true) || handle.equals(AppState.nickname, ignoreCase = true)) { f[0].error = "You cannot add yourself as a buddy."; return@form false }
+            BuddyRequestClient.send(AppState.username, handle) { success, error ->
+                if (!isAdded) return@send
+                Toast.makeText(requireContext(), if (success) "Buddy request sent to '$handle'." else (error ?: "Buddy request failed."), Toast.LENGTH_SHORT).show()
+                if (success) checkBuddyRequests(false)
             }
-            .setNegativeButton(getString(R.string.softkey_cancel), null).show()
+            true
+        })
     }
 
     private fun showNewGroupDialog() {
-        val input = EditText(requireContext())
-        AlertDialog.Builder(requireContext()).setTitle(getString(R.string.menu_new_group)).setView(input)
-            .setPositiveButton("Create") { _, _ -> input.text.toString().trim().takeIf { it.isNotEmpty() }?.let { name ->
-                if (AppState.buddyGroups.any { it.name.equals(name, true) }) Toast.makeText(requireContext(), "That group already exists.", Toast.LENGTH_SHORT).show()
-                else { AppState.buddyGroups.add(BuddyGroup(name.lowercase(), name)); adapter.notifyDataSetChanged() }
-            } }
-            .setNegativeButton(getString(R.string.softkey_cancel), null).show()
+        UzzapDialogs.form(requireContext(), iconAsset = "anim-icons/edit_write.gif", title = getString(R.string.menu_new_group), fields = listOf(UzzapDialogs.FieldSpec("Group name")), positive = "Create", onPositive = { f ->
+            val name = f[0].text.toString().trim()
+            if (name.isEmpty()) { f[0].error = "Enter a group name"; return@form false }
+            if (AppState.buddyGroups.any { it.name.equals(name, true) }) { f[0].error = "That group already exists."; return@form false }
+            AppState.buddyGroups.add(BuddyGroup(name.lowercase(), name)); adapter.notifyDataSetChanged(); true
+        })
     }
 
     private fun showStatusMenu() {
@@ -280,7 +276,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
         J2mePopup.show(ctx, listOf(PopupItem("Chat with $buddy"), PopupItem("View Profile"), PopupItem("Block User"), PopupItem("Report User"), PopupItem("Delete Buddy"))) { index ->
             when (index) {
                 0 -> startActivity(PrivateChatActivity.intent(ctx, buddy))
-                1 -> PresenceClient.fetch(buddy) { p -> if (isAdded) AlertDialog.Builder(requireContext()).setTitle(buddy).setMessage("Nickname: $buddy\nStatus: ${p?.status ?: "Unknown"}\nPresence: ${if (p?.isOnline == true) "Online" else "Offline"}").setPositiveButton("Close", null).show() }
+                1 -> PresenceClient.fetch(buddy) { p -> if (isAdded) UzzapDialogs.show(requireContext(), iconAsset = "anim-icons/im_profile.gif", title = buddy, message = "Nickname: $buddy\nStatus: ${p?.status ?: "Unknown"}\nPresence: ${if (p?.isOnline == true) "Online" else "Offline"}", positive = "Close") }
                 2 -> SafetyClient.block(buddy) { ok -> if (isAdded) { if (ok) group.buddies.remove(buddy); adapter.notifyDataSetChanged(); Toast.makeText(ctx, if (ok) "$buddy blocked" else "Could not block $buddy", Toast.LENGTH_SHORT).show() } }
                 3 -> showReportDialog(buddy)
                 4 -> AlertDialog.Builder(ctx).setTitle("Delete Buddy").setMessage("Remove '$buddy' from your buddies?").setPositiveButton(getString(R.string.softkey_yes)) { _, _ ->

@@ -198,13 +198,13 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
     }
 
     private fun showSearch() {
-        val input = android.widget.EditText(requireContext()).apply { hint = "Province or room name" }
-        androidx.appcompat.app.AlertDialog.Builder(requireContext()).setTitle("Search Rooms").setView(input).setPositiveButton("Search") { _, _ ->
-            val q = input.text.toString().trim().lowercase()
-            if (q.isEmpty()) return@setPositiveButton
+        UzzapDialogs.form(requireContext(), iconAsset = "anim-icons/menu_backend.gif", title = "Search Rooms", fields = listOf(UzzapDialogs.FieldSpec("Province or room name")), positive = "Search", onPositive = { f ->
+            val q = f[0].text.toString().trim().lowercase()
+            if (q.isEmpty()) { f[0].error = "Enter a province or room name"; return@form false }
             val matches = AppState.categories.flatMap { it.rooms }.filter { it.name.lowercase().contains(q) }
             if (matches.isEmpty()) Toast.makeText(requireContext(), "No rooms found.", Toast.LENGTH_SHORT).show()
-            else androidx.appcompat.app.AlertDialog.Builder(requireContext()).setTitle("Rooms (${matches.size})").setItems(matches.map { it.name }.toTypedArray()) { _, which -> host.openRoom(matches[which].name) }.show()
-        }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
+            else UzzapDialogs.items(requireContext(), title = "Rooms (${matches.size})", items = matches.map { it.name }.toTypedArray(), onPick = { which -> host.openRoom(matches[which].name) }, negative = null)
+            true
+        })
     }
 }

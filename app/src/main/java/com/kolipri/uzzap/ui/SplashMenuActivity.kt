@@ -147,7 +147,25 @@ class SplashMenuActivity : BaseChromeActivity() {
             true
         })
     }
-    private fun onRegister() { val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(40, 20, 40, 10) }; val email = EditText(this).apply { hint = "Email"; inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS }; val nick = EditText(this).apply { hint = "Chat Nickname (2-24 chars)" }; val pass = EditText(this).apply { hint = "Password (min 6 characters)"; inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }; val confirm = EditText(this).apply { hint = "Confirm Password"; inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }; box.addView(email); box.addView(nick); box.addView(pass); box.addView(confirm); val dialog = AlertDialog.Builder(this).setTitle(getString(R.string.menu_register)).setMessage("Create your Uzzap cloud account:").setView(box).setPositiveButton("Register", null).setNegativeButton(getString(R.string.softkey_cancel), null).create(); dialog.show(); dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { val e = email.text.toString().trim(); val n = nick.text.toString().trim(); val p = pass.text.toString(); val c = confirm.text.toString(); if (!validEmail(e)) { email.error = "Valid email required"; return@setOnClickListener }; if (n.length !in 2..24) { nick.error = "Nickname must be 2-24 characters"; return@setOnClickListener }; if (p.length < 6) { pass.error = "Password must be at least 6 characters"; return@setOnClickListener }; if (p != c) { confirm.error = "Passwords do not match"; return@setOnClickListener }; dialog.dismiss(); showLoading("Creating account..."); SupabaseClient.signUpWithEmail(e, p, n) { success, token, error -> runOnUiThread { hideLoading(); if (success && !token.isNullOrBlank()) { saveSession(e, n, token); startActivity(Intent(this, ConnectingActivity::class.java)) } else AlertDialog.Builder(this).setTitle("Registration Failed").setMessage(error ?: "Unable to create account").setPositiveButton("OK", null).show() } } } }
+    private fun onRegister() {
+        val fields = listOf(
+            UzzapDialogs.FieldSpec("Email", email = true),
+            UzzapDialogs.FieldSpec("Chat Nickname (2-24 chars)"),
+            UzzapDialogs.FieldSpec("Password (min 6 characters)", password = true),
+            UzzapDialogs.FieldSpec("Confirm Password", password = true)
+        )
+        UzzapDialogs.form(this, iconAsset = "anim-icons/menu_register.gif", title = getString(R.string.menu_register), message = "Create your Uzzap cloud account:", fields = fields, positive = "Register", onPositive = { f ->
+            val email = f[0]; val nick = f[1]; val pass = f[2]; val confirm = f[3]
+            val e = email.text.toString().trim(); val n = nick.text.toString().trim(); val p = pass.text.toString(); val c = confirm.text.toString()
+            if (!validEmail(e)) { email.error = "Valid email required"; return@form false }
+            if (n.length !in 2..24) { nick.error = "Nickname must be 2-24 characters"; return@form false }
+            if (p.length < 6) { pass.error = "Password must be at least 6 characters"; return@form false }
+            if (p != c) { confirm.error = "Passwords do not match"; return@form false }
+            showLoading("Creating account...")
+            SupabaseClient.signUpWithEmail(e, p, n) { success, token, error -> runOnUiThread { hideLoading(); if (success && !token.isNullOrBlank()) { saveSession(e, n, token); startActivity(Intent(this, ConnectingActivity::class.java)) } else UzzapDialogs.show(this, iconAsset = "anim-icons/menu_register.gif", title = "Registration Failed", message = error ?: "Unable to create account", positive = "OK") } } }
+            true
+        })
+    }
     private fun onForgotPassword() { val input = EditText(this).apply { hint = "Registered Email Address"; inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS; setText(AppState.email) }; AlertDialog.Builder(this).setTitle(getString(R.string.menu_forgot)).setMessage("Enter your registered email to receive a password reset link. The link will open Uzzap directly.").setView(input).setPositiveButton("Send Reset Link") { _, _ -> val email = input.text.toString().trim(); if (!validEmail(email)) { Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show(); return@setPositiveButton }; showLoading("Sending reset link..."); PasswordRecoveryClient.sendResetEmail(email) { success, error -> runOnUiThread { hideLoading(); AlertDialog.Builder(this).setTitle(if (success) "Reset Link Sent" else "Password Reset Failed").setMessage(if (success) "Check your email and tap Reset Password. Uzzap will open automatically so you can choose a new password." else (error ?: "Password reset failed")).setPositiveButton("OK", null).show() } } }.setNegativeButton(getString(R.string.softkey_cancel), null).show() }
     private fun showBackendInfo() {
         val status = SupabaseClient.connectionStatus

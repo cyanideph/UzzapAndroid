@@ -381,14 +381,14 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
             if (!isAdded) return@fetchParticipants
             val targets = (members ?: emptyList()).filter { !it.equals(AppState.nickname, true) }
             if (targets.isEmpty()) {
-                val input = EditText(requireContext()).apply { hint = "Enter username to report" }
-                AlertDialog.Builder(requireContext()).setTitle("Report User in $roomName").setView(input).setPositiveButton("Next") { _, _ ->
-                    val target = input.text.toString().trim()
-                    if (target.isNotEmpty()) promptReportReason(target)
-                }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
+                UzzapDialogs.form(requireContext(), iconAsset = "anim-icons/privacy_lock.gif", title = "Report User in $roomName", fields = listOf(UzzapDialogs.FieldSpec("Enter username to report")), positive = "Next", onPositive = { f ->
+                    val target = f[0].text.toString().trim()
+                    if (target.isEmpty()) { f[0].error = "Enter a username"; return@form false }
+                    promptReportReason(target); true
+                })
                 return@fetchParticipants
             }
-            AlertDialog.Builder(requireContext()).setTitle("Report User in $roomName").setItems(targets.toTypedArray()) { _, which -> promptReportReason(targets[which]) }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
+            UzzapDialogs.items(requireContext(), iconAsset = "anim-icons/privacy_lock.gif", title = "Report User in $roomName", items = targets.toTypedArray(), onPick = { which -> promptReportReason(targets[which]) })
         }
     }
 
@@ -407,14 +407,14 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
             val targets = (members ?: emptyList()).filter { !it.equals(AppState.nickname, true) }
             if (!isAdded) return@fetchParticipants
             if (targets.isEmpty()) { Toast.makeText(requireContext(), "No other room members available.", Toast.LENGTH_SHORT).show(); return@fetchParticipants }
-            AlertDialog.Builder(requireContext()).setTitle("Whisper in $roomName").setItems(targets.toTypedArray()) { _, which ->
+            UzzapDialogs.items(requireContext(), title = "Whisper in $roomName", items = targets.toTypedArray(), onPick = { which ->
                 val target = targets[which]
-                val input = EditText(requireContext()).apply { hint = "Whisper to $target" }
-                AlertDialog.Builder(requireContext()).setTitle("Whisper to $target").setView(input).setPositiveButton("Send") { _, _ ->
-                    val text = input.text.toString().trim()
-                    if (text.isNotEmpty()) UnifiedRoomClient.sendMessage(roomName, text) {}
-                }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
-            }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
+                UzzapDialogs.form(requireContext(), title = "Whisper to $target", fields = listOf(UzzapDialogs.FieldSpec("Whisper to $target")), positive = "Send", onPositive = { f ->
+                    val text = f[0].text.toString().trim()
+                    if (text.isEmpty()) { f[0].error = "Enter a message"; return@form false }
+                    UnifiedRoomClient.sendMessage(roomName, text) {}; true
+                })
+            })
         }
     }
 
