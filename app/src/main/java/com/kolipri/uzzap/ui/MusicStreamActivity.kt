@@ -1,6 +1,5 @@
 package com.kolipri.uzzap.ui
 
-import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -10,6 +9,10 @@ import android.widget.ListView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.YouTubeMusicClient
@@ -18,7 +21,7 @@ import com.kolipri.uzzap.data.YouTubeMusicClient
 class MusicStreamActivity : BaseChromeActivity() {
     override fun contentLayoutRes() = R.layout.content_music_stream
 
-    private var player: MediaPlayer? = null
+    private var player: ExoPlayer? = null
     private var prepared = false
     private var tracks: List<YouTubeMusicClient.Track> = emptyList()
 
@@ -31,7 +34,7 @@ class MusicStreamActivity : BaseChromeActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private val ticker = object : Runnable {
         override fun run() {
-            player?.let { if (prepared) seekBar.progress = it.currentPosition }
+            player?.let { if (prepared && it.duration > 0) seekBar.progress = it.currentPosition.toInt() }
             handler.postDelayed(this, 500)
         }
     }
@@ -60,7 +63,7 @@ class MusicStreamActivity : BaseChromeActivity() {
         }
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser && prepared) player?.seekTo(progress)
+                if (fromUser && prepared) player?.seekTo(progress.toLong())
             }
             override fun onStartTrackingTouch(bar: SeekBar?) {}
             override fun onStopTrackingTouch(bar: SeekBar?) {}
@@ -106,56 +109,55 @@ class MusicStreamActivity : BaseChromeActivity() {
 
     private fun startStream(track: YouTubeMusicClient.Track, url: String) {
         releasePlayer()
-        val mp = MediaPlayer()
-        runCatching {
-            mp.setDataSource(url)
-            mp.setOnPreparedListener {
-                prepared = true
-                seekBar.max = it.duration
-                tvNowPlaying.text = "♪ ${track.title} — ${track.artist}"
-                btnPlay.text = "⏸"
-                it.start()
-                handler.post(ticker)
-            }
-            mp.setOnCompletionListener {
-                btnPlay.text = "▶"
-                seekBar.progress = 0
-                handler.removeCallbacks(ticker)
-            }
-            mp.setOnErrorListener { _, what, extra ->
-                AppDiagnostics.failed("Music.stream", "MediaPlayer error what=$what extra=$extra")
-                toast("Stream failed to play")
-                releasePlayer()
-                true
-            }
-            mp.prepareAsync()
-            player = mp
-            // Some devices hang forever in prepare on unsupported formats — surface it
-            handler.postDelayed({
-                if (player === mp && !prepared) {
-                    AppDiagnostics.failed("Music.stream", "MediaPlayer prepare timed out (format/codec?)")
-                    tvNowPlaying.text = "Stream stuck loading — unsupported format on this device"
+        // ExoPlayer: own HTTP stack (no MediaPlayer URL-length/redirect quirks),
+        // software-decodes opus/webm, explicit buffering states
+        val exo = ExoPlayer.Builder(this).build().also { player = it }
+        exo.setMediaItem(MediaItem.fromUri(url))
+        exo.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                when (state) {
+                    Player.STATE_READY -> {
+                        prepared = true
+                        if (exo.duration > 0) seekBar.max = exo.duration.toInt()
+                        tvNowPlaying.text = "♪ ${track.title} — ${track.artist}"
+                        btnPlay.text = "⏸"
+                        handler.post(ticker)
+                    }
+                    Player.STATE_ENDED -> {
+                        btnPlay.text = "▶"
+                        seekBar.progress = 0
+                        handler.removeCallbacks(ticker)
+                    }
+                    Player.STATE_BUFFERING ->
+                        tvNowPlaying.text = "Buffering: ${track.title}"
+                    else -> {}
                 }
-            }, 20_000)
-        }.onFailure {
-            mp.release()
-            toast("Cannot stream on this connection")
-        }
+            }
+            override fun onIsPlayingChanged(playing: Boolean) {
+                btnPlay.text = if (playing) "⏸" else "▶"
+                if (playing) handler.post(ticker) else handler.removeCallbacks(ticker)
+            }
+            override fun onPlayerError(error: PlaybackException) {
+                AppDiagnostics.failed("Music.stream", "ExoPlayer ${error.errorCodeName}")
+                toast("Stream failed to play")
+                tvNowPlaying.text = "Nothing playing"
+                btnPlay.text = "▶"
+            }
+        })
+        exo.prepare()
+        exo.playWhenReady = true
     }
 
+
     private fun togglePlay() {
-        val mp = player ?: return toast("Pick a song first")
-        if (!prepared) return toast("Still loading…")
-        if (mp.isPlaying) {
-            mp.pause(); btnPlay.text = "▶"; handler.removeCallbacks(ticker)
-        } else {
-            mp.start(); btnPlay.text = "⏸"; handler.post(ticker)
-        }
+        val exo = player ?: return toast("Pick a song first")
+        if (exo.isPlaying) exo.pause() else exo.play()
     }
 
     private fun stopPlayback() {
-        val mp = player ?: return
-        if (prepared) { mp.pause(); mp.seekTo(0) }
+        val exo = player ?: return
+        exo.pause()
+        exo.seekTo(0)
         btnPlay.text = "▶"
         seekBar.progress = 0
         handler.removeCallbacks(ticker)
@@ -171,7 +173,7 @@ class MusicStreamActivity : BaseChromeActivity() {
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
     override fun onPause() {
-        player?.let { if (it.isPlaying) { it.pause(); btnPlay.text = "▶" } }
+        player?.pause()
         handler.removeCallbacks(ticker)
         super.onPause()
     }
