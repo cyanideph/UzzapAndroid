@@ -81,10 +81,10 @@ jobs:
           build_sha = os.environ['BUILD_SHA']
           version = os.environ['VERSION_NAME']
           version_code = os.environ['VERSION_CODE']
-          s = re.sub(r'v1\\.0-[^<]+', f'v{version}', s, count=1)
-          s = re.sub(r'1\\.0-[^<]+</span><span class="b-log">', f'{version}</span><span class="b-log">', s, count=1)
-          s = re.sub(r'·\\s*<b>[^<]+ MB</b>\\s*· Debug build', f'· <b>{size} MB</b> · Debug build', s, count=1)
-          s = re.sub(r'APK ·\\s*[0-9.]+ MB', f'APK · {size} MB', s, count=1)
+          s = re.sub(r'v1\.0-[^<]+', f'v{version}', s, count=1)
+          s = re.sub(r'1\.0-[^<]+</span><span class="b-log">', f'{version}</span><span class="b-log">', s, count=1)
+          s = re.sub(r'·\s*<b>[^<]+ MB</b>\s*· Debug build', f'· <b>{size} MB</b> · Debug build', s, count=1)
+          s = re.sub(r'APK ·\s*[0-9.]+ MB', f'APK · {size} MB', s, count=1)
           p.write_text(s)
           PY
           cd site

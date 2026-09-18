@@ -34,8 +34,9 @@ object UnifiedRoomClient {
     }
 
     fun join(roomName: String, onResult: (Boolean, String?) -> Unit) {
-        SupabaseClient.pingPresence(roomName, AppState.nickname)
-        onResult(true, null)
+        SupabaseClient.pingPresence(roomName, AppState.nickname) { ok ->
+            onResult(ok, if (ok) null else "Could not join room (membership rejected)")
+        }
     }
 
     fun leave(roomName: String, onResult: ((Boolean) -> Unit)? = null) {

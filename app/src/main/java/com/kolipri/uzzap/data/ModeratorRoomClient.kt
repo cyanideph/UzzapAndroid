@@ -16,7 +16,7 @@ object ModeratorRoomClient {
     private val url = SupabaseClient.supabaseUrl.trimEnd('/')
     private val key = SupabaseClient.anonKey
     private val json = "application/json; charset=utf-8".toMediaType()
-    private fun request(path: String): Request.Builder = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", "Bearer ${SupabaseClient.userAccessToken.orEmpty()}").header("Content-Type", "application/json")
+    private fun request(path: String): Request.Builder = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", SupabaseClient.authHeader()).header("Content-Type", "application/json")
     private fun rpc(name: String, body: JSONObject, callback: Callback) { http.newCall(request("/rest/v1/rpc/$name").post(body.toString().toRequestBody(json)).build()).enqueue(callback) }
 
     fun isModeratorOrAdmin(onResult: (Boolean) -> Unit) {

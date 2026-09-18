@@ -41,6 +41,8 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
     private var monitoring = false
     private var buddyRequestFetchInFlight = false
     private var cachedUnreadCounts: Map<String, Int> = emptyMap()
+    private var lastBadgePollMs = 0L
+    private val badgePollThrottleMs = 8000L
     private var pendingRequests: List<BuddyRequest> = emptyList()
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private val monitor = object : Runnable {
@@ -327,7 +329,8 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
                     row.setOnClickListener { showBuddyOptions(buddy, group) }
                     container.addView(row)
                 }
-                if (group.key != "pending") {
+                if (group.key != "pending" && System.currentTimeMillis() - lastBadgePollMs >= badgePollThrottleMs) {
+                    lastBadgePollMs = System.currentTimeMillis()
                     PrivateMessageStateClient.fetchUnread(AppState.username) { unreadState ->
                         if (!isAdded || unreadState == null || !container.isAttachedToWindow) return@fetchUnread
                         cachedUnreadCounts = unreadState.countsBySender

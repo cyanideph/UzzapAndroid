@@ -21,6 +21,8 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.AppState
+import com.kolipri.uzzap.data.DirectMessageClient
+import com.kolipri.uzzap.data.ModeratorRoleClient
 import com.kolipri.uzzap.data.RoomPresenceClient
 import com.kolipri.uzzap.data.SafetyClient
 import com.kolipri.uzzap.data.UnifiedRoomClient
@@ -126,7 +128,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         messageList = view.findViewById(R.id.room_messages)
         messageAdapter = RoomMessageAdapter(requireContext())
         messageAdapter.onMessageLongClickListener = { message ->
-            if (AppState.isModerator && message.id > 0) showModeratorMessageActions(message)
+            if (message.id > 0) ModeratorRoleClient.refresh { if (AppState.isModerator) showModeratorMessageActions(message) }
         }
         layoutManager = LinearLayoutManager(requireContext()).apply { stackFromEnd = true }
         messageList.layoutManager = layoutManager
@@ -404,7 +406,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
 
     private fun whisperDialog() {
         UnifiedRoomClient.fetchParticipants(roomName) { members ->
-            val targets = (members ?: emptyList()).filter { !it.equals(AppState.nickname, true) }
+            val targets = (members ?: emptyList()).filter { !it.equals(AppState.username, true) && !it.equals(AppState.nickname, true) }
             if (!isAdded) return@fetchParticipants
             if (targets.isEmpty()) { Toast.makeText(requireContext(), "No other room members available.", Toast.LENGTH_SHORT).show(); return@fetchParticipants }
             UzzapDialogs.items(requireContext(), title = "Whisper in $roomName", items = targets.toTypedArray(), onPick = { which ->
@@ -412,7 +414,10 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
                 UzzapDialogs.form(requireContext(), title = "Whisper to $target", fields = listOf(UzzapDialogs.FieldSpec("Whisper to $target")), positive = "Send", onPositive = { f ->
                     val text = f[0].text.toString().trim()
                     if (text.isEmpty()) { f[0].error = "Enter a message"; return@form false }
-                    UnifiedRoomClient.sendMessage(roomName, text) {}; true
+                    DirectMessageClient.sendMessage(AppState.username, target, text) { sent ->
+                        if (isAdded) Toast.makeText(requireContext(), if (sent != null) "Whisper sent privately to $target" else "Whisper failed.", Toast.LENGTH_SHORT).show()
+                    }
+                    true
                 })
             })
         }

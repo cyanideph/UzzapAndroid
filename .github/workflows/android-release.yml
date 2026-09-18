@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -58,7 +58,7 @@ jobs:
         run: |
           ./gradlew :app:testReleaseUnitTest \
             -PSUPABASE_URL="${SUPABASE_URL}" \
-            -PSUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" \
+            -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" \
             --stacktrace
 
       - name: Build signed release AAB
@@ -67,7 +67,7 @@ jobs:
         run: |
           ./gradlew :app:bundleRelease \
             -PSUPABASE_URL="${SUPABASE_URL}" \
-            -PSUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" \
+            -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" \
             --stacktrace
 
       - name: Upload signed AAB
