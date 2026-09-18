@@ -29,26 +29,29 @@ object YouTubeMusicClient {
 
     private const val BROWSER_UA = "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36"
     private const val FALLBACK_KEY = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30" // public WEB_REMIX key
+    private const val FALLBACK_VERSION = "1.20260912.01.00" // refreshed from music.youtube.com at runtime
     private const val VR_CLIENT_VERSION = "1.65.10"
     private const val VR_UA = "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip"
     private const val SONGS_FILTER = "EgWKAQIIAWoKEAkQBRAKEAMQBA=="
 
-    @Volatile private var apiKey: String? = null
+    @Volatile private var config: Pair<String, String>? = null // api key to WEB_REMIX client version
 
     @Synchronized
-    private fun ensureKey(onReady: (String) -> Unit, onError: (String) -> Unit) {
-        apiKey?.let { return onReady(it) }
+    private fun ensureConfig(onReady: (String, String) -> Unit, onError: (String) -> Unit) {
+        config?.let { return onReady(it.first, it.second) }
         val req = Request.Builder().url("https://music.youtube.com")
             .header("User-Agent", BROWSER_UA).build()
         client.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) = onReady(FALLBACK_KEY)
+            override fun onFailure(call: Call, e: IOException) = onReady(FALLBACK_KEY, FALLBACK_VERSION)
             override fun onResponse(call: Call, response: Response) {
-                val key = response.use {
+                val (key, version) = response.use {
                     val responseText = it.body?.string() ?: return@use null
-                    Regex("\"INNERTUBE_API_KEY\":\"([^\"]+)\"").find(responseText)?.groupValues?.get(1)
-                } ?: FALLBACK_KEY
-                apiKey = key
-                onReady(key)
+                    val k = Regex("\"INNERTUBE_API_KEY\":\"([^\"]+)\"").find(responseText)?.groupValues?.get(1)
+                    val v = Regex("\"INNERTUBE_CLIENT_VERSION\":\"([^\"]+)\"").find(responseText)?.groupValues?.get(1)
+                    if (k != null) k to (v ?: FALLBACK_VERSION) else null
+                } ?: (FALLBACK_KEY to FALLBACK_VERSION)
+                config = key to version
+                onReady(key, version)
             }
         })
     }
@@ -71,11 +74,11 @@ object YouTubeMusicClient {
     }
 
     fun search(query: String, onResult: (List<Track>) -> Unit, onError: (String) -> Unit) {
-        ensureKey({ key ->
+        ensureConfig({ key, clientVersion ->
             val body = JSONObject()
                 .put("context", JSONObject().put("client", JSONObject()
                     .put("clientName", "WEB_REMIX")
-                    .put("clientVersion", "1.0")
+                    .put("clientVersion", clientVersion)
                     .put("hl", "en")))
                 .put("query", query)
                 .put("params", SONGS_FILTER)
@@ -83,8 +86,16 @@ object YouTubeMusicClient {
             post("https://music.youtube.com/youtubei/v1/search?key=$key&prettyPrint=false", BROWSER_UA, body) { res ->
                 res.onSuccess { root ->
                     runCatching {
+                        val contents = root.optJSONObject("contents")
+                        if (contents == null) {
+                            val errMsg = root.optJSONObject("error")?.optString("message")
+                            return@runCatching onError(
+                                if (!errMsg.isNullOrBlank()) "YouTube rejected search: $errMsg"
+                                else "Unexpected YouTube response (no results payload)"
+                            )
+                        }
                         val tracks = mutableListOf<Track>()
-                        val shelves = root.optJSONObject("contents")
+                        val shelves = contents
                             ?.optJSONObject("tabbedSearchResultsRenderer")
                             ?.optJSONArray("tabs")?.optJSONObject(0)
                             ?.optJSONObject("tabRenderer")?.optJSONObject("content")
@@ -118,7 +129,7 @@ object YouTubeMusicClient {
     }
 
     fun getStreamUrl(videoId: String, onUrl: (String) -> Unit, onError: (String) -> Unit) {
-        ensureKey({ key ->
+        ensureConfig({ key, _ ->
             val vrClient = JSONObject()
                 .put("clientName", "ANDROID_VR")
                 .put("clientVersion", VR_CLIENT_VERSION)
