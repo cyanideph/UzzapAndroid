@@ -198,8 +198,9 @@ class PoTokenMinter private constructor(
             .post(data.toRequestBody("application/json".toMediaType()))
             .build()
         http.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) =
+            override fun onFailure(call: Call, e: IOException) {
                 main.post { if (!ready) failAll("botguard network: ${e.message}") }
+            }
             override fun onResponse(call: Call, response: Response) {
                 val body = response.use { if (it.code == 200) it.body?.string() else null }
                 if (body != null) cb(body)
@@ -247,7 +248,7 @@ class PoTokenMinter private constructor(
     }
 
     private fun ytBase64Decode(s: String): ByteArray {
-        val mod = s.replace('-', '+').replace('_', '/').replace('.', "=")
+        val mod = s.replace('-', '+').replace('_', '/').replace('.', '=')
         return Base64.decode(mod, Base64.DEFAULT)
     }
 
