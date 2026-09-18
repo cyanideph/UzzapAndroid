@@ -478,7 +478,9 @@ AS $function$
 declare target_role text;
 begin
   if (select auth.uid()) is null or p_target_id is null then return false; end if;
-  if p_target_id = (select auth.uid()) then return false; end if;
+  -- f21: moderators may moderate (incl. delete) their own messages; regular
+  -- users still cannot use the moderation path on themselves.
+  if p_target_id = (select auth.uid()) then return public.is_moderator(); end if;
   if public.is_admin() then return true; end if;
   if not public.is_moderator() then return false; end if;
   select role into target_role from public.moderator_roles where user_id=p_target_id limit 1;
