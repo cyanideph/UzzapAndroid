@@ -3,6 +3,9 @@ package com.kolipri.uzzap.ui
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.ImageDecoder
+import android.graphics.drawable.AnimatedImageDrawable
+import android.os.Build
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
@@ -95,7 +98,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
             if (onClick != null) setOnClickListener { onClick.invoke() }
         }
         if (animAsset != null) {
-            rowView.addView(ImageView(this).apply { load("file:///android_asset/$animAsset") }, LinearLayout.LayoutParams(dp(32), dp(32)))
+            rowView.addView(ImageView(this).apply { loadAnimIcon(animAsset) }, LinearLayout.LayoutParams(dp(32), dp(32)))
         } else if (iconRes != 0) {
             rowView.addView(ImageView(this).apply { setImageResource(iconRes) }, LinearLayout.LayoutParams(dp(28), dp(28)))
         }
@@ -118,13 +121,25 @@ class LegacySettingsActivity : BaseChromeActivity() {
             })
         }
         rowView.addView(textCol, LinearLayout.LayoutParams(0, -2, 1f))
-        rowView.addView(ImageView(this).apply { load("file:///android_asset/anim-icons/arrow_row_end_t.gif") }, LinearLayout.LayoutParams(dp(16), dp(16)))
+        rowView.addView(ImageView(this).apply { loadAnimIcon("anim-icons/arrow_row_end_t.gif") }, LinearLayout.LayoutParams(dp(16), dp(16)))
         return rowView
     }
 
     private fun addRow(root: LinearLayout, view: View) {
         root.addView(view, LinearLayout.LayoutParams(-1, -2))
         if (view.tag == "j2me_row") root.addView(hairline(dp(14)))
+    }
+
+    private fun ImageView.loadAnimIcon(asset: String) {
+        if (Build.VERSION.SDK_INT >= 28) {
+            try {
+                val d = ImageDecoder.decodeDrawable(ImageDecoder.createSource(context.assets, asset))
+                setImageDrawable(d)
+                (d as? AnimatedImageDrawable)?.start()
+                return
+            } catch (e: Exception) { }
+        }
+        load("file:///android_asset/$asset")
     }
 
     private fun hairline(marginStart: Int): View {
