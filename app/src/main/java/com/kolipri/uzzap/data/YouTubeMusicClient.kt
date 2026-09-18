@@ -142,13 +142,37 @@ object YouTubeMusicClient {
      * Piped proxy fallback.
      */
     fun getStreamUrl(videoId: String, onUrl: (String) -> Unit, onError: (String) -> Unit) {
-        getStreamUrlInnerTube(videoId, onUrl) { innerTubeError ->
-            retryWithPoToken(videoId, onUrl) { poTokenError ->
-                tryPiped(videoId, 0, onUrl) { pipedError ->
-                    onError("InnerTube blocked ($innerTubeError); poToken failed ($poTokenError); Piped fallback failed ($pipedError)")
-                }
+        // Tier 1: plain player URL. YouTube often accepts the player request but 403s
+        // the actual URL fetch (GVS poToken policy), so probe the URL before playback.
+        getStreamUrlInnerTube(videoId, { plainUrl ->
+            preflightStream(plainUrl) { ok ->
+                if (ok) onUrl(plainUrl) else poTokenOrPiped(videoId, onUrl, onError)
+            }
+        }) {
+            poTokenOrPiped(videoId, onUrl, onError)
+        }
+    }
+
+    private fun poTokenOrPiped(videoId: String, onUrl: (String) -> Unit, onError: (String) -> Unit) {
+        retryWithPoToken(videoId, onUrl) { poTokenError ->
+            tryPiped(videoId, 0, onUrl) { pipedError ->
+                onError("GVS rejected stream URL (403); poToken failed ($poTokenError); Piped failed ($pipedError)")
             }
         }
+    }
+
+    /** Probe a stream URL with a 1-byte range request; GVS bot checks surface as 403 here. */
+    private fun preflightStream(url: String, cb: (Boolean) -> Unit) {
+        val req = Request.Builder().url(url)
+            .header("Range", "bytes=0-0")
+            .header("User-Agent", VR_UA)
+            .build()
+        client.newCall(req).enqueue(object : Callback {
+            // Probe network failure: stay optimistic, let playback try for real
+            override fun onFailure(call: Call, e: IOException) = cb(true)
+            override fun onResponse(call: Call, response: Response) =
+                cb(response.use { it.code in 200..299 })
+        })
     }
 
     private fun getStreamUrlInnerTube(videoId: String, onUrl: (String) -> Unit, onBlocked: (String) -> Unit) {
@@ -165,7 +189,11 @@ object YouTubeMusicClient {
                 ensureConfig({ key, _ ->
                     requestPlayer(videoId, key, vd to streamingPot, { url ->
                         minter.generate(videoId, { videoPot ->
-                            onUrl("$url&pot=$videoPot")
+                            val potUrl = "$url&pot=$videoPot"
+                            preflightStream(potUrl) { ok ->
+                                if (ok) onUrl(potUrl)
+                                else onError("GVS rejected poToken URL too (bot check on this network)")
+                            }
                         }, onError)
                     }, onError)
                 }, onError)
