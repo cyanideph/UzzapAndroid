@@ -6,9 +6,8 @@ import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import org.json.JSONArray
+import org.json.JSONObject
 import java.io.IOException
-import java.net.URLEncoder
 
 object NicknameResolver {
     private val client = OkHttpClient()
@@ -21,12 +20,12 @@ object NicknameResolver {
             onResult(null, "Nickname is required")
             return
         }
-        val encoded = URLEncoder.encode(normalized, "UTF-8")
+        val payload = JSONObject().put("p_username", normalized).toString()
         val request = Request.Builder()
-            .url("$baseUrl/rest/v1/profiles?username=eq.$encoded&select=email&limit=1")
+            .url("$baseUrl/rest/v1/rpc/resolve_login_email")
             .header("apikey", anonKey)
             .header("Authorization", "Bearer $anonKey")
-            .get()
+            .post(okhttp3.RequestBody.create(null, payload))
             .build()
 
         client.newCall(request).enqueue(object : Callback {
@@ -42,8 +41,8 @@ object NicknameResolver {
                         return
                     }
                     try {
-                        val rows = JSONArray(body)
-                        val email = if (rows.length() > 0) rows.getJSONObject(0).optString("email").trim() else ""
+                        // RPC returns a scalar JSON string or null (not a row array).
+                        val email = if (body.trim() == "null") "" else body.trim().removeSurrounding("\"")
                         if (email.isBlank()) onResult(null, "That nickname has no registered email account")
                         else onResult(email, null)
                     } catch (_: Exception) {

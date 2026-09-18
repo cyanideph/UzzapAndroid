@@ -18,7 +18,7 @@ object DeliveryReceiptClient {
     private val http = OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
     private val url = BuildConfig.SUPABASE_URL.trimEnd('/')
     private val key = BuildConfig.SUPABASE_ANON_KEY
-    private fun req(path: String) = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", "Bearer ${SupabaseClient.userAccessToken.orEmpty()}").header("Content-Type", "application/json")
+    private fun req(path: String) = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", SupabaseClient.authHeader()).header("Content-Type", "application/json")
     private fun currentUserId(): String? = SupabaseClient.userAccessToken?.let { token -> runCatching { val p = token.split('.').getOrNull(1) ?: return@runCatching null; val b = Base64.decode(p, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING); JSONObject(String(b, StandardCharsets.UTF_8)).optString("sub").ifBlank { null } }.getOrNull() }
 
     fun fetchRecent(onResult: (List<DeliveryReceipt>?) -> Unit) {

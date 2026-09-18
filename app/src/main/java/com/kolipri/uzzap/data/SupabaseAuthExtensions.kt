@@ -78,9 +78,13 @@ fun SupabaseClient.signInWithEmail(email: String, password: String, callback: (B
                     val refresh = obj.optString("refresh_token").ifBlank { null }; val expires = System.currentTimeMillis() + obj.optLong("expires_in", 3600L) * 1000L; val user = obj.optJSONObject("user")
                     val userId = user?.optString("id").orEmpty(); if (userId.isBlank()) error("No authenticated user id returned")
                     SupabaseClient.setAccessTokenForLegacy(access); AppState.authToken = access; AppState.email = user?.optString("email").ifNullOrBlank(email)
-                    val profile = loadProfileData(userId, access); val username = profile.username.ifBlank { error("No profile username found for this account") }; val nickname = profile.nickname.ifBlank { username }
-                    AppState.username = username; AppState.nickname = nickname
-                    resolveApplicationRole(userId, access) { role -> AppState.role = role; SessionStore.save(access, refresh, expires, AppState.email, nickname, role, username); callback(true, nickname, access, null) }
+                    loadProfileData(userId, access) { profile ->
+                        runCatching {
+                            val username = profile.username.ifBlank { error("No profile username found for this account") }; val nickname = profile.nickname.ifBlank { username }
+                            AppState.username = username; AppState.nickname = nickname
+                            resolveApplicationRole(userId, access) { role -> AppState.role = role; SessionStore.save(access, refresh, expires, AppState.email, nickname, role, username); SupabaseAuthCompat.handler().post { callback(true, nickname, access, null) } }
+                        }.onFailure { e -> Log.e("SupabaseAuthCompat", "Login identity resolution failed", e); SupabaseClient.setAccessTokenForLegacy(null); SupabaseAuthCompat.handler().post { callback(false, null, null, e.message ?: "Unable to load account profile") } }
+                    }
                 }.onFailure { e -> Log.e("SupabaseAuthCompat", "Login identity resolution failed", e); SupabaseClient.setAccessTokenForLegacy(null); SupabaseAuthCompat.handler().post { callback(false, null, null, e.message ?: "Unable to load account profile") } }
             }
         }
@@ -106,9 +110,10 @@ fun SupabaseClient.signUpWithEmail(email: String, password: String, nickname: St
                         val userId = user?.optString("id").orEmpty(); if (userId.isBlank()) error("No authenticated user id returned")
                         SupabaseClient.setAccessTokenForLegacy(access); AppState.authToken = access; AppState.email = returnedEmail; AppState.nickname = cleanNickname; AppState.username = cleanNickname; AppState.role = "user"
                         SessionStore.save(access, refresh, expires, returnedEmail, cleanNickname, "user", cleanNickname)
-                        val profile = loadProfileData(userId, access)
-                        if (profile.username.isBlank()) error("Account created but profile provisioning was not completed")
-                        SupabaseAuthCompat.handler().post { callback(true, access, null) }
+                        loadProfileData(userId, access) { profile ->
+                            if (profile.username.isBlank()) SupabaseAuthCompat.handler().post { callback(false, null, "Account created but profile provisioning was not completed") }
+                            else SupabaseAuthCompat.handler().post { callback(true, access, null) }
+                        }
                     } else {
                         SupabaseAuthCompat.handler().post { callback(true, null, "Account created. Please confirm your email, then log in.") }
                     }
@@ -127,13 +132,16 @@ fun SupabaseClient.verifySession(token: String, callback: (Boolean, String?, Str
             response.use {
                 val raw = it.body?.string().orEmpty(); if (!it.isSuccessful) { SupabaseAuthCompat.handler().post { callback(false, null, null) }; return }
                 runCatching {
-                    val user = JSONObject(raw); val id = user.optString("id"); val email = user.optString("email"); val profile = loadProfileData(id, token)
-                    if (profile.username.isNotBlank()) {
-                        AppState.username = profile.username; AppState.nickname = profile.nickname.ifBlank { profile.username }
-                        resolveApplicationRole(id, token) { role -> AppState.role = role; SessionStore.save(token, SessionStore.refreshToken(), SessionStore.expiresAtMs(), email, AppState.nickname, role, AppState.username); callback(true, email, AppState.nickname) }
-                    } else {
-                        AppState.username = SessionStore.username().ifBlank { error("No saved username for this account") }; AppState.nickname = SessionStore.nickname().ifBlank { AppState.username }; AppState.role = normalizeApplicationRole(SessionStore.role())
-                        SupabaseAuthCompat.handler().post { callback(true, email, AppState.nickname) }
+                    val user = JSONObject(raw); val id = user.optString("id"); val email = user.optString("email")
+                    loadProfileData(id, token) { profile ->
+                        if (profile.username.isNotBlank()) {
+                            AppState.username = profile.username; AppState.nickname = profile.nickname.ifBlank { profile.username }
+                            resolveApplicationRole(id, token) { role -> AppState.role = role; SessionStore.save(token, SessionStore.refreshToken(), SessionStore.expiresAtMs(), email, AppState.nickname, role, AppState.username); SupabaseAuthCompat.handler().post { callback(true, email, AppState.nickname) } }
+                        } else {
+                            val saved = SessionStore.username()
+                            if (saved.isBlank()) SupabaseAuthCompat.handler().post { callback(false, null, null) }
+                            else { AppState.username = saved; AppState.nickname = SessionStore.nickname().ifBlank { AppState.username }; AppState.role = normalizeApplicationRole(SessionStore.role()); SupabaseAuthCompat.handler().post { callback(true, email, AppState.nickname) } }
+                        }
                     }
                 }.onFailure { SupabaseAuthCompat.handler().post { callback(false, null, null) } }
             }
@@ -163,15 +171,17 @@ fun SupabaseClient.signOut() {
     SupabaseClient.setAccessTokenForLegacy(null); AppState.authToken = ""; AppState.username = ""; AppState.nickname = ""; AppState.email = ""; AppState.role = "user"; SessionStore.clear()
 }
 
-private fun loadProfileData(userId: String, token: String = SupabaseClient.userAccessToken.orEmpty()): ProfileIdentity {
-    if (userId.isBlank() || token.isBlank()) return ProfileIdentity("", "")
-    return try {
-        val request = SupabaseAuthCompat.request("/rest/v1/profiles?select=username,nickname&owner_id=eq.$userId", true).header("Authorization", "Bearer $token").get().build()
-        val response = SupabaseAuthCompat.client().newCall(request).execute()
-        response.use {
-            if (!it.isSuccessful) return ProfileIdentity("", "")
-            val arr = JSONArray(it.body?.string().orEmpty()); if (arr.length() == 0) return ProfileIdentity("", "")
-            val p = arr.getJSONObject(0); ProfileIdentity(p.optString("username").trim(), p.optString("nickname").trim())
+private fun loadProfileData(userId: String, token: String = SupabaseClient.userAccessToken.orEmpty(), onResult: (ProfileIdentity) -> Unit) {
+    if (userId.isBlank() || token.isBlank()) { SupabaseAuthCompat.handler().post { onResult(ProfileIdentity("", "")) }; return }
+    val request = SupabaseAuthCompat.request("/rest/v1/profiles?select=username,nickname&owner_id=eq.$userId", true).header("Authorization", "Bearer $token").get().build()
+    SupabaseAuthCompat.client().newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) { Log.w("SupabaseAuthCompat", "Profile identity lookup failed", e); SupabaseAuthCompat.handler().post { onResult(ProfileIdentity("", "")) } }
+        override fun onResponse(call: Call, response: Response) {
+            response.use {
+                if (!it.isSuccessful) { SupabaseAuthCompat.handler().post { onResult(ProfileIdentity("", "")) }; return }
+                val arr = JSONArray(it.body?.string().orEmpty()); val p = if (arr.length() == 0) null else arr.getJSONObject(0)
+                SupabaseAuthCompat.handler().post { onResult(if (p == null) ProfileIdentity("", "") else ProfileIdentity(p.optString("username").trim(), p.optString("nickname").trim())) }
+            }
         }
-    } catch (e: Exception) { Log.w("SupabaseAuthCompat", "Profile identity lookup failed", e); ProfileIdentity("", "") }
+    })
 }

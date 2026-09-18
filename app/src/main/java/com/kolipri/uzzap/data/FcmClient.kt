@@ -116,21 +116,13 @@ object FcmClient {
             return
         }
 
-        val userId = extractUserId()
-        val bodyJson = JSONObject().apply {
-            put("username", username.trim().lowercase())
-            put("fcm_token", fcmToken)
-            if (!userId.isNullOrBlank()) {
-                put("user_id", userId)
-            }
-        }
+        val bodyJson = JSONObject().apply { put("p_token", fcmToken) }
 
         val request = Request.Builder()
-            .url("$url/rest/v1/user_fcm_tokens?on_conflict=fcm_token")
+            .url("$url/rest/v1/rpc/upsert_fcm_token")
             .header("apikey", key)
             .header("Authorization", "Bearer $userToken")
             .header("Content-Type", "application/json")
-            .header("Prefer", "resolution=merge-duplicates")
             .post(bodyJson.toString().toRequestBody(jsonMediaType))
             .build()
 

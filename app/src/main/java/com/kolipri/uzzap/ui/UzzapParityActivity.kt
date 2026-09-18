@@ -23,7 +23,6 @@ import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.model.Presence
 import com.kolipri.uzzap.ui.dialogs.J2mePopup
 import com.kolipri.uzzap.ui.dialogs.PopupItem
-import com.kolipri.uzzap.ui.util.UzzapColorCodeParser
 
 class UzzapParityActivity : BaseChromeActivity() {
     override fun contentLayoutRes(): Int? = null
@@ -91,7 +90,7 @@ class UzzapParityActivity : BaseChromeActivity() {
         setSoftkeys("Save", "Back", onLeft = { saveProfile(root) }, onRight = { finish() })
         showConnectedBall(true)
 
-        val currentNickname = UzzapColorCodeParser.plainText(AppState.nickname).trim().ifBlank { AppState.username }
+        val currentNickname = AppState.nickname.trim().ifBlank { AppState.username }
         val avatar = TextView(this).apply {
             text = currentNickname.firstOrNull()?.uppercase() ?: "U"
             textSize = 30f
@@ -191,7 +190,7 @@ class UzzapParityActivity : BaseChromeActivity() {
     private fun saveProfile(root: LinearLayout) {
         val fields = root.tag as? ProfileFields ?: return
         val rawNickname = fields.nickname.text.toString().trim()
-        val visibleNickname = UzzapColorCodeParser.plainText(rawNickname).trim()
+        val visibleNickname = rawNickname.trim()
         when {
             rawNickname.isBlank() -> Toast.makeText(this, "Nickname cannot be empty.", Toast.LENGTH_SHORT).show()
             rawNickname.length > 64 -> Toast.makeText(this, "Nickname is limited to 64 characters.", Toast.LENGTH_SHORT).show()
@@ -245,7 +244,7 @@ class UzzapParityActivity : BaseChromeActivity() {
             // which added the current user a second time when the backend already returned
             // the same member under a different case. Normalize and de-duplicate display
             // names before rendering, while preserving the current saved nickname.
-            val currentNickname = UzzapColorCodeParser.plainText(AppState.nickname).trim()
+            val currentNickname = AppState.nickname.trim()
                 .ifBlank { AppState.username.trim() }
             val currentKey = currentNickname.trim().lowercase()
 

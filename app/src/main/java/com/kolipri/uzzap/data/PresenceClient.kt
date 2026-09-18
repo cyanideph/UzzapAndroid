@@ -21,7 +21,7 @@ object PresenceClient {
     private val json = "application/json; charset=utf-8".toMediaType()
     private var heartbeatRunnable: Runnable? = null
 
-    private fun req(path: String) = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", "Bearer ${SupabaseClient.userAccessToken.orEmpty()}").header("Content-Type", "application/json")
+    private fun req(path: String) = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", SupabaseClient.authHeader()).header("Content-Type", "application/json")
 
     fun heartbeat(isOnline: Boolean = true) {
         if (SupabaseClient.userAccessToken.isNullOrBlank()) return
