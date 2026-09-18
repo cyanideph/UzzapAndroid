@@ -10,7 +10,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import okhttp3.Call
 import okhttp3.Callback
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -195,16 +194,24 @@ class PoTokenMinter private constructor(
             .header("Content-Type", "application/json+protobuf")
             .header("x-goog-api-key", GOOGLE_API_KEY)
             .header("x-user-agent", "grpc-web-javascript/0.1")
-            .post(data.toRequestBody("application/json".toMediaType()))
+            .post(data.toRequestBody(null))
             .build()
         http.newCall(req).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 main.post { if (!ready) failAll("botguard network: ${e.message}") }
             }
             override fun onResponse(call: Call, response: Response) {
-                val body = response.use { if (it.code == 200) it.body?.string() else null }
-                if (body != null) cb(body)
-                else main.post { if (!ready) failAll("botguard HTTP ${response.code}") }
+                val pair = response.use { it.code to it.body?.string() }
+                val (code, body) = pair
+                if (code == 200 && !body.isNullOrEmpty()) {
+                    cb(body)
+                } else {
+                    main.post {
+                        if (!ready) failAll(
+                            "botguard HTTP $code: " + (body?.take(200) ?: "empty body")
+                        )
+                    }
+                }
             }
         })
     }
