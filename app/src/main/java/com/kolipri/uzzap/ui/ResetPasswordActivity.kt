@@ -53,7 +53,7 @@ class ResetPasswordActivity : BaseChromeActivity() {
         parent.removeView(textView)
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.TOP; setPadding(32, 28, 32, 28) }
         parent.addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        root.addView(TextView(this).apply { text = "Choose a new Uzzap password"; textSize = 20f; setTextColor(Color.BLACK) })
+        root.addView(TextView(this).apply { text = "Choose a new Uzzap password"; textSize = 20f; setTextColor(ThemeManager.resolve(this@ResetPasswordActivity, R.attr.uzzapColorText)) })
         root.addView(TextView(this).apply { text = if (recoveryToken.isNullOrBlank()) "The reset link is missing or has expired. Request a new reset link from Login." else "Enter a new password below. Your old password will stop working after the change."; textSize = 14f; setPadding(0, 12, 0, 18) })
         if (recoveryToken.isNullOrBlank()) {
             root.addView(Button(this).apply { text = "Back to Login"; setOnClickListener { finish() } })

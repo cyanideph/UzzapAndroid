@@ -74,7 +74,7 @@ object UzzapDialogs {
         val tile = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            background = rounded(context, withAlpha(GREEN, 42), 16)
+            background = rounded(context, withAlpha(GREEN, 64), 16)
         }
         tile.addView(ImageView(context).apply { loadAnimIcon(this, asset) },
             LinearLayout.LayoutParams(dp(context, 34), dp(context, 34)))

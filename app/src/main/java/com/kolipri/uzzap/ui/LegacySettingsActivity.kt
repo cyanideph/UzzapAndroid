@@ -216,7 +216,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
         val textColor = ThemeManager.resolve(this, R.attr.uzzapColorText)
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = GradientDrawable().apply { setColor(0x2B8EEF04); cornerRadius = dp(14).toFloat() } }
-        tile.addView(ImageView(this).apply { loadAnimIcon("anim-icons/delete_trash.gif") }, LinearLayout.LayoutParams(dp(30), dp(30)))
+        tile.addView(ImageView(this).apply { loadAnimIcon(this, "anim-icons/delete_trash.gif") }, LinearLayout.LayoutParams(dp(30), dp(30)))
         row.addView(tile, LinearLayout.LayoutParams(dp(48), dp(48)))
         row.addView(TextView(this).apply { text = "Please wait while your account is deleted..."; textSize = 14f; setTextColor(textColor); setPadding(dp(12), 0, 0, 0) })
         val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(18), dp(26), dp(18)); background = GradientDrawable().apply { setColor(ThemeManager.resolve(this@LegacySettingsActivity, R.attr.uzzapColorSurface)); cornerRadius = dp(24).toFloat() } }
