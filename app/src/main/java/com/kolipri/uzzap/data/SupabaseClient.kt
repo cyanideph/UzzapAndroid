@@ -132,13 +132,17 @@ object SupabaseClient {
             }
         })
     }
-    private fun extractUserId(): String? = try {
+    private fun extractUserId(): String? {
         val token = userAccessToken ?: return null
-        val parts = token.split(".")
-        if (parts.size < 2) return null
-        val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING), Charsets.UTF_8)
-        JSONObject(payload).optString("sub").takeIf { it.isNotBlank() }
-    } catch (_: Exception) { null }
+        return try {
+            val parts = token.split(".")
+            if (parts.size < 2) null
+            else {
+                val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING), Charsets.UTF_8)
+                JSONObject(payload).optString("sub").takeIf { it.isNotBlank() }
+            }
+        } catch (_: Exception) { null }
+    }
 
     fun pingPresence(roomName: String, username: String, onResult: ((Boolean) -> Unit)? = null) { if (!authenticated()) { mainHandler.post { onResult?.invoke(false) }; return }; val json = JSONObject().put("room_name", roomName).put("username", username); httpClient.newCall(request("/rest/v1/room_participants?on_conflict=room_name,username", true).header("Prefer", "resolution=merge-duplicates").post(json.toString().toRequestBody(jsonMediaType)).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult?.invoke(false) } }; override fun onResponse(call: Call, response: Response) { val ok = response.isSuccessful; response.close(); mainHandler.post { onResult?.invoke(ok) } } }) }
     fun leaveRoom(roomName: String, username: String) { if (!authenticated()) return; val room = URLEncoder.encode(roomName, "UTF-8"); val uid = extractUserId()?.let { URLEncoder.encode(it, "UTF-8") } ?: return; httpClient.newCall(request("/rest/v1/room_participants?room_name=eq.$room&owner_id=eq.$uid", true).delete().build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) = Unit; override fun onResponse(call: Call, response: Response) { response.close() } }) }

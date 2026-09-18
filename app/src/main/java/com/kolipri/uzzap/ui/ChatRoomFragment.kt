@@ -414,8 +414,8 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
                 UzzapDialogs.form(requireContext(), title = "Whisper to $target", fields = listOf(UzzapDialogs.FieldSpec("Whisper to $target")), positive = "Send", onPositive = { f ->
                     val text = f[0].text.toString().trim()
                     if (text.isEmpty()) { f[0].error = "Enter a message"; return@form false }
-                    DirectMessageClient.sendMessage(AppState.username, target, text) { ok ->
-                        if (isAdded) Toast.makeText(requireContext(), if (ok) "Whisper sent privately to $target" else "Whisper failed.", Toast.LENGTH_SHORT).show()
+                    DirectMessageClient.sendMessage(AppState.username, target, text) { sent ->
+                        if (isAdded) Toast.makeText(requireContext(), if (sent != null) "Whisper sent privately to $target" else "Whisper failed.", Toast.LENGTH_SHORT).show()
                     }
                     true
                 })
