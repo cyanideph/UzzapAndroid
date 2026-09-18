@@ -112,7 +112,7 @@ class AboutUzzapActivity : BaseChromeActivity() {
             this.text = text
             textSize = size.toFloat()
             if (bold) typeface = Typeface.DEFAULT_BOLD
-            setTextColor(ThemeManager.resolve(this, R.attr.uzzapColorText))
+            setTextColor(ThemeManager.resolve(this@AboutUzzapActivity, R.attr.uzzapColorText))
             setPadding(0, dp(3), 0, dp(7))
         }
         parent.addView(view)
