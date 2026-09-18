@@ -78,7 +78,7 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
 
     override fun getItemViewType(position: Int): Int {
         val msg = items[position]
-        return if (msg.isSystem || msg.sender.equals("uzzapbot", ignoreCase = true) || msg.sender.equals("System", ignoreCase = true)) {
+        return if (msg.isSystem || msg.sender.equals("System", ignoreCase = true)) {
             TYPE_SYSTEM
         } else {
             TYPE_NORMAL
