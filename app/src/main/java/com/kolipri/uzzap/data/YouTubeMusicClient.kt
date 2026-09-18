@@ -128,7 +128,21 @@ object YouTubeMusicClient {
         }, onError)
     }
 
+    /**
+     * Resolve a playable audio URL. Tries InnerTube (ANDROID_VR) first; if YouTube's
+     * bot check ("Sign in to confirm you're not a bot") or signature cipher blocks it,
+     * falls back to public Piped instances, which generate poTokens server-side.
+     * Piped instances are third-party proxies: rate-limited, sometimes down.
+     */
     fun getStreamUrl(videoId: String, onUrl: (String) -> Unit, onError: (String) -> Unit) {
+        getStreamUrlInnerTube(videoId, onUrl) { innerTubeError ->
+            tryPiped(videoId, 0, onUrl) { pipedError ->
+                onError("InnerTube blocked ($innerTubeError); Piped fallback failed ($pipedError)")
+            }
+        }
+    }
+
+    private fun getStreamUrlInnerTube(videoId: String, onUrl: (String) -> Unit, onBlocked: (String) -> Unit) {
         ensureConfig({ key, _ ->
             val vrClient = JSONObject()
                 .put("clientName", "ANDROID_VR")
@@ -151,10 +165,10 @@ object YouTubeMusicClient {
                         val status = root.optJSONObject("playabilityStatus")?.optString("status")
                         if (status != "OK") {
                             val reason = root.optJSONObject("playabilityStatus")?.optString("reason") ?: status
-                            return@runCatching onError("Playback blocked: $reason")
+                            return@runCatching onBlocked("Playback blocked: $reason")
                         }
                         val formats = root.optJSONObject("streamingData")?.optJSONArray("adaptiveFormats")
-                            ?: return@runCatching onError("No stream data (YouTube may require poToken on this network)")
+                            ?: return@runCatching onBlocked("No stream data (YouTube may require poToken on this network)")
                         var best: JSONObject? = null
                         formats.let { arr ->
                             for (i in 0 until arr.length()) {
@@ -167,11 +181,44 @@ object YouTubeMusicClient {
                             }
                         }
                         val url = best?.optString("url")
-                        if (url.isNullOrBlank()) onError("No direct audio stream (signature-ciphered; poToken not supported yet)")
+                        if (url.isNullOrBlank()) onBlocked("No direct audio stream (signature-ciphered; poToken not supported yet)")
                         else onUrl(url)
-                    }.onFailure { onError("Player response changed format") }
-                }.onFailure { onError("Stream lookup failed: ${it.message ?: "network error"}") }
+                    }.onFailure { onBlocked("Player response changed format") }
+                }.onFailure { onBlocked("Stream lookup failed: ${it.message ?: "network error"}") }
             }
-        }, onError)
+        }, onBlocked)
+    }
+
+    private val pipedInstances = listOf(
+        "https://pipedapi.kavin.rocks",
+        "https://pipedapi.adminforge.de",
+        "https://pipedapi.leptons.xyz",
+    )
+
+    private fun tryPiped(videoId: String, index: Int, onUrl: (String) -> Unit, onError: (String) -> Unit) {
+        if (index >= pipedInstances.size) return onError("all instances failed or blocked")
+        val req = Request.Builder()
+            .url("${pipedInstances[index]}/streams/$videoId")
+            .header("User-Agent", BROWSER_UA)
+            .build()
+        client.newCall(req).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) =
+                tryPiped(videoId, index + 1, onUrl, onError)
+            override fun onResponse(call: Call, response: Response) {
+                val root = response.use {
+                    it.body?.string()?.let { text -> runCatching { JSONObject(text) }.getOrNull() }
+                }
+                val streams = root?.optJSONArray("audioStreams")
+                var best: JSONObject? = null
+                streams?.let { arr ->
+                    for (i in 0 until arr.length()) {
+                        val f = arr.optJSONObject(i) ?: continue
+                        if (best == null || f.optInt("bitrate") > best!!.optInt("bitrate")) best = f
+                    }
+                }
+                val url = best?.optString("url")
+                if (!url.isNullOrBlank()) onUrl(url) else tryPiped(videoId, index + 1, onUrl, onError)
+            }
+        })
     }
 }
