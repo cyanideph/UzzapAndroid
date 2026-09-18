@@ -27,7 +27,7 @@ object UzzapDialogs {
     private fun dp(c: Context, v: Int): Int = (v * c.resources.displayMetrics.density + 0.5f).toInt()
 
     private fun rounded(c: Context, color: Int, radiusDp: Int): GradientDrawable =
-        GradientDrawable().apply { setColor(color); cornerRadius(dp(c, radiusDp).toFloat()) }
+        GradientDrawable().apply { setColor(color); cornerRadius = dp(c, radiusDp).toFloat() }
 
     private fun withAlpha(color: Int, alpha: Int): Int = (color and 0x00FFFFFF) or (alpha shl 24)
 
