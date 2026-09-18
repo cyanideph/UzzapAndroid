@@ -164,7 +164,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
             if (!isAdded) return@join
             if (!ok) {
                 AppDiagnostics.failed("Room.join", "room=$roomName error=${message ?: "Cannot join room"}")
-                AlertDialog.Builder(requireContext()).setTitle("Cannot Join Room").setMessage(message ?: "This room cannot accept you.").setPositiveButton("OK") { _, _ -> host.leaveRoom(roomName) }.show()
+                UzzapDialogs.show(requireContext(), title = "Cannot Join Room", message = message ?: "This room cannot accept you.", positive = "OK", onPositive = { host.leaveRoom(roomName) }, negative = null)
                 return@join
             }
             joinedSuccessfully = true
@@ -368,7 +368,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
                 0 -> etMessage.requestFocus()
                 1 -> whisperDialog()
                 2 -> startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_MEMBERS, roomName))
-                3 -> AlertDialog.Builder(requireContext()).setTitle(roomName).setMessage("Province chatroom\nLive room\nMessages: ${AppState.messagesFor(roomName).size}").setPositiveButton("OK", null).show()
+                3 -> UzzapDialogs.show(requireContext(), iconAsset = "anim-icons/menu_backend.gif", title = roomName, message = "Province chatroom\nLive room\nMessages: ${AppState.messagesFor(roomName).size}", positive = "OK")
                 4 -> startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_ACTIONS, roomName))
                 5 -> showReportDialog()
                 6 -> host.confirmLeaveRoom()

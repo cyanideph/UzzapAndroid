@@ -192,7 +192,7 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
                 1 -> if (selectedCategory == null) showCategories() else selectedCategory?.rooms?.firstOrNull()?.let { startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_ACTIONS, it.name)) }
                 2, 3 -> refreshFromSupabase(initial = false)
                 4 -> showSearch()
-                5 -> androidx.appcompat.app.AlertDialog.Builder(requireContext()).setTitle("Supabase Status").setMessage("Status: ${SupabaseClient.connectionStatus}\nRegions: ${AppState.categories.size}\nProvince rooms: ${AppState.categories.sumOf { it.rooms.size }}").setPositiveButton("OK", null).show()
+                5 -> UzzapDialogs.show(requireContext(), iconAsset = "anim-icons/menu_backend.gif", title = "Supabase Status", message = "Status: ${SupabaseClient.connectionStatus}\nRegions: ${AppState.categories.size}\nProvince rooms: ${AppState.categories.sumOf { it.rooms.size }}", positive = "OK")
             }
         }
     }
