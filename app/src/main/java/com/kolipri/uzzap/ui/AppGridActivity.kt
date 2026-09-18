@@ -34,7 +34,7 @@ class AppGridActivity : BaseChromeActivity() {
         setSoftkeys(getString(R.string.softkey_options), getString(R.string.softkey_exit), onLeft = { showOptionsMenu() }, onRight = { showExitMenu() })
         val footer = findViewById<TextView>(R.id.tv_footer_feature_name)
         val settingsIcon = findViewById<ImageView>(R.id.icon_settings)
-        findViewById<ImageView>(R.id.icon_u).setOnClickListener { footer.text = "Subscription"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SUBSCRIPTION)) }
+        findViewById<ImageView>(R.id.icon_u).setOnClickListener { footer.text = "Music"; startActivity(Intent(this, MusicStreamActivity::class.java)) }
         findViewById<ImageView>(R.id.icon_matching).setOnClickListener { footer.text = "Buddy Matching"; toast("Automatic Buddy Matching is not supported on this device.") }
         findViewById<ImageView>(R.id.icon_addbuddy).setOnClickListener { footer.text = "Add / Invite Buddies"; startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }
         settingsIcon.setOnClickListener { footer.text = "Settings"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SETTINGS)) }

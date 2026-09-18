@@ -14,6 +14,7 @@
     <string name="softkey_exit">Exit</string>
     <string name="softkey_menu">Menu</string>
     <string name="softkey_back">Back</string>
+    <string name="softkey_search">Search</string>
     <string name="softkey_select">Select</string>
     <string name="softkey_cancel">Cancel</string>
     <string name="softkey_close">Close</string>
