@@ -11,6 +11,7 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import com.kolipri.uzzap.R
+import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.YouTubeMusicClient
 
 /** YouTube Music streaming player (InnerTube). Replaces the classic Subscription shortcut. */
@@ -67,11 +68,18 @@ class MusicStreamActivity : BaseChromeActivity() {
 
     private fun doSearch() {
         val query = etSearch.text.toString().trim()
-        if (query.isEmpty()) return toast("Type a song or artist name")
+        if (query.isEmpty()) { toast("Type a song or artist name"); return }
         toast("Searching…")
+        AppDiagnostics.event("Music.search", AppDiagnostics.Status.RUNNING, "query=${query.take(40)}")
         YouTubeMusicClient.search(query,
-            onResult = { results -> runOnUiThread { showResults(results) } },
-            onError = { msg -> runOnUiThread { toast(msg) } })
+            onResult = { results -> runOnUiThread {
+                AppDiagnostics.event("Music.search", AppDiagnostics.Status.PASS, "${results.size} results")
+                showResults(results)
+            } },
+            onError = { msg -> runOnUiThread {
+                AppDiagnostics.failed("Music.search", msg)
+                toast(msg)
+            } })
     }
 
     private fun showResults(results: List<YouTubeMusicClient.Track>) {
@@ -82,9 +90,17 @@ class MusicStreamActivity : BaseChromeActivity() {
 
     private fun play(track: YouTubeMusicClient.Track) {
         tvNowPlaying.text = "Loading: ${track.title}"
+        AppDiagnostics.event("Music.stream", AppDiagnostics.Status.RUNNING, track.videoId)
         YouTubeMusicClient.getStreamUrl(track.videoId,
-            onUrl = { url -> runOnUiThread { startStream(track, url) } },
-            onError = { msg -> runOnUiThread { tvNowPlaying.text = "Nothing playing"; toast(msg) } })
+            onUrl = { url -> runOnUiThread {
+                AppDiagnostics.event("Music.stream", AppDiagnostics.Status.PASS, "stream acquired")
+                startStream(track, url)
+            } },
+            onError = { msg -> runOnUiThread {
+                AppDiagnostics.failed("Music.stream", msg)
+                tvNowPlaying.text = "Nothing playing"
+                toast(msg)
+            } })
     }
 
     private fun startStream(track: YouTubeMusicClient.Track, url: String) {
@@ -106,6 +122,7 @@ class MusicStreamActivity : BaseChromeActivity() {
                 handler.removeCallbacks(ticker)
             }
             mp.setOnErrorListener { _, _, _ ->
+                AppDiagnostics.failed("Music.stream", "MediaPlayer error during playback")
                 toast("Stream failed to play")
                 releasePlayer()
                 true
