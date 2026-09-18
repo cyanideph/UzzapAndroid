@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/uzzap_white"
+    android:background="?attr/uzzapColorBg"
     android:gravity="center_horizontal">
 
     <Space
@@ -24,7 +24,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
         android:textSize="18sp"
-        android:textColor="@color/uzzap_black"
+        android:textColor="?attr/uzzapColorText"
         android:text="@string/status_connecting"/>
 
     <ImageView

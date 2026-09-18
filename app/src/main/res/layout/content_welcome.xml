@@ -2,7 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/uzzap_white"
+    android:background="?attr/uzzapColorBg"
     android:fillViewport="true">
 
     <LinearLayout
@@ -30,7 +30,7 @@
             android:layout_marginTop="8dp"
             android:gravity="center"
             android:text="Welcome to Uzzap!"
-            android:textColor="@color/uzzap_special_red"
+            android:textColor="?attr/uzzapColorAccent"
             android:textSize="22sp"
             android:textStyle="bold" />
 
@@ -62,7 +62,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="6dp"
             android:text="WHAT YOU CAN DO ON UZZAP"
-            android:textColor="@color/uzzap_special_blue"
+            android:textColor="?attr/uzzapColorAccent"
             android:textSize="13sp"
             android:textStyle="bold" />
 

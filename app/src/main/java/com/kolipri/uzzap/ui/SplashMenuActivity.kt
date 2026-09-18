@@ -188,7 +188,7 @@ class SplashMenuActivity : BaseChromeActivity() {
     }
     private fun openHelp() = startActivity(SimpleTextActivity.intentForAsset(this, "Help", "help.txt"))
     private fun openAbout() {
-        val red = 0xFFD32F2F.toInt()
+        val red = UzzapDialogs.GREEN
         val text = ThemeManager.resolve(this, R.attr.uzzapColorText)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL

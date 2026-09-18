@@ -8,6 +8,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.RoomInvitation
 import com.kolipri.uzzap.data.RoomInvitationClient
@@ -30,7 +31,7 @@ class RoomInvitationsActivity : BaseChromeActivity() {
         val header = TextView(this).apply {
             text = "Invitations to Philippine chatrooms"
             textSize = 16f
-            setTextColor(Color.DKGRAY)
+            setTextColor(ThemeManager.resolve(this@RoomInvitationsActivity, R.attr.uzzapColorMuted))
             setPadding(dp(8), dp(8), dp(8), dp(12))
         }
         root.addView(header)

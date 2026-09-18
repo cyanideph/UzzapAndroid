@@ -101,7 +101,7 @@ class AboutUzzapActivity : BaseChromeActivity() {
             this.text = text
             textSize = 20f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(resources.getColor(R.color.uzzap_special_red, theme))
+            setTextColor(UzzapDialogs.GREEN)
             setPadding(0, dp(22), 0, dp(8))
         }
         parent.addView(view)
@@ -112,7 +112,7 @@ class AboutUzzapActivity : BaseChromeActivity() {
             this.text = text
             textSize = size.toFloat()
             if (bold) typeface = Typeface.DEFAULT_BOLD
-            setTextColor(resources.getColor(R.color.uzzap_text, theme))
+            setTextColor(ThemeManager.resolve(this@AboutUzzapActivity, R.attr.uzzapColorText))
             setPadding(0, dp(3), 0, dp(7))
         }
         parent.addView(view)
