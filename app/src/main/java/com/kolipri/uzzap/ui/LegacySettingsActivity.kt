@@ -17,6 +17,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.kolipri.uzzap.BuildConfig
+import coil.load
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.PresenceClient
@@ -82,7 +83,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
         contentFrame.addView(view, FrameLayout.LayoutParams(-1, -1))
     }
 
-    private fun row(title: String, subtitle: String? = null, iconRes: Int = 0, onClick: (() -> Unit)? = null): LinearLayout {
+    private fun row(title: String, subtitle: String? = null, iconRes: Int = 0, animAsset: String? = null, onClick: (() -> Unit)? = null): LinearLayout {
         val rowView = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -93,7 +94,9 @@ class LegacySettingsActivity : BaseChromeActivity() {
             isClickable = onClick != null
             if (onClick != null) setOnClickListener { onClick.invoke() }
         }
-        if (iconRes != 0) {
+        if (animAsset != null) {
+            rowView.addView(ImageView(this).apply { load("file:///android_asset/$animAsset") }, LinearLayout.LayoutParams(dp(32), dp(32)))
+        } else if (iconRes != 0) {
             rowView.addView(ImageView(this).apply { setImageResource(iconRes) }, LinearLayout.LayoutParams(dp(28), dp(28)))
         }
         val textCol = LinearLayout(this).apply {
@@ -115,7 +118,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
             })
         }
         rowView.addView(textCol, LinearLayout.LayoutParams(0, -2, 1f))
-        rowView.addView(ImageView(this).apply { setImageResource(R.drawable.d_small_arrow) }, LinearLayout.LayoutParams(dp(14), dp(14)))
+        rowView.addView(ImageView(this).apply { load("file:///android_asset/anim-icons/arrow_row_end_t.gif") }, LinearLayout.LayoutParams(dp(16), dp(16)))
         return rowView
     }
 
@@ -142,11 +145,11 @@ class LegacySettingsActivity : BaseChromeActivity() {
         root.addView(hairline(0))
     }
 
-    private fun rows(title: String, values: List<String>, handlers: List<() -> Unit>, subtitles: List<String?> = emptyList(), icons: List<Int> = emptyList()) {
+    private fun rows(title: String, values: List<String>, handlers: List<() -> Unit>, subtitles: List<String?> = emptyList(), icons: List<Int> = emptyList(), animAssets: List<String?> = emptyList()) {
         prepareScreen(title)
         val root = container()
         section(root, title)
-        values.forEachIndexed { index, label -> addRow(root, row(label, subtitles.getOrNull(index), icons.getOrNull(index) ?: 0, handlers[index])) }
+        values.forEachIndexed { index, label -> addRow(root, row(label, subtitles.getOrNull(index), icons.getOrNull(index) ?: 0, animAssets.getOrNull(index), handlers[index])) }
         showContent(scroll(root))
     }
 
@@ -178,6 +181,11 @@ class LegacySettingsActivity : BaseChromeActivity() {
             R.drawable.d_n007_batteryinfo_small, R.drawable.d_d000_em_small, R.drawable.d_d001_im_small,
             R.drawable.d_padlock, R.drawable.d_n005_themes_small, R.drawable.d_billing,
             R.drawable.d_minus, 0
+        ), listOf(
+            "anim-icons/edit_profile.gif", "anim-icons/status_user.gif", "anim-icons/password_lock.gif",
+            "anim-icons/im_profile.gif", "anim-icons/upload_arrow.gif", "anim-icons/tones_spectrum.gif",
+            "anim-icons/battery_animated.gif", "anim-icons/em_chat.gif", "anim-icons/im_chat2.gif",
+            "anim-icons/privacy_lock.gif", null, null, null, null
         ))
     }
 
