@@ -1,6 +1,6 @@
 # Uzzap (Kotlin/Android recreation)
 
-**Uzzap v1.0-beta.7 (Build 7)** — a from-scratch Android/Kotlin modernization of the classic Uzzap mobile chat experience, **created by CY**.
+**Uzzap v1.0-beta.8 (Build 8)** — a from-scratch Android/Kotlin modernization of the classic Uzzap mobile chat experience, **created by CY**.
 
 The project preserves the classic Uzzap navigation, menus, icons, emoticons and chat-room flow while adding a modern Supabase backend, realtime messaging, private chat, push notifications, receipts, community controls and server-side moderation.
 
@@ -113,8 +113,8 @@ The checked-in project targets **Gradle 9.3.1**, Android Gradle Plugin **9.1.1**
 ### Current app identity
 
 - Application ID: `com.cy.uzzap`
-- Version name: `1.0-beta.7`
-- Version code: `7`
+- Version name: `1.0-beta.8`
+- Version code: `8`
 - Release channel: Beta
 - Backend: Supabase Auth + PostgreSQL/RLS
 - Push: Firebase Cloud Messaging
@@ -142,6 +142,18 @@ The classic Uzzap visual language is intentionally retained while the Android im
 The **About Uzzap** screen reports the live application version/build and documents the current feature set and beta history.
 
 ## Version history
+
+### v1.0-beta.8 — September 2026
+- Security audit fixes verified against the live database: anon email enumeration closed via nickname-login RPC; leaked API key rotated, legacy JWT keys disabled
+- Canonical live-schema baseline migration — repo now matches production (36 functions, 37 policies, 21 triggers, 15 tables)
+- Fixed room/buddy leave silently failing after nickname changes (delete by owner_id)
+- Whisper is now a true private message (previously broadcast to the whole room)
+- Fixed moderators being unable to delete/moderate their own messages
+- Unified encrypted session storage; removed plaintext JWT; startup blocks navigation on missing/invalid Supabase key
+- Async profile loading; centralized auth headers; moderator role re-check on long-press; buddy-list network throttling
+- Fixed FCM token ownership conflicts on multi-account devices (upsert_fcm_token RPC)
+- Fixed publish-site version/size substitution; release workflow aligned to publishable key
+- Version code increased to 8
 
 ### v1.0-beta.7 — September 2026
 - Added 30 Uzzap message color codes (`c01`-`c30`)
@@ -181,7 +193,7 @@ The **About Uzzap** screen reports the live application version/build and docume
 
 ## Project status
 
-The current `main` branch contains the Phase 1–4 work plus the beta.7 messaging, emoticon, profile, welcome-system and moderation fixes. The app is still a **Beta** release. Every push to `main` starts the debug Android CI workflow, which runs unit tests, assembles the debug APK and publishes the `Uzzap-debug-apk` artifact for device testing.
+The current `main` branch contains the Phase 1–4 work plus the beta.8 security-audit, messaging, profile, welcome-system and moderation fixes. The app is still a **Beta** release. Every push to `main` starts the debug Android CI workflow, which runs unit tests, assembles the debug APK and publishes the `Uzzap-debug-apk` artifact for device testing.
 
 ## Before public release
 
