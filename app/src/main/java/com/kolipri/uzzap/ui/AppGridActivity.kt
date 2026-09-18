@@ -82,9 +82,9 @@ class AppGridActivity : BaseChromeActivity() {
             when (i) { 0 -> startActivity(Intent(this, RoomInvitationsActivity::class.java)); 1 -> showLockKeypad(); 2 -> confirmLogout(); 3 -> openWelcome(); 4 -> showAbout(); 5 -> showExitMenu() }
         }
     }
-    private fun showLockKeypad() { AlertDialog.Builder(this).setTitle("Lock Keypad").setMessage("Keypad lock is active while this dialog is open.").setPositiveButton("Unlock", null).show() }
+    private fun showLockKeypad() { UzzapDialogs.show(this, iconAsset = "anim-icons/privacy_lock.gif", title = "Lock Keypad", message = "Keypad lock is active while this dialog is open.", positive = "Unlock") }
     private fun showAbout() { startActivity(Intent(this, AboutUzzapActivity::class.java)) }
     private fun showExitMenu() { AlertDialog.Builder(this).setTitle("Exit Application").setMessage("Log off and close Uzzap?").setPositiveButton("Exit") { _, _ -> finishAffinity() }.setNegativeButton("Cancel", null).show() }
-    private fun confirmLogout() { AlertDialog.Builder(this).setTitle("Log Off").setMessage(getString(R.string.logout_confirm)).setPositiveButton(getString(R.string.softkey_yes)) { _, _ -> getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit().putBoolean("session_active", false).remove("auth_token").apply(); AppState.resetSession(); startActivity(Intent(this, SplashMenuActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK }); finish() }.setNegativeButton(getString(R.string.softkey_no), null).show() }
+    private fun confirmLogout() { UzzapDialogs.show(this, iconAsset = "anim-icons/menu_switch.gif", title = "Log Off", message = getString(R.string.logout_confirm), positive = "Log Off", onPositive = { getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit().putBoolean("session_active", false).remove("auth_token").apply(); AppState.resetSession(); startActivity(Intent(this, SplashMenuActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK }); finish() }) }
     override fun onDestroy() { super.onDestroy(); handler.removeCallbacksAndMessages(null) }
 }

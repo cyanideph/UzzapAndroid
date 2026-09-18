@@ -3,6 +3,10 @@ package com.kolipri.uzzap.ui
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.ColorDrawable
+import android.graphics.ImageDecoder
+import android.graphics.drawable.AnimatedImageDrawable
+import android.os.Build
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
@@ -17,6 +21,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.kolipri.uzzap.BuildConfig
+import coil.load
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.PresenceClient
@@ -82,7 +87,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
         contentFrame.addView(view, FrameLayout.LayoutParams(-1, -1))
     }
 
-    private fun row(title: String, subtitle: String? = null, iconRes: Int = 0, onClick: (() -> Unit)? = null): LinearLayout {
+    private fun row(title: String, subtitle: String? = null, iconRes: Int = 0, animAsset: String? = null, onClick: (() -> Unit)? = null): LinearLayout {
         val rowView = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -93,7 +98,9 @@ class LegacySettingsActivity : BaseChromeActivity() {
             isClickable = onClick != null
             if (onClick != null) setOnClickListener { onClick.invoke() }
         }
-        if (iconRes != 0) {
+        if (animAsset != null) {
+            rowView.addView(ImageView(this).apply { loadAnimIcon(animAsset) }, LinearLayout.LayoutParams(dp(32), dp(32)))
+        } else if (iconRes != 0) {
             rowView.addView(ImageView(this).apply { setImageResource(iconRes) }, LinearLayout.LayoutParams(dp(28), dp(28)))
         }
         val textCol = LinearLayout(this).apply {
@@ -115,13 +122,25 @@ class LegacySettingsActivity : BaseChromeActivity() {
             })
         }
         rowView.addView(textCol, LinearLayout.LayoutParams(0, -2, 1f))
-        rowView.addView(ImageView(this).apply { setImageResource(R.drawable.d_small_arrow) }, LinearLayout.LayoutParams(dp(14), dp(14)))
+        rowView.addView(ImageView(this).apply { loadAnimIcon("anim-icons/arrow_row_end_t.gif") }, LinearLayout.LayoutParams(dp(16), dp(16)))
         return rowView
     }
 
     private fun addRow(root: LinearLayout, view: View) {
         root.addView(view, LinearLayout.LayoutParams(-1, -2))
         if (view.tag == "j2me_row") root.addView(hairline(dp(14)))
+    }
+
+    private fun ImageView.loadAnimIcon(asset: String) {
+        if (Build.VERSION.SDK_INT >= 28) {
+            try {
+                val d = ImageDecoder.decodeDrawable(ImageDecoder.createSource(context.assets, asset))
+                setImageDrawable(d)
+                (d as? AnimatedImageDrawable)?.start()
+                return
+            } catch (e: Exception) { }
+        }
+        load("file:///android_asset/$asset")
     }
 
     private fun hairline(marginStart: Int): View {
@@ -142,11 +161,11 @@ class LegacySettingsActivity : BaseChromeActivity() {
         root.addView(hairline(0))
     }
 
-    private fun rows(title: String, values: List<String>, handlers: List<() -> Unit>, subtitles: List<String?> = emptyList(), icons: List<Int> = emptyList()) {
+    private fun rows(title: String, values: List<String>, handlers: List<() -> Unit>, subtitles: List<String?> = emptyList(), icons: List<Int> = emptyList(), animAssets: List<String?> = emptyList()) {
         prepareScreen(title)
         val root = container()
         section(root, title)
-        values.forEachIndexed { index, label -> addRow(root, row(label, subtitles.getOrNull(index), icons.getOrNull(index) ?: 0, handlers[index])) }
+        values.forEachIndexed { index, label -> addRow(root, row(label, subtitles.getOrNull(index), icons.getOrNull(index) ?: 0, animAssets.getOrNull(index), handlers[index])) }
         showContent(scroll(root))
     }
 
@@ -178,26 +197,34 @@ class LegacySettingsActivity : BaseChromeActivity() {
             R.drawable.d_n007_batteryinfo_small, R.drawable.d_d000_em_small, R.drawable.d_d001_im_small,
             R.drawable.d_padlock, R.drawable.d_n005_themes_small, R.drawable.d_billing,
             R.drawable.d_minus, 0
+        ), listOf(
+            "anim-icons/edit_profile.gif", "anim-icons/status_user.gif", "anim-icons/password_lock.gif",
+            "anim-icons/im_profile.gif", "anim-icons/upload_arrow.gif", "anim-icons/tones_spectrum.gif",
+            "anim-icons/battery_animated.gif", "anim-icons/em_chat.gif", "anim-icons/im_chat2.gif",
+            "anim-icons/privacy_lock.gif", "anim-icons/theme_palette.gif", "anim-icons/subscription_card.gif", "anim-icons/delete_trash.gif", null
         ))
     }
 
     private fun confirmDeleteAccount() {
-        AlertDialog.Builder(this)
-            .setTitle("Delete Account")
-            .setMessage("Are you sure you want to permanently delete your account?\n\nThis will remove your profile, buddy list, and message history. This action cannot be undone.")
-            .setPositiveButton("Delete Permanently") { _, _ ->
-                performAccountDeletion()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        UzzapDialogs.show(this, iconAsset = "anim-icons/delete_trash.gif", title = "Delete Account",
+            message = "Are you sure you want to permanently delete your account?\n\nThis will remove your profile, buddy list, and message history. This action cannot be undone.",
+            positive = "Delete Permanently",
+            onPositive = { performAccountDeletion() })
     }
 
     private fun performAccountDeletion() {
-        val progress = AlertDialog.Builder(this)
-            .setTitle("Deleting Account")
-            .setMessage("Please wait while your account is deleted...")
-            .setCancelable(false)
-            .show()
+        val textColor = ThemeManager.resolve(this, R.attr.uzzapColorText)
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = GradientDrawable().apply { setColor(0x2B8EEF04); cornerRadius = dp(14).toFloat() } }
+        tile.addView(ImageView(this).apply { loadAnimIcon("anim-icons/delete_trash.gif") }, LinearLayout.LayoutParams(dp(30), dp(30)))
+        row.addView(tile, LinearLayout.LayoutParams(dp(48), dp(48)))
+        row.addView(TextView(this).apply { text = "Please wait while your account is deleted..."; textSize = 14f; setTextColor(textColor); setPadding(dp(12), 0, 0, 0) })
+        val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(18), dp(26), dp(18)); background = GradientDrawable().apply { setColor(ThemeManager.resolve(this@LegacySettingsActivity, R.attr.uzzapColorSurface)); cornerRadius = dp(24).toFloat() } }
+        card.addView(row)
+        val root = FrameLayout(this).apply { setPadding(dp(36), dp(36), dp(36), dp(36)); addView(card, FrameLayout.LayoutParams(-1, -2)) }
+        val progress = AlertDialog.Builder(this).setView(root).setCancelable(false).create()
+        progress.setOnShowListener { progress.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT)) }
+        progress.show()
 
         SupabaseClient.deleteAccount { success ->
             progress.dismiss()
@@ -226,10 +253,9 @@ class LegacySettingsActivity : BaseChromeActivity() {
     }
 
     private fun statusMessageDialog() {
-        val input = EditText(this).apply { setText(AppState.statusMessage); hint = "Status message" }
-        AlertDialog.Builder(this).setTitle("Status Message").setView(input)
-            .setPositiveButton("Save") { _, _ -> AppState.statusMessage = input.text.toString(); AppState.syncProfileToSupabase() }
-            .setNegativeButton("Cancel", null).show()
+        UzzapDialogs.show(this, iconAsset = "anim-icons/edit_write.gif", title = "Status Message",
+            inputHint = "Status message", prefilled = AppState.statusMessage, positive = "Save",
+            onPositive = { value -> AppState.statusMessage = value; AppState.syncProfileToSupabase() })
     }
 
     private fun passwordScreen() {
