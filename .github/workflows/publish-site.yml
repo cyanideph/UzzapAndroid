@@ -1,0 +1,84 @@
+name: Publish APK to Website
+
+on:
+  workflow_run:
+    workflows: ["Build Android APK"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  publish:
+    name: Publish latest main APK
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK artifact from successful Android build
+        uses: actions/download-artifact@v5
+        with:
+          name: Uzzap-debug-apk
+          path: dist
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Prepare publication metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$(find dist -type f -name '*.apk' | head -n 1)"
+          test -n "$apk"
+          cp "$apk" dist/uzzap-debug.apk
+          size_bytes="$(stat -c '%s' dist/uzzap-debug.apk)"
+          size_mb="$(awk "BEGIN {printf \"%.1f\", $size_bytes/1048576}")"
+          sha256="$(sha256sum dist/uzzap-debug.apk | awk '{print $1}')"
+          echo "apk=$PWD/dist/uzzap-debug.apk" >> "$GITHUB_OUTPUT"
+          echo "size_bytes=$size_bytes" >> "$GITHUB_OUTPUT"
+          echo "size_mb=$size_mb" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout website
+        uses: actions/checkout@v6
+        with:
+          repository: cyanideph/uzzap-site
+          token: ${{ secrets.UZZAP_SITE_TOKEN }}
+          path: site
+
+      - name: Update APK and website metadata
+        shell: bash
+        env:
+          APK_PATH: ${{ steps.meta.outputs.apk }}
+          SIZE_MB: ${{ steps.meta.outputs.size_mb }}
+          SHA256: ${{ steps.meta.outputs.sha256 }}
+          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          cp "$APK_PATH" site/uzzap-debug.apk
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, os
+          p = Path('site/index.html')
+          s = p.read_text()
+          size = os.environ['SIZE_MB']
+          build_sha = os.environ['BUILD_SHA']
+          s = re.sub(r'·\\s*<b>[^<]+ MB</b>\\s*· Debug build', f'· <b>{size} MB</b> · Debug build', s, count=1)
+          s = re.sub(r'APK ·\\s*[0-9.]+ MB', f'APK · {size} MB', s, count=1)
+          p.write_text(s)
+          PY
+          cd site
+          if git diff --quiet -- uzzap-debug.apk index.html; then echo 'No website changes needed.'; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add uzzap-debug.apk index.html
+          git commit -m 'Publish latest Android main APK'
+          git push
+
+      - name: Publication summary
+        run: |
+          echo "Published APK: ${{ steps.meta.outputs.size_bytes }} bytes"
+          echo "SHA-256: ${{ steps.meta.outputs.sha256 }}"
+          echo "Android commit: ${{ github.event.workflow_run.head_sha }}"
