@@ -61,7 +61,7 @@ class ModeratorActivity : BaseChromeActivity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#EAEFEA"))
+            setBackgroundColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorDivider))
         }
 
         // Sub-header displaying current moderator name & role
@@ -144,7 +144,7 @@ class ModeratorActivity : BaseChromeActivity() {
             tabReportsButton.background = activeBg
             tabReportsButton.setTextColor(Color.WHITE)
             tabSanctionsButton.background = inactiveBg
-            tabSanctionsButton.setTextColor(Color.parseColor("#222222"))
+            tabSanctionsButton.setTextColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorText))
         } else {
             tabSanctionsButton.background = activeBg
             tabSanctionsButton.setTextColor(Color.WHITE)
@@ -195,7 +195,7 @@ class ModeratorActivity : BaseChromeActivity() {
                 text = "✓ No reports found in queue.\nChatrooms are peaceful!"
                 gravity = Gravity.CENTER
                 textSize = 15f
-                setTextColor(Color.parseColor("#5A6A60"))
+                setTextColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorMuted))
                 setPadding(dp(16), dp(48), dp(16), dp(48))
             }
             contentContainer.addView(empty)
@@ -217,7 +217,7 @@ class ModeratorActivity : BaseChromeActivity() {
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
                 cornerRadius = dp(8).toFloat()
-                setStroke(dp(1), Color.parseColor("#CFD8DC"))
+                setStroke(dp(1), ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorDivider))
             }
             isClickable = true
             isFocusable = true
@@ -255,7 +255,7 @@ class ModeratorActivity : BaseChromeActivity() {
             text = "Reason: ${report.reason}"
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#212529"))
+            setTextColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorText))
             setPadding(0, dp(4), 0, 0)
         }
         layout.addView(reason)
@@ -273,7 +273,7 @@ class ModeratorActivity : BaseChromeActivity() {
         val footer = TextView(this).apply {
             text = "Date: ${report.createdAt.take(19).replace('T', ' ')}"
             textSize = 11f
-            setTextColor(Color.parseColor("#868E96"))
+            setTextColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorMuted))
             setPadding(0, dp(4), 0, 0)
         }
         layout.addView(footer)
@@ -364,7 +364,7 @@ class ModeratorActivity : BaseChromeActivity() {
                 "ban" -> Color.parseColor("#721C24")
                 "mute" -> Color.parseColor("#856404")
                 "kick" -> Color.parseColor("#0C5460")
-                else -> Color.parseColor("#383D41")
+                else -> ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorMuted)
             }
             setTextColor(actColor)
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
@@ -375,7 +375,7 @@ class ModeratorActivity : BaseChromeActivity() {
             typeface = Typeface.DEFAULT_BOLD
             setPadding(dp(6), dp(2), dp(6), dp(2))
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#E2E3E5"))
+                setColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorDivider))
                 cornerRadius = dp(4).toFloat()
             }
             setTextColor(Color.parseColor("#383D41"))

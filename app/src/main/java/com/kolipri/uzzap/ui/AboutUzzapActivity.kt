@@ -20,7 +20,7 @@ class AboutUzzapActivity : BaseChromeActivity() {
         "FCM push notifications", "Notification tap-to-chat", "Duplicate notification suppression", "Moderator report queue", "Moderator assignment/removal",
         "Moderator-only room", "Warn", "Mute", "Kick", "Ban", "Sanction expiry", "Sanction revoke", "Moderator audit log",
         "Role-aware message deletion", "Moderation hierarchy safeguards", "Rate limiting", "Session persistence", "Token refresh and recovery",
-        "Supabase Auth", "PostgreSQL/RLS security", "Protected database functions", "Secure push-token handling", "CI APK builds", "Diagnostics and crash handling"
+        "Secure cloud auth", "PostgreSQL/RLS security", "Protected database functions", "Secure push-token handling", "CI APK builds", "Diagnostics and crash handling"
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {

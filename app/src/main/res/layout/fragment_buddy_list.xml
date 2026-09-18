@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/uzzap_white">
+    android:background="?attr/uzzapColorBg">
 
     <LinearLayout
         android:id="@+id/row_status"
@@ -31,11 +31,11 @@
             android:layout_weight="1"
             android:layout_marginStart="12dp"
             android:textSize="18sp"
-            android:textColor="@color/uzzap_text"
+            android:textColor="?attr/uzzapColorText"
             android:text="unknown-user"/>
     </LinearLayout>
 
-    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/uzzap_divider"/>
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="?attr/uzzapColorDivider"/>
 
     <ListView
         android:id="@+id/list_groups"

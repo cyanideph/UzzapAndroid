@@ -11,6 +11,6 @@
     android:paddingTop="7dp"
     android:paddingBottom="7dp">
     <ImageView android:id="@+id/iv_status_icon" android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/d_offline" android:contentDescription="@null"/>
-    <TextView android:id="@+id/tv_status_username" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="9dp" android:textSize="14sp" android:textColor="@color/uzzap_text" android:text="unknown-user"/>
-    <TextView android:id="@+id/tv_unread_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="22dp" android:gravity="center" android:textStyle="bold" android:textSize="12sp" android:textColor="@color/uzzap_text" android:background="@drawable/bg_unread_badge" android:visibility="gone" />
+    <TextView android:id="@+id/tv_status_username" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="9dp" android:textSize="14sp" android:textColor="?attr/uzzapColorText" android:text="unknown-user"/>
+    <TextView android:id="@+id/tv_unread_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="22dp" android:gravity="center" android:textStyle="bold" android:textSize="12sp" android:textColor="?attr/uzzapColorText" android:background="@drawable/bg_unread_badge" android:visibility="gone" />
 </LinearLayout>
