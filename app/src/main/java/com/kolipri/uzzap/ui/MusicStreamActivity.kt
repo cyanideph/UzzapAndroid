@@ -38,6 +38,7 @@ class MusicStreamActivity : BaseChromeActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        YouTubeMusicClient.init(applicationContext)
         setScreenTitle("Music")
         showConnectedBall(false)
         setSoftkeys(getString(R.string.softkey_search), getString(R.string.softkey_back),

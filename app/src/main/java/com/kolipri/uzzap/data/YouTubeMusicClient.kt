@@ -1,5 +1,6 @@
 package com.kolipri.uzzap.data
 
+import android.content.Context
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
@@ -35,6 +36,12 @@ object YouTubeMusicClient {
     private const val SONGS_FILTER = "EgWKAQIIAWoKEAkQBRAKEAMQBA=="
 
     @Volatile private var config: Pair<String, String>? = null // api key to WEB_REMIX client version
+    @Volatile private var appContext: Context? = null
+    @Volatile private var visitorData: String? = null
+
+    fun init(context: Context) {
+        appContext = context.applicationContext
+    }
 
     @Synchronized
     private fun ensureConfig(onReady: (String, String) -> Unit, onError: (String) -> Unit) {
@@ -48,6 +55,7 @@ object YouTubeMusicClient {
                     val responseText = it.body?.string() ?: return@use null
                     val k = Regex("\"INNERTUBE_API_KEY\":\"([^\"]+)\"").find(responseText)?.groupValues?.get(1)
                     val v = Regex("\"INNERTUBE_CLIENT_VERSION\":\"([^\"]+)\"").find(responseText)?.groupValues?.get(1)
+                    visitorData = Regex("\"VISITOR_DATA\":\"([^\"]+)\"").find(responseText)?.groupValues?.get(1)
                     if (k != null) k to (v ?: FALLBACK_VERSION) else null
                 } ?: (FALLBACK_KEY to FALLBACK_VERSION)
                 config = key to version
@@ -129,37 +137,66 @@ object YouTubeMusicClient {
     }
 
     /**
-     * Resolve a playable audio URL. Tries InnerTube (ANDROID_VR) first; if YouTube's
-     * bot check ("Sign in to confirm you're not a bot") or signature cipher blocks it,
-     * falls back to public Piped instances, which generate poTokens server-side.
-     * Piped instances are third-party proxies: rate-limited, sometimes down.
+     * Resolve a playable audio URL. Chain: plain InnerTube (ANDROID_VR) ->
+     * InnerTube with WebView-minted BotGuard poToken (Metrolist/NewPipe approach) ->
+     * Piped proxy fallback.
      */
     fun getStreamUrl(videoId: String, onUrl: (String) -> Unit, onError: (String) -> Unit) {
         getStreamUrlInnerTube(videoId, onUrl) { innerTubeError ->
-            tryPiped(videoId, 0, onUrl) { pipedError ->
-                onError("InnerTube blocked ($innerTubeError); Piped fallback failed ($pipedError)")
+            retryWithPoToken(videoId, onUrl) { poTokenError ->
+                tryPiped(videoId, 0, onUrl) { pipedError ->
+                    onError("InnerTube blocked ($innerTubeError); poToken failed ($poTokenError); Piped fallback failed ($pipedError)")
+                }
             }
         }
     }
 
     private fun getStreamUrlInnerTube(videoId: String, onUrl: (String) -> Unit, onBlocked: (String) -> Unit) {
-        ensureConfig({ key, _ ->
-            val vrClient = JSONObject()
-                .put("clientName", "ANDROID_VR")
-                .put("clientVersion", VR_CLIENT_VERSION)
-                .put("deviceMake", "Oculus")
-                .put("deviceModel", "Quest 3")
-                .put("androidSdkVersion", 32)
-                .put("osName", "Android")
-                .put("osVersion", "12L")
-                .put("hl", "en")
-            val body = JSONObject()
-                .put("context", JSONObject().put("client", vrClient))
-                .put("videoId", videoId)
-                .put("contentCheckOk", true)
-                .put("racyCheckOk", true)
-                .toString()
-            post("https://www.youtube.com/youtubei/v1/player?key=$key&prettyPrint=false", VR_UA, body) { res ->
+        ensureConfig({ key, _ -> requestPlayer(videoId, key, null, onUrl, onBlocked) }, onBlocked)
+    }
+
+    /** Retry the player request with a real poToken minted via WebView BotGuard. */
+    private fun retryWithPoToken(videoId: String, onUrl: (String) -> Unit, onError: (String) -> Unit) {
+        val ctx = appContext
+        val vd = visitorData
+        if (ctx == null || vd.isNullOrBlank()) return onError("poToken unavailable (context/visitorData)")
+        PoTokenMinter.acquire(ctx, { minter ->
+            minter.generate(vd, { streamingPot ->
+                ensureConfig({ key, _ ->
+                    requestPlayer(videoId, key, vd to streamingPot, { url ->
+                        minter.generate(videoId, { videoPot ->
+                            onUrl("$url&pot=$videoPot")
+                        }, onError)
+                    }, onError)
+                }, onError)
+            }, onError)
+        }, onError)
+    }
+
+    private fun requestPlayer(
+        videoId: String,
+        apiKey: String,
+        poToken: Pair<String, String>?,
+        onUrl: (String) -> Unit,
+        onBlocked: (String) -> Unit,
+    ) {
+        val vrClient = JSONObject()
+            .put("clientName", "ANDROID_VR")
+            .put("clientVersion", VR_CLIENT_VERSION)
+            .put("deviceMake", "Oculus")
+            .put("deviceModel", "Quest 3")
+            .put("androidSdkVersion", 32)
+            .put("osName", "Android")
+            .put("osVersion", "12L")
+            .put("hl", "en")
+        if (poToken != null) vrClient.put("visitorData", poToken.first)
+        val body = JSONObject()
+            .put("context", JSONObject().put("client", vrClient))
+            .put("videoId", videoId)
+            .put("contentCheckOk", true)
+            .put("racyCheckOk", true)
+        if (poToken != null) body.put("serviceIntegrityDimensions", JSONObject().put("poToken", poToken.second))
+            post("https://www.youtube.com/youtubei/v1/player?key=$apiKey&prettyPrint=false", VR_UA, body.toString()) { res ->
                 res.onSuccess { root ->
                     runCatching {
                         val status = root.optJSONObject("playabilityStatus")?.optString("status")
@@ -186,7 +223,6 @@ object YouTubeMusicClient {
                     }.onFailure { onBlocked("Player response changed format") }
                 }.onFailure { onBlocked("Stream lookup failed: ${it.message ?: "network error"}") }
             }
-        }, onBlocked)
     }
 
     private val pipedInstances = listOf(
