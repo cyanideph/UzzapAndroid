@@ -34,6 +34,7 @@ import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.CrashDiagnostics
 import com.kolipri.uzzap.data.NicknameResolver
 import com.kolipri.uzzap.data.PasswordRecoveryClient
+import com.kolipri.uzzap.data.SessionStore
 import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.data.signInWithEmail
 import com.kolipri.uzzap.data.signOut
