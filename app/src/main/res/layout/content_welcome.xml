@@ -30,7 +30,7 @@
             android:layout_marginTop="8dp"
             android:gravity="center"
             android:text="Welcome to Uzzap!"
-            android:textColor="@color/uzzap_special_red"
+            android:textColor="?attr/uzzapColorAccent"
             android:textSize="22sp"
             android:textStyle="bold" />
 
