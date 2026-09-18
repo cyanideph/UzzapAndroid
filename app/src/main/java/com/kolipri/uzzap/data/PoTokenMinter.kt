@@ -68,7 +68,10 @@ class PoTokenMinter private constructor(
     fun downloadAndRunBotguard() {
         botguardRequest("https://www.youtube.com/api/jnn/v1/Create", "[ \"$REQUEST_KEY\" ]") { body ->
             val challengeData = runCatching { parseChallengeData(body) }.getOrNull()
-            if (challengeData == null) return main.post { if (!ready) failAll("challenge parse failed") }
+            if (challengeData == null) {
+                main.post { if (!ready) failAll("challenge parse failed") }
+                return@botguardRequest
+            }
             main.post {
                 webView.evaluateJavascript(
                     """try {
@@ -87,7 +90,10 @@ class PoTokenMinter private constructor(
         botguardRequest("https://www.youtube.com/api/jnn/v1/GenerateIT",
             "[ \"$REQUEST_KEY\", \"$botguardResponse\" ]") { body ->
             val parsed = runCatching { parseIntegrityTokenData(body) }.getOrNull()
-            if (parsed == null) return main.post { if (!ready) failAll("integrity token parse failed") }
+            if (parsed == null) {
+                main.post { if (!ready) failAll("integrity token parse failed") }
+                return@botguardRequest
+            }
             val (integrityU8, ttlSec) = parsed
             expiresAtMs = System.currentTimeMillis() + ttlSec * 1000 - 10 * 60_000
             main.post {
@@ -272,9 +278,12 @@ class PoTokenMinter private constructor(
             Handler(Looper.getMainLooper()).post {
                 synchronized(this) {
                     val cur = instance
-                    if (cur != null && !cur.dead && !cur.isExpired) return onReady(cur)
-                    cur?.close()
-                    instance = PoTokenMinter(context.applicationContext, onReady, onError)
+                    if (cur != null && !cur.dead && !cur.isExpired) {
+                        onReady(cur)
+                    } else {
+                        cur?.close()
+                        instance = PoTokenMinter(context.applicationContext, onReady, onError)
+                    }
                 }
             }
         }
