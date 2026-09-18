@@ -169,7 +169,15 @@ class SplashMenuActivity : BaseChromeActivity() {
             true
         })
     }
-    private fun onForgotPassword() { val input = EditText(this).apply { hint = "Registered Email Address"; inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS; setText(AppState.email) }; AlertDialog.Builder(this).setTitle(getString(R.string.menu_forgot)).setMessage("Enter your registered email to receive a password reset link. The link will open Uzzap directly.").setView(input).setPositiveButton("Send Reset Link") { _, _ -> val email = input.text.toString().trim(); if (!validEmail(email)) { Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show(); return@setPositiveButton }; showLoading("Sending reset link..."); PasswordRecoveryClient.sendResetEmail(email) { success, error -> runOnUiThread { hideLoading(); AlertDialog.Builder(this).setTitle(if (success) "Reset Link Sent" else "Password Reset Failed").setMessage(if (success) "Check your email and tap Reset Password. Uzzap will open automatically so you can choose a new password." else (error ?: "Password reset failed")).setPositiveButton("OK", null).show() } } }.setNegativeButton(getString(R.string.softkey_cancel), null).show() }
+    private fun onForgotPassword() {
+        UzzapDialogs.form(this, iconAsset = "anim-icons/menu_forgot.gif", title = getString(R.string.menu_forgot), message = "Enter your registered email to receive a password reset link. The link will open Uzzap directly.", fields = listOf(UzzapDialogs.FieldSpec("Registered Email Address", AppState.email, email = true)), positive = "Send Reset Link", onPositive = { f ->
+            val email = f[0].text.toString().trim()
+            if (!validEmail(email)) { f[0].error = "Please enter a valid email address"; return@form false }
+            showLoading("Sending reset link...")
+            PasswordRecoveryClient.sendResetEmail(email) { success, error -> runOnUiThread { hideLoading(); UzzapDialogs.show(this, iconAsset = "anim-icons/menu_forgot.gif", title = if (success) "Reset Link Sent" else "Password Reset Failed", message = if (success) "Check your email and tap Reset Password. Uzzap will open automatically so you can choose a new password." else (error ?: "Password reset failed"), positive = "OK") } }
+            true
+        })
+    }
     private fun showBackendInfo() {
         val status = SupabaseClient.connectionStatus
         val online = status.contains("Online", ignoreCase = true)
