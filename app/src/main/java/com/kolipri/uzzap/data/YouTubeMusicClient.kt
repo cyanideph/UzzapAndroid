@@ -44,7 +44,8 @@ object YouTubeMusicClient {
             override fun onFailure(call: Call, e: IOException) = onReady(FALLBACK_KEY)
             override fun onResponse(call: Call, response: Response) {
                 val key = response.use {
-                    Regex("\"INNERTUBE_API_KEY\":\"([^\"]+)\"").find(it.body.string())?.groupValues?.get(1)
+                    val responseText = it.body?.string() ?: return@use null
+                    Regex("\"INNERTUBE_API_KEY\":\"([^\"]+)\"").find(responseText)?.groupValues?.get(1)
                 } ?: FALLBACK_KEY
                 apiKey = key
                 onReady(key)
@@ -58,7 +59,13 @@ object YouTubeMusicClient {
             .enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) { cb(Result.failure(e)) }
                 override fun onResponse(call: Call, response: Response) {
-                    cb(runCatching { JSONObject(response.use { it.body.string() }) })
+                    cb(runCatching {
+                        response.use {
+                            val responseText = it.body?.string()
+                                ?: throw IOException("YouTube returned an empty response body")
+                            JSONObject(responseText)
+                        }
+                    })
                 }
             })
     }
