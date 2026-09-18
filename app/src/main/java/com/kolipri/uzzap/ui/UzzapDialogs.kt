@@ -226,7 +226,7 @@ object UzzapDialogs {
         var dlg: AlertDialog? = null
         val box = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         items.forEachIndexed { i, label ->
-            if (i > 0) box.addView(View(context), LinearLayout.LayoutParams(-1, dp(context, 1)).apply { setBackgroundColor(withAlpha(muted, 40)) })
+            if (i > 0) { val div = View(context); div.setBackgroundColor(withAlpha(muted, 40)); box.addView(div, LinearLayout.LayoutParams(-1, dp(context, 1))) }
             val row = TextView(context).apply {
                 text = label
                 textSize = 15f
