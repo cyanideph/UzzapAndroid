@@ -4,7 +4,9 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.ImageDecoder
 import android.graphics.Typeface
+import android.graphics.drawable.AnimatedImageDrawable
 import android.os.Build
 import android.os.Bundle
 import android.text.InputType
@@ -23,6 +25,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
+import coil.load
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.CrashDiagnostics
@@ -76,7 +79,53 @@ class SplashMenuActivity : BaseChromeActivity() {
     private fun loadSession() { val p = getSharedPreferences("uzzap_prefs", MODE_PRIVATE); val nick = p.getString("nickname", "cy") ?: "cy"; AppState.nickname = nick; AppState.username = nick; AppState.email = p.getString("email", "") ?: ""; val token = p.getString("auth_token", "") ?: ""; if (p.getBoolean("session_active", false) && token.isNotBlank()) { AppState.authToken = token; SupabaseClient.setAccessTokenForLegacy(token) } }
     private fun sessionActive(): Boolean = getSharedPreferences("uzzap_prefs", MODE_PRIVATE).getBoolean("session_active", false)
     private fun verifySession() { val p = getSharedPreferences("uzzap_prefs", MODE_PRIVATE); val token = p.getString("auth_token", "") ?: return; if (!p.getBoolean("session_active", false) || token.isBlank()) return; SupabaseClient.verifySession(token) { valid, email, nick -> if (isFinishing || isDestroyed) return@verifySession; if (!valid) { p.edit().putBoolean("session_active", false).remove("auth_token").apply(); AppState.resetSession() } else { if (!email.isNullOrBlank()) AppState.email = email; if (!nick.isNullOrBlank()) { AppState.nickname = nick; AppState.username = nick }; p.edit().putString("email", AppState.email).putString("nickname", AppState.nickname).apply() }; renderMenu() } }
-    private fun renderMenu() { val container = findViewById<LinearLayout>(R.id.menu_container) ?: return; container.removeAllViews(); if (sessionActive()) { val banner = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(32, 16, 32, 20); setBackgroundColor(ThemeManager.resolve(this@SplashMenuActivity, R.attr.uzzapColorSurface)) }; banner.addView(TextView(this).apply { text = "● Logged in as: ${AppState.nickname}"; textSize = 14f; typeface = Typeface.DEFAULT_BOLD; setTextColor(ThemeManager.resolve(this@SplashMenuActivity, R.attr.uzzapColorText)) }); banner.addView(TextView(this).apply { text = AppState.email.ifBlank { "Authenticated Cloud Session" }; textSize = 12f; setTextColor(ThemeManager.resolve(this@SplashMenuActivity, R.attr.uzzapColorMuted)) }); container.addView(banner) }; val entries = mutableListOf<Pair<String, () -> Unit>>(); if (sessionActive()) { entries += "Connect as ${AppState.nickname}" to { startActivity(Intent(this, ConnectingActivity::class.java)) }; entries += "Switch Account / Sign Out" to { signOut() } }; entries += getString(R.string.menu_login) to { onLogin() }; entries += getString(R.string.menu_register) to { onRegister() }; entries += getString(R.string.menu_forgot) to { onForgotPassword() }; entries += "Backend Info (Network)" to { showBackendInfo() }; entries += getString(R.string.menu_help) to { openHelp() }; entries += getString(R.string.menu_about) to { openAbout() }; entries += getString(R.string.menu_exit) to { finishAffinity() }; entries.forEach { (label, action) -> val row = LayoutInflater.from(this).inflate(R.layout.item_menu_row, container, false); row.findViewById<TextView>(R.id.tv_label).text = label; row.setOnClickListener { action() }; container.addView(row) } }
+    private fun renderMenu() {
+        val container = findViewById<LinearLayout>(R.id.menu_container) ?: return
+        container.removeAllViews()
+        if (sessionActive()) {
+            val banner = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(32, 16, 32, 20); setBackgroundColor(ThemeManager.resolve(this@SplashMenuActivity, R.attr.uzzapColorSurface)) }
+            banner.addView(TextView(this).apply { text = "● Logged in as: ${AppState.nickname}"; textSize = 14f; typeface = Typeface.DEFAULT_BOLD; setTextColor(ThemeManager.resolve(this@SplashMenuActivity, R.attr.uzzapColorText)) })
+            banner.addView(TextView(this).apply { text = AppState.email.ifBlank { "Authenticated Cloud Session" }; textSize = 12f; setTextColor(ThemeManager.resolve(this@SplashMenuActivity, R.attr.uzzapColorMuted)) })
+            container.addView(banner)
+        }
+        val entries = mutableListOf<Triple<String, String, () -> Unit>>()
+        if (sessionActive()) {
+            entries += Triple("Connect as ${AppState.nickname}", "anim-icons/menu_connect.gif") { startActivity(Intent(this, ConnectingActivity::class.java)) }
+            entries += Triple("Switch Account / Sign Out", "anim-icons/menu_switch.gif") { signOut() }
+        }
+        entries += Triple(getString(R.string.menu_login), "anim-icons/menu_login.gif") { onLogin() }
+        entries += Triple(getString(R.string.menu_register), "anim-icons/menu_register.gif") { onRegister() }
+        entries += Triple(getString(R.string.menu_forgot), "anim-icons/menu_forgot.gif") { onForgotPassword() }
+        entries += Triple("Backend Info (Network)", "anim-icons/menu_backend.gif") { showBackendInfo() }
+        entries += Triple(getString(R.string.menu_help), "anim-icons/menu_help.gif") { openHelp() }
+        entries += Triple(getString(R.string.menu_about), "anim-icons/menu_about.gif") { openAbout() }
+        entries += Triple(getString(R.string.menu_exit), "anim-icons/menu_exit.gif") { finishAffinity() }
+        entries.forEach { (label, asset, action) ->
+            val row = LayoutInflater.from(this).inflate(R.layout.item_menu_row, container, false)
+            row.findViewById<TextView>(R.id.tv_label).text = label
+            row.findViewById<TextView>(R.id.tv_bullet).visibility = View.GONE
+            row.findViewById<ImageView>(R.id.iv_icon).apply {
+                visibility = View.VISIBLE
+                layoutParams.width = dp(28)
+                layoutParams.height = dp(28)
+                loadAnimIcon(asset)
+            }
+            row.setOnClickListener { action() }
+            container.addView(row)
+        }
+    }
+
+    private fun ImageView.loadAnimIcon(asset: String) {
+        if (Build.VERSION.SDK_INT >= 28) {
+            try {
+                val d = ImageDecoder.decodeDrawable(ImageDecoder.createSource(context.assets, asset))
+                setImageDrawable(d)
+                (d as? AnimatedImageDrawable)?.start()
+                return
+            } catch (e: Exception) { }
+        }
+        load("file:///android_asset/$asset")
+    }
     private fun signOut() { AlertDialog.Builder(this).setTitle("Sign Out").setMessage("Are you sure you want to sign out of '${AppState.nickname}'?").setPositiveButton("Sign Out") { _, _ -> getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit().putBoolean("session_active", false).remove("auth_token").apply(); SupabaseClient.signOut(); AppState.resetSession(); renderMenu() }.setNegativeButton(getString(R.string.softkey_cancel), null).show() }
     private fun showLoading(message: String) { loading?.dismiss(); val layout = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(50, 40, 50, 40) }; layout.addView(ProgressBar(this)); layout.addView(TextView(this).apply { text = "  $message"; textSize = 14f }); loading = AlertDialog.Builder(this).setView(layout).setCancelable(false).create(); loading?.show() }
     private fun hideLoading() { loading?.dismiss(); loading = null }
@@ -109,6 +158,7 @@ class SplashMenuActivity : BaseChromeActivity() {
         addAboutText(root, "A modern Android/Kotlin recreation of the classic Nokia/J2ME Uzzap mobile chat experience.", text, 15, false)
         addAboutText(root, "Developed by CY using Android/Kotlin and a modern cloud backend.", text, 15, false)
         addAboutText(root, "This is an independent, unofficial recreation. The original Nokia/J2ME Uzzap application, its decompiled source, historical assets and trademarks are separate materials and are not claimed as original CY work. See NOTICE.md for attribution and licensing details.", text, 15, false)
+        addAboutText(root, "Animated icons courtesy of Flaticon, Lordicon and IconScout.", text, 13, false)
         addAboutText(root, "2026 CY", text, 14, true)
 
         val scroll = ScrollView(this).apply {

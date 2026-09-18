@@ -200,7 +200,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
             "anim-icons/edit_profile.gif", "anim-icons/status_user.gif", "anim-icons/password_lock.gif",
             "anim-icons/im_profile.gif", "anim-icons/upload_arrow.gif", "anim-icons/tones_spectrum.gif",
             "anim-icons/battery_animated.gif", "anim-icons/em_chat.gif", "anim-icons/im_chat2.gif",
-            "anim-icons/privacy_lock.gif", null, null, null, null
+            "anim-icons/privacy_lock.gif", "anim-icons/theme_palette.gif", "anim-icons/subscription_card.gif", "anim-icons/delete_trash.gif", null
         ))
     }
 
