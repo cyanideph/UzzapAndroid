@@ -205,14 +205,10 @@ class LegacySettingsActivity : BaseChromeActivity() {
     }
 
     private fun confirmDeleteAccount() {
-        AlertDialog.Builder(this)
-            .setTitle("Delete Account")
-            .setMessage("Are you sure you want to permanently delete your account?\n\nThis will remove your profile, buddy list, and message history. This action cannot be undone.")
-            .setPositiveButton("Delete Permanently") { _, _ ->
-                performAccountDeletion()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        UzzapDialogs.show(this, iconAsset = "anim-icons/delete_trash.gif", title = "Delete Account",
+            message = "Are you sure you want to permanently delete your account?\n\nThis will remove your profile, buddy list, and message history. This action cannot be undone.",
+            positive = "Delete Permanently",
+            onPositive = { performAccountDeletion() })
     }
 
     private fun performAccountDeletion() {
@@ -249,10 +245,9 @@ class LegacySettingsActivity : BaseChromeActivity() {
     }
 
     private fun statusMessageDialog() {
-        val input = EditText(this).apply { setText(AppState.statusMessage); hint = "Status message" }
-        AlertDialog.Builder(this).setTitle("Status Message").setView(input)
-            .setPositiveButton("Save") { _, _ -> AppState.statusMessage = input.text.toString(); AppState.syncProfileToSupabase() }
-            .setNegativeButton("Cancel", null).show()
+        UzzapDialogs.show(this, iconAsset = "anim-icons/edit_write.gif", title = "Status Message",
+            inputHint = "Status message", prefilled = AppState.statusMessage, positive = "Save",
+            onPositive = { value -> AppState.statusMessage = value; AppState.syncProfileToSupabase() })
     }
 
     private fun passwordScreen() {

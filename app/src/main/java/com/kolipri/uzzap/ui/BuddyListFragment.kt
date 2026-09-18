@@ -291,8 +291,13 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
     }
 
     private fun showReportDialog(buddy: String) {
-        val reasons = arrayOf("Spam", "Harassment", "Impersonation", "Other")
-        AlertDialog.Builder(requireContext()).setTitle("Report $buddy").setItems(reasons) { _, which -> SafetyClient.report(buddy, reasons[which], "Reported from buddy list") { ok -> if (isAdded) Toast.makeText(requireContext(), if (ok) "Report submitted" else "Report failed", Toast.LENGTH_SHORT).show() } }.show()
+        UzzapDialogs.show(requireContext(), iconAsset = "anim-icons/privacy_lock.gif", title = "Report User",
+            message = "Report \"$buddy\" for inappropriate behavior? Moderators will review this report.",
+            inputHint = "Add details (optional)...", positive = "Report", onPositive = { details ->
+                SafetyClient.report(buddy, "Other", details.ifBlank { "Reported from buddy list" }) { ok ->
+                    if (isAdded) Toast.makeText(requireContext(), if (ok) "Report submitted" else "Report failed", Toast.LENGTH_SHORT).show()
+                }
+            })
     }
 
     private inner class GroupAdapter : ArrayAdapter<BuddyGroup>(requireContext(), 0, AppState.buddyGroups) {

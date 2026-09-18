@@ -393,12 +393,13 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
     }
 
     private fun promptReportReason(target: String) {
-        val reasons = arrayOf("Spam", "Harassment", "Inappropriate Content", "Other")
-        AlertDialog.Builder(requireContext()).setTitle("Report $target").setItems(reasons) { _, which ->
-            SafetyClient.report(target, reasons[which], "Reported from chatroom: $roomName") { ok ->
-                if (isAdded) Toast.makeText(requireContext(), if (ok) "Report submitted for moderation." else "Report submission failed.", Toast.LENGTH_SHORT).show()
-            }
-        }.setNegativeButton(getString(R.string.softkey_cancel), null).show()
+        UzzapDialogs.show(requireContext(), iconAsset = "anim-icons/privacy_lock.gif", title = "Report User",
+            message = "Report \"$target\" for inappropriate behavior? Moderators will review this report.",
+            inputHint = "Add details (optional)...", positive = "Report", onPositive = { details ->
+                SafetyClient.report(target, "Other", details.ifBlank { "Reported from chatroom: $roomName" }) { ok ->
+                    if (isAdded) Toast.makeText(requireContext(), if (ok) "Report submitted for moderation." else "Report submission failed.", Toast.LENGTH_SHORT).show()
+                }
+            })
     }
 
     private fun whisperDialog() {
