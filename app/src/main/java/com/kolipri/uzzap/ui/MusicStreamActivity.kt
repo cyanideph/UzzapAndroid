@@ -122,14 +122,21 @@ class MusicStreamActivity : BaseChromeActivity() {
                 seekBar.progress = 0
                 handler.removeCallbacks(ticker)
             }
-            mp.setOnErrorListener { _, _, _ ->
-                AppDiagnostics.failed("Music.stream", "MediaPlayer error during playback")
+            mp.setOnErrorListener { _, what, extra ->
+                AppDiagnostics.failed("Music.stream", "MediaPlayer error what=$what extra=$extra")
                 toast("Stream failed to play")
                 releasePlayer()
                 true
             }
             mp.prepareAsync()
             player = mp
+            // Some devices hang forever in prepare on unsupported formats — surface it
+            handler.postDelayed({
+                if (player === mp && !prepared) {
+                    AppDiagnostics.failed("Music.stream", "MediaPlayer prepare timed out (format/codec?)")
+                    tvNowPlaying.text = "Stream stuck loading — unsupported format on this device"
+                }
+            }, 20_000)
         }.onFailure {
             mp.release()
             toast("Cannot stream on this connection")

@@ -206,16 +206,23 @@ object YouTubeMusicClient {
                         }
                         val formats = root.optJSONObject("streamingData")?.optJSONArray("adaptiveFormats")
                             ?: return@runCatching onBlocked("No stream data (YouTube may require poToken on this network)")
-                        var best: JSONObject? = null
+                        // Stock MediaPlayer can't decode opus/webm on many devices and
+                        // hangs instead of erroring — prefer AAC (audio/mp4), fall back to
+                        // any direct audio URL only if no AAC exists.
+                        val candidates = mutableListOf<JSONObject>()
                         formats.let { arr ->
                             for (i in 0 until arr.length()) {
                                 val f = arr.optJSONObject(i) ?: continue
                                 val mime = f.optString("mimeType")
                                 val url = f.optString("url")
-                                if (mime.startsWith("audio/") && url.isNotBlank()) {
-                                    if (best == null || f.optInt("bitrate") > best!!.optInt("bitrate")) best = f
-                                }
+                                if (mime.startsWith("audio/") && url.isNotBlank()) candidates.add(f)
                             }
+                        }
+                        val aac = candidates.filter { it.optString("mimeType").startsWith("audio/mp4") }
+                        val pool = if (aac.isNotEmpty()) aac else candidates
+                        var best: JSONObject? = null
+                        for (f in pool) {
+                            if (best == null || f.optInt("bitrate") > best!!.optInt("bitrate")) best = f
                         }
                         val url = best?.optString("url")
                         if (url.isNullOrBlank()) onBlocked("No direct audio stream (signature-ciphered; poToken not supported yet)")
