@@ -60,9 +60,31 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         if (isAdded && joinedSuccessfully && target.equals(roomName, true)) {
             val current = AppState.messagesFor(roomName)
             if (msg.id > 0 && current.none { it.id == msg.id }) {
-                current.add(msg)
-                messageAdapter.add(msg)
-                AppDiagnostics.success("Room.realtimeMessage", "room=$roomName messageId=${msg.id}")
+                // Realtime can arrive before the REST send callback. Reconcile the
+                // optimistic local message with the database row instead of appending
+                // the same message a second time.
+                val pendingEntry = pendingSends.entries.firstOrNull { (local, pending) ->
+                    local.id <= 0L &&
+                        local.sender.equals(msg.sender, ignoreCase = true) &&
+                        pending.text == msg.body
+                }
+                if (pendingEntry != null) {
+                    val local = pendingEntry.key
+                    val index = current.indexOf(local)
+                    if (index >= 0) {
+                        current[index] = msg
+                        val adapterIndex = messageAdapter.indexOf(local)
+                        if (adapterIndex >= 0) messageAdapter.replaceAt(adapterIndex, msg)
+                    } else {
+                        current.add(msg)
+                        messageAdapter.add(msg)
+                    }
+                    pendingSends.remove(local)
+                } else {
+                    current.add(msg)
+                    messageAdapter.add(msg)
+                }
+                AppDiagnostics.success("Room.realtimeMessage", "room=$roomName messageId="+msg.id)
                 scrollToLatest()
             }
         }
