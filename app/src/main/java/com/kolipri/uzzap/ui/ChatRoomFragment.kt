@@ -387,7 +387,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
     private fun retryPendingSends() { pendingSends.values.toList().forEach { if (it.attempts < 4) sendPending(it) } }
 
     private fun showOptionsMenu() {
-        J2mePopup.show(requireContext(), listOf(PopupItem("Send Message"), PopupItem("Send Whisper"), PopupItem("Room Members"), PopupItem("Room Info"), PopupItem("Invite Buddy"), PopupItem("Report"), PopupItem("Leave Room"))) { index ->
+        J2mePopup.show(requireContext(), listOf(PopupItem("Send Message"), PopupItem("Send Whisper"), PopupItem("Room Members"), PopupItem("Room Info"), PopupItem("Invite Buddy"), PopupItem("Report"), PopupItem("Hide Room"))) { index ->
             when (index) {
                 0 -> etMessage.requestFocus()
                 1 -> whisperDialog()
