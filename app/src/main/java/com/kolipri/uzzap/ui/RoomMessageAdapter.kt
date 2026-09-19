@@ -102,16 +102,17 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
             true
         }
         if (holder is SystemHolder) {
-            holder.text.text = EmoticonParser.parse(context, message.body, 15f)
+            holder.text.text = EmoticonParser.parse(context, message.body, 16f)
         } else if (holder is NormalHolder) {
             holder.container.removeAllViews()
             holder.container.addView(TextView(context).apply {
                 text = renderFormatted(displaySender(message.sender) + ":", R.color.uzzap_special_red)
-                textSize = 15f
+                textSize = 17f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
             })
             holder.container.addView(TextView(context).apply {
                 text = renderFormatted(message.body, R.color.uzzap_text)
-                textSize = 15f
+                textSize = 16f
             })
         }
     }
@@ -127,7 +128,7 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
     private fun renderFormatted(value: String, defaultColorRes: Int): CharSequence {
         val defaultColor = ContextCompat.getColor(context, defaultColorRes)
         val colored = UzzapColorCodeParser.parse(value, defaultColor)
-        return EmoticonParser.parse(context, colored, 15f)
+        return EmoticonParser.parse(context, colored, 16f)
     }
 
     class SystemHolder(val text: TextView) : RecyclerView.ViewHolder(text)
