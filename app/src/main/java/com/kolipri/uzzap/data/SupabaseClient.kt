@@ -47,7 +47,11 @@ object SupabaseClient {
         AppState.authToken = token; AppState.email = SessionStore.email(); AppState.nickname = SessionStore.nickname().ifBlank { AppState.nickname }
         AppState.role = SessionStore.role()
         AppState.username = AppState.nickname.lowercase().replace(" ", "_"); startSessionMonitor()
-        if (sessionExpiresAtMs > 0L && sessionExpiresAtMs <= System.currentTimeMillis() + 60_000L) refreshSession()
+        if (sessionExpiresAtMs > 0L && sessionExpiresAtMs <= System.currentTimeMillis() + 60_000L) {
+            ensureValidSession { refreshed ->
+                if (!refreshed) Log.w(TAG, "Persisted session could not be refreshed")
+            }
+        }
     }
     private fun startSessionMonitor() {
         if (sessionMonitorStarted) return
@@ -62,9 +66,10 @@ object SupabaseClient {
     }
 
     private fun refreshSessionIfNeeded() {
-        val refresh = userRefreshToken ?: return
         if (sessionExpiresAtMs == 0L || sessionExpiresAtMs <= System.currentTimeMillis() + 120_000L) {
-            refreshSession(refresh)
+            ensureValidSession { refreshed ->
+                if (!refreshed) Log.w(TAG, "Background session refresh failed")
+            }
         }
     }
 
