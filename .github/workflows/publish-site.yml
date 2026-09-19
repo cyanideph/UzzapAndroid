@@ -69,30 +69,38 @@ jobs:
           VERSION_NAME: ${{ steps.meta.outputs.version_name }}
           VERSION_CODE: ${{ steps.meta.outputs.version_code }}
           BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           cp "$APK_PATH" site/uzzap-debug.apk
+          COMMIT_MESSAGE="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/commits/$BUILD_SHA" | python3 -c 'import json,sys; print(json.load(sys.stdin)["commit"]["message"].splitlines()[0])')"
+          BUILD_DATE="$(date -u +%Y-%m-%d)"
+          export SIZE_MB SHA256 VERSION_NAME VERSION_CODE BUILD_SHA COMMIT_MESSAGE BUILD_DATE
           python3 - <<'PY'
           from pathlib import Path
-          import re, os
-          p = Path('site/index.html')
+          import html, os, re
+          p = Path("site/index.html")
           s = p.read_text()
-          size = os.environ['SIZE_MB']
-          build_sha = os.environ['BUILD_SHA']
-          version = os.environ['VERSION_NAME']
-          version_code = os.environ['VERSION_CODE']
-          s = re.sub(r'v1\.0-[^<]+', f'v{version}', s, count=1)
-          s = re.sub(r'1\.0-[^<]+</span><span class="b-log">', f'{version}</span><span class="b-log">', s, count=1)
-          s = re.sub(r'·\s*<b>[^<]+ MB</b>\s*· Debug build', f'· <b>{size} MB</b> · Debug build', s, count=1)
+          size = os.environ["SIZE_MB"]
+          version = os.environ["VERSION_NAME"]
+          sha = os.environ["BUILD_SHA"]
+          message = html.escape(os.environ["COMMIT_MESSAGE"].strip())
+          date = os.environ["BUILD_DATE"]
+          s = re.sub(r'<div class="badge">v[^<]+</div>', f'<div class="badge">v{html.escape(version)}</div>', s, count=1)
+          s = re.sub(r'· <b>[0-9.]+ MB</b> · Debug build', f'· <b>{size} MB</b> · Debug build', s, count=1)
           s = re.sub(r'APK ·\s*[0-9.]+ MB', f'APK · {size} MB', s, count=1)
+          marker = '<div class="b-head"><span>Version</span><span>Changelog</span><span>Date</span><span></span></div>'
+          row = f'<div class="b-row"><span class="b-ver">{html.escape(version)}</span><span class="b-log">AUTOMATED BUILD — {message} · commit {sha[:7]} · APK {size} MB</span><span class="b-date">{date}</span><a class="b-dl" href="uzzap-debug.apk" download>⬇ APK · {size} MB</a></div>'
+          if marker not in s: raise SystemExit("Download table header not found; refusing to modify website.")
+          s = s.replace(marker, marker + row, 1)
           p.write_text(s)
           PY
           cd site
-          if git diff --quiet -- uzzap-debug.apk index.html; then echo 'No website changes needed.'; exit 0; fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add uzzap-debug.apk index.html
-          git commit -m 'Publish latest Android main APK'
+          if git diff --cached --quiet; then echo "No website changes needed."; exit 0; fi
+          git commit -m "Publish Uzzap $VERSION_NAME APK ($SIZE_MB MB)"
           git push
 
       - name: Publication summary
