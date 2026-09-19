@@ -58,7 +58,46 @@ object EmoticonParser {
         listOf("[rose]", "[flower]", "@}->--", "🌹", "🥀", "🌸", "💐").forEach { put(it, R.drawable.d_emoticon_rose) }
         listOf("[kiss]", ":*", ":-*", "💋", "😘", "😽").forEach { put(it, R.drawable.d_kiss) }
 
-        // Exact legacy Uzzap text-code mapping from the original Java client.\n        // These codes are what UzzapBot stores in room_messages; render the\n        // complete code as one image so punctuation is never left visible.\n        put(":e", R.drawable.d_emoticon_e)\n        put(">|", R.drawable.d_emoticon_angry)\n        put(":>", R.drawable.d_emoticon_tongue)\n        put(":DD", R.drawable.d_emoticon_11)\n        put("o/", R.drawable.d_emoticon_12)\n        put(":Oo", R.drawable.d_emoticon_13)\n        put(">,", R.drawable.d_emoticon_14)\n        put(":|", R.drawable.d_emoticon_15)\n        put(":B,", R.drawable.d_emoticon_16)\n        put(":OOo", R.drawable.d_emoticon_17)\n        put(":Zz.", R.drawable.d_emoticon_18)\n        put("O:)", R.drawable.d_emoticon_19)\n        put("))(", R.drawable.d_emoticon_20)\n        put(">><)", R.drawable.d_emoticon_47)\n        put("<:D", R.drawable.d_emoticon_clown)\n        put("(cU)", R.drawable.d_emoticon_drink)\n        put("<:)", R.drawable.d_emoticon_party)\n        put("(+)", R.drawable.d_emoticon_sick)\n        put("@};-", R.drawable.d_emoticon_rose)\n\n        // Keep numbered markers emitted by the picker/backward-compatible data.\n        for (code in listOf(11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 47)) {\n            put("[emoticon-$code]", when (code) {\n                11 -> R.drawable.d_emoticon_11\n                12 -> R.drawable.d_emoticon_12\n                13 -> R.drawable.d_emoticon_13\n                14 -> R.drawable.d_emoticon_14\n                15 -> R.drawable.d_emoticon_15\n                16 -> R.drawable.d_emoticon_16\n                17 -> R.drawable.d_emoticon_17\n                18 -> R.drawable.d_emoticon_18\n                19 -> R.drawable.d_emoticon_19\n                20 -> R.drawable.d_emoticon_20\n                47 -> R.drawable.d_emoticon_47\n                else -> error("Unsupported numbered emoticon: $code")\n            })\n        }
+        // Exact legacy Uzzap text-code mapping from the original Java client.
+        // These codes are what UzzapBot stores in room_messages; render the
+        // complete code as one image so punctuation is never left visible.
+        put(":e", R.drawable.d_emoticon_e)
+        put(">|", R.drawable.d_emoticon_angry)
+        put(":>", R.drawable.d_emoticon_tongue)
+        put(":DD", R.drawable.d_emoticon_11)
+        put("o/", R.drawable.d_emoticon_12)
+        put(":Oo", R.drawable.d_emoticon_13)
+        put(">,", R.drawable.d_emoticon_14)
+        put(":|", R.drawable.d_emoticon_15)
+        put(":B,", R.drawable.d_emoticon_16)
+        put(":OOo", R.drawable.d_emoticon_17)
+        put(":Zz.", R.drawable.d_emoticon_18)
+        put("O:)", R.drawable.d_emoticon_19)
+        put("))(", R.drawable.d_emoticon_20)
+        put(">><)", R.drawable.d_emoticon_47)
+        put("<:D", R.drawable.d_emoticon_clown)
+        put("(cU)", R.drawable.d_emoticon_drink)
+        put("<:)", R.drawable.d_emoticon_party)
+        put("(+)", R.drawable.d_emoticon_sick)
+        put("@};-", R.drawable.d_emoticon_rose)
+
+        // Keep numbered markers emitted by the picker/backward-compatible data.
+        for (code in listOf(11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 47)) {
+            put("[emoticon-$code]", when (code) {
+                11 -> R.drawable.d_emoticon_11
+                12 -> R.drawable.d_emoticon_12
+                13 -> R.drawable.d_emoticon_13
+                14 -> R.drawable.d_emoticon_14
+                15 -> R.drawable.d_emoticon_15
+                16 -> R.drawable.d_emoticon_16
+                17 -> R.drawable.d_emoticon_17
+                18 -> R.drawable.d_emoticon_18
+                19 -> R.drawable.d_emoticon_19
+                20 -> R.drawable.d_emoticon_20
+                47 -> R.drawable.d_emoticon_47
+                else -> error("Unsupported numbered emoticon: $code")
+            })
+        }
 
         put("[head-buntis]", R.drawable.d_head_buntis)
         put("[head-deckard]", R.drawable.d_head_deckard)
