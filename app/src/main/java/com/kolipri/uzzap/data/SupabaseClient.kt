@@ -36,6 +36,9 @@ object SupabaseClient {
     private var userRefreshToken: String? = null
     private var sessionExpiresAtMs: Long = 0L
     private var sessionMonitorStarted = false
+    private val sessionRefreshLock = Any()
+    private var sessionRefreshInFlight = false
+    private val sessionRefreshWaiters = mutableListOf<(Boolean) -> Unit>()
     private fun authenticated(): Boolean = !userAccessToken.isNullOrBlank()
 
     fun restorePersistedSession() {
@@ -46,15 +49,118 @@ object SupabaseClient {
         AppState.username = AppState.nickname.lowercase().replace(" ", "_"); startSessionMonitor()
         if (sessionExpiresAtMs > 0L && sessionExpiresAtMs <= System.currentTimeMillis() + 60_000L) refreshSession()
     }
-    private fun startSessionMonitor() { if (sessionMonitorStarted) return; sessionMonitorStarted = true; val tick = object : Runnable { override fun run() { if (authenticated()) refreshSessionIfNeeded(); mainHandler.postDelayed(this, 60_000L) } }; mainHandler.post(tick) }
-    private fun refreshSessionIfNeeded() { val refresh = userRefreshToken ?: return; if (sessionExpiresAtMs == 0L || sessionExpiresAtMs <= System.currentTimeMillis() + 120_000L) refreshSession(refresh) }
+    private fun startSessionMonitor() {
+        if (sessionMonitorStarted) return
+        sessionMonitorStarted = true
+        val tick = object : Runnable {
+            override fun run() {
+                if (authenticated()) refreshSessionIfNeeded()
+                mainHandler.postDelayed(this, 60_000L)
+            }
+        }
+        mainHandler.post(tick)
+    }
+
+    private fun refreshSessionIfNeeded() {
+        val refresh = userRefreshToken ?: return
+        if (sessionExpiresAtMs == 0L || sessionExpiresAtMs <= System.currentTimeMillis() + 120_000L) {
+            refreshSession(refresh)
+        }
+    }
+
+    /**
+     * Ensures an authenticated request never intentionally uses an expired access JWT.
+     * Refreshes are serialized because Supabase refresh-token rotation normally allows a
+     * refresh token to be exchanged only once. Concurrent refresh calls can otherwise race.
+     */
+    private fun ensureValidSession(forceRefresh: Boolean = false, onResult: (Boolean) -> Unit) {
+        if (!authenticated()) {
+            mainHandler.post { onResult(false) }
+            return
+        }
+
+        val needsRefresh = forceRefresh ||
+            sessionExpiresAtMs == 0L ||
+            sessionExpiresAtMs <= System.currentTimeMillis() + 30_000L
+
+        if (!needsRefresh) {
+            mainHandler.post { onResult(true) }
+            return
+        }
+
+        synchronized(sessionRefreshLock) {
+            sessionRefreshWaiters.add(onResult)
+            if (sessionRefreshInFlight) return
+            sessionRefreshInFlight = true
+        }
+        refreshSession()
+    }
+
+    private fun finishSessionRefresh(success: Boolean) {
+        val waiters = synchronized(sessionRefreshLock) {
+            sessionRefreshInFlight = false
+            val pending = sessionRefreshWaiters.toList()
+            sessionRefreshWaiters.clear()
+            pending
+        }
+        mainHandler.post { waiters.forEach { it(success) } }
+    }
+
     private fun refreshSession(refreshToken: String? = userRefreshToken) {
-        if (refreshToken.isNullOrBlank()) return
+        if (refreshToken.isNullOrBlank()) {
+            finishSessionRefresh(false)
+            return
+        }
+
         val json = JSONObject().put("refresh_token", refreshToken)
         httpClient.newCall(postJson("/auth/v1/token?grant_type=refresh_token", json, false)).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "Session refresh failed", e) }
-            override fun onResponse(call: Call, response: Response) { response.use { val body = it.body?.string().orEmpty(); if (!it.isSuccessful) { Log.w(TAG, "Session refresh rejected: ${errorTextFromBody(body, "HTTP ${it.code}")}"); return }; runCatching { val obj = JSONObject(body); val access = obj.optString("access_token"); if (access.isBlank()) error("Missing access token"); val nextRefresh = obj.optString("refresh_token").ifBlank { refreshToken }; val expiresIn = obj.optLong("expires_in", 3600L); userAccessToken = access; userRefreshToken = nextRefresh; sessionExpiresAtMs = System.currentTimeMillis() + expiresIn * 1000L; AppState.authToken = access; SessionStore.save(access, nextRefresh, sessionExpiresAtMs, AppState.email, AppState.nickname, AppState.role) }.onFailure { e -> Log.w(TAG, "Invalid refresh response", e) } } }
+            override fun onFailure(call: Call, e: IOException) {
+                Log.w(TAG, "Session refresh failed", e)
+                finishSessionRefresh(false)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    val body = it.body?.string().orEmpty()
+                    if (!it.isSuccessful) {
+                        Log.w(TAG, "Session refresh rejected: ${errorTextFromBody(body, "HTTP ${it.code}")}")
+                        finishSessionRefresh(false)
+                        return
+                    }
+
+                    val success = runCatching {
+                        val obj = JSONObject(body)
+                        val access = obj.optString("access_token")
+                        if (access.isBlank()) error("Missing access token")
+                        val nextRefresh = obj.optString("refresh_token").ifBlank { refreshToken }
+                        val expiresIn = obj.optLong("expires_in", 3600L)
+
+                        userAccessToken = access
+                        userRefreshToken = nextRefresh
+                        sessionExpiresAtMs = System.currentTimeMillis() + expiresIn * 1000L
+                        AppState.authToken = access
+                        SessionStore.save(
+                            access,
+                            nextRefresh,
+                            sessionExpiresAtMs,
+                            AppState.email,
+                            AppState.nickname,
+                            AppState.role
+                        )
+                        true
+                    }.getOrElse { e ->
+                        Log.w(TAG, "Invalid refresh response", e)
+                        false
+                    }
+                    finishSessionRefresh(success)
+                }
+            }
         })
+    }
+
+    /** Runs an authenticated operation after silently refreshing the session when needed. */
+    fun withValidSession(onReady: (Boolean) -> Unit) {
+        ensureValidSession(onResult = onReady)
     }
     fun authHeader(): String = "Bearer ${userAccessToken ?: anonKey}"
 
@@ -144,7 +250,52 @@ object SupabaseClient {
         } catch (_: Exception) { null }
     }
 
-    fun pingPresence(roomName: String, username: String, onResult: ((Boolean) -> Unit)? = null) { if (!authenticated()) { mainHandler.post { onResult?.invoke(false) }; return }; val json = JSONObject().put("room_name", roomName).put("username", username); httpClient.newCall(request("/rest/v1/room_participants?on_conflict=room_name,username", true).header("Prefer", "resolution=merge-duplicates").post(json.toString().toRequestBody(jsonMediaType)).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult?.invoke(false) } }; override fun onResponse(call: Call, response: Response) { val ok = response.isSuccessful; response.close(); mainHandler.post { onResult?.invoke(ok) } } }) }
+    fun pingPresence(roomName: String, username: String, onResult: ((Boolean) -> Unit)? = null) {
+        if (!authenticated()) {
+            mainHandler.post { onResult?.invoke(false) }
+            return
+        }
+
+        val json = JSONObject().put("room_name", roomName).put("username", username)
+
+        fun sendPresence(retryAfterRefresh: Boolean) {
+            val request = request("/rest/v1/room_participants?on_conflict=room_name,username", true)
+                .header("Prefer", "resolution=merge-duplicates")
+                .post(json.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            httpClient.newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.w(TAG, "Join room network failure for $roomName", e)
+                    mainHandler.post { onResult?.invoke(false) }
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    val code = response.code
+                    response.close()
+
+                    if (code == 401 && retryAfterRefresh) {
+                        Log.i(TAG, "Join room received 401; refreshing session and retrying once")
+                        ensureValidSession(forceRefresh = true) { refreshed ->
+                            if (refreshed) sendPresence(false)
+                            else mainHandler.post { onResult?.invoke(false) }
+                        }
+                        return
+                    }
+
+                    mainHandler.post { onResult?.invoke(code in 200..299) }
+                }
+            })
+        }
+
+        ensureValidSession { ready ->
+            if (ready) sendPresence(true)
+            else {
+                Log.w(TAG, "Join room blocked because the session could not be refreshed")
+                mainHandler.post { onResult?.invoke(false) }
+            }
+        }
+    }
     fun leaveRoom(roomName: String, username: String) { if (!authenticated()) return; val room = URLEncoder.encode(roomName, "UTF-8"); val uid = extractUserId()?.let { URLEncoder.encode(it, "UTF-8") } ?: return; httpClient.newCall(request("/rest/v1/room_participants?room_name=eq.$room&owner_id=eq.$uid", true).delete().build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) = Unit; override fun onResponse(call: Call, response: Response) { response.close() } }) }
     fun fetchBuddies(userHandle: String, onResult: (Map<String, List<String>>?) -> Unit) { if (!authenticated()) { mainHandler.post { onResult(null) }; return }; val req = request("/rest/v1/buddies?select=buddy_handle,group_name&order=buddy_handle.asc", true).get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "fetchBuddies network failure", e); mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { val body = it.body?.string().orEmpty(); if (!it.isSuccessful) { Log.w(TAG, "fetchBuddies HTTP ${it.code}: $body"); mainHandler.post { onResult(null) }; return }; try { val arr = JSONArray(body); val grouped = mutableMapOf<String, MutableList<String>>(); for (i in 0 until arr.length()) { val o = arr.getJSONObject(i); val buddy = o.optString("buddy_handle").trim(); if (buddy.isNotEmpty()) grouped.getOrPut(o.optString("group_name").ifBlank { "My Friends" }) { mutableListOf() }.add(buddy) }; Log.d(TAG, "fetchBuddies: ${arr.length()} rows for $userHandle"); mainHandler.post { onResult(grouped) } } catch (e: Exception) { Log.e(TAG, "fetchBuddies parse failed", e); mainHandler.post { onResult(null) } } } } }) }
     fun addBuddy(userHandle: String, buddyHandle: String, groupName: String, onResult: (Boolean) -> Unit) { if (!authenticated()) { mainHandler.post { onResult(false) }; return }; val json = JSONObject().put("user_handle", userHandle).put("buddy_handle", buddyHandle).put("group_name", groupName); httpClient.newCall(request("/rest/v1/buddies?on_conflict=user_handle,buddy_handle", true).header("Prefer", "resolution=merge-duplicates").post(json.toString().toRequestBody(jsonMediaType)).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(false) } }; override fun onResponse(call: Call, response: Response) { response.use { mainHandler.post { onResult(it.isSuccessful) } } } }) }
