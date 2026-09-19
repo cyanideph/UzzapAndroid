@@ -79,9 +79,11 @@ object EmoticonParser {
         Definition(":s", R.drawable.d_emoticon_sick, "Sick"),
         Definition(":o)", R.drawable.d_emoticon_clown, "Clown"),
         Definition("\\o/", R.drawable.d_emoticon_party, "Party"),
+        Definition("[party]", R.drawable.d_emoticon_party, "Party"),
         Definition("[drink]", R.drawable.d_emoticon_drink, "Drink"),
         Definition("[rose]", R.drawable.d_emoticon_rose, "Rose"),
         Definition("[kiss]", R.drawable.d_kiss, "Kiss"),
+        Definition(":*", R.drawable.d_kiss, "Kiss"),
 
         // Exact legacy Uzzap codes from the original client.
         Definition(":e", R.drawable.d_emoticon_e),
