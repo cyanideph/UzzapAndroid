@@ -57,14 +57,25 @@ object EmoticonParser {
 
     val definitions: List<Definition> = listOf(
         Definition(":)", R.drawable.d_emoticon_smile, "Smile"),
+        Definition(":-)", R.drawable.d_emoticon_smile, "Smile"),
         Definition(":(", R.drawable.d_emoticon_sad, "Sad"),
+        Definition(":-(", R.drawable.d_emoticon_sad, "Sad"),
         Definition(";)", R.drawable.d_emoticon_wink, "Wink"),
+        Definition(";-)", R.drawable.d_emoticon_wink, "Wink"),
         Definition(":p", R.drawable.d_emoticon_tongue, "Tongue"),
+        Definition(":-p", R.drawable.d_emoticon_tongue, "Tongue"),
+        Definition(":P", R.drawable.d_emoticon_tongue, "Tongue"),
+        Definition(":-P", R.drawable.d_emoticon_tongue, "Tongue"),
         Definition(":D", R.drawable.d_emoticon_laugh, "Laugh"),
+        Definition(":-D", R.drawable.d_emoticon_laugh, "Laugh"),
         Definition("<3", R.drawable.d_emoticon_love, "Love"),
+        Definition("[love]", R.drawable.d_emoticon_love, "Love"),
         Definition(";(", R.drawable.d_emoticon_cry, "Cry"),
+        Definition(";-(", R.drawable.d_emoticon_cry, "Cry"),
         Definition(">:(", R.drawable.d_emoticon_angry, "Angry"),
+        Definition(">:-(", R.drawable.d_emoticon_angry, "Angry"),
         Definition(":o", R.drawable.d_emoticon_surprise, "Surprise"),
+        Definition(":-o", R.drawable.d_emoticon_surprise, "Surprise"),
         Definition(":s", R.drawable.d_emoticon_sick, "Sick"),
         Definition(":o)", R.drawable.d_emoticon_clown, "Clown"),
         Definition("\\o/", R.drawable.d_emoticon_party, "Party"),
@@ -92,6 +103,7 @@ object EmoticonParser {
         Definition("<:)", R.drawable.d_emoticon_party),
         Definition("(+)", R.drawable.d_emoticon_sick),
         Definition("@};-", R.drawable.d_emoticon_rose),
+        Definition("@}->--", R.drawable.d_emoticon_rose),
 
         // Backward-compatible markers used by earlier app versions.
         Definition("[emoticon-11]", R.drawable.d_emoticon_11),
