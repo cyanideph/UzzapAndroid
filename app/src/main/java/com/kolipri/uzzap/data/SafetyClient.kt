@@ -111,7 +111,40 @@ object SafetyClient {
 
     fun deleteRoomMessage(messageId: Long, onResult: (Boolean) -> Unit) {
         if (messageId <= 0) { main.post { onResult(false) }; return }
-        rpc("moderate_room_message", JSONObject().put("p_message_id", messageId).put("p_reason", "Moderator deletion"), simple(onResult))
+
+        // Message deletion is a privileged authenticated RPC. Ensure the access JWT
+        // is refreshed before constructing the Authorization header so a moderator
+        // does not get a misleading "deletion failed" after a stale session.
+        SupabaseClient.withValidSession { ready ->
+            if (!ready) {
+                main.post { onResult(false) }
+                return@withValidSession
+            }
+
+            val body = JSONObject()
+                .put("p_message_id", messageId)
+                .put("p_reason", "Moderator deletion")
+
+            rpc("moderate_room_message", body, object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    android.util.Log.w("SafetyClient", "deleteRoomMessage network failure", e)
+                    main.post { onResult(false) }
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    response.use {
+                        val responseBody = it.body?.string().orEmpty()
+                        if (!it.isSuccessful) {
+                            android.util.Log.w(
+                                "SafetyClient",
+                                "deleteRoomMessage HTTP ${it.code}: $responseBody"
+                            )
+                        }
+                        main.post { onResult(it.isSuccessful) }
+                    }
+                }
+            })
+        }
     }
 
     fun checkUserMuted(username: String, roomName: String?, onResult: (Boolean, String?) -> Unit) {
