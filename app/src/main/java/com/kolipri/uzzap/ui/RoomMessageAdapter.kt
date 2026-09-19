@@ -14,7 +14,7 @@ import com.kolipri.uzzap.model.ChatMessage
 import com.kolipri.uzzap.ui.util.EmoticonParser
 import com.kolipri.uzzap.ui.util.UzzapColorCodeParser
 
-/** RecyclerView adapter for room history. System messages are centered; normal messages keep the classic layout. */
+/** RecyclerView adapter for room history. isSystem is the sole message-type contract. */
 class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     companion object {
         private const val TYPE_SYSTEM = 1
@@ -24,13 +24,6 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
     private val items = mutableListOf<ChatMessage>()
     var onMessageLongClickListener: ((ChatMessage) -> Unit)? = null
 
-    /**
-     * Replace the server snapshot without discarding messages that arrived through
-     * Realtime while the REST request was in flight. A foreground refresh must never
-     * make a newer message disappear just because the HTTP response was an older
-     * snapshot. Unsaved local messages (id == 0) are also retained until their send
-     * operation resolves.
-     */
     fun setItems(messages: List<ChatMessage>) {
         val byId = linkedMapOf<Long, ChatMessage>()
         val local = mutableListOf<ChatMessage>()
@@ -77,12 +70,9 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
     override fun getItemCount(): Int = items.size
 
     override fun getItemViewType(position: Int): Int {
-        val msg = items[position]
-        return if (msg.isSystem || msg.sender.equals("System", ignoreCase = true)) {
-            TYPE_SYSTEM
-        } else {
-            TYPE_NORMAL
-        }
+        // Do not infer message type from sender/name. UzzapBot game messages with
+        // isSystem=false must use the normal chat layout.
+        return if (items[position].isSystem) TYPE_SYSTEM else TYPE_NORMAL
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
