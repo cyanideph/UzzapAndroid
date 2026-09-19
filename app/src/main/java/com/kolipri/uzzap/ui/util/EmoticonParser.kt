@@ -58,24 +58,7 @@ object EmoticonParser {
         listOf("[rose]", "[flower]", "@}->--", "🌹", "🥀", "🌸", "💐").forEach { put(it, R.drawable.d_emoticon_rose) }
         listOf("[kiss]", ":*", ":-*", "💋", "😘", "😽").forEach { put(it, R.drawable.d_kiss) }
 
-        // Numbered Uzzap emoji assets. The picker stores these markers in Supabase;
-        // this display parser converts them back to the actual drawable locally.
-        for (code in listOf(11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 47)) {
-            put("[emoticon-$code]", when (code) {
-                11 -> R.drawable.d_emoticon_11
-                12 -> R.drawable.d_emoticon_12
-                13 -> R.drawable.d_emoticon_13
-                14 -> R.drawable.d_emoticon_14
-                15 -> R.drawable.d_emoticon_15
-                16 -> R.drawable.d_emoticon_16
-                17 -> R.drawable.d_emoticon_17
-                18 -> R.drawable.d_emoticon_18
-                19 -> R.drawable.d_emoticon_19
-                20 -> R.drawable.d_emoticon_20
-                47 -> R.drawable.d_emoticon_47
-                else -> error("Unsupported numbered emoticon: $code")
-            })
-        }
+        // Exact legacy Uzzap text-code mapping from the original Java client.\n        // These codes are what UzzapBot stores in room_messages; render the\n        // complete code as one image so punctuation is never left visible.\n        put(":e", R.drawable.d_emoticon_e)\n        put(">|", R.drawable.d_emoticon_angry)\n        put(":>", R.drawable.d_emoticon_tongue)\n        put(":DD", R.drawable.d_emoticon_11)\n        put("o/", R.drawable.d_emoticon_12)\n        put(":Oo", R.drawable.d_emoticon_13)\n        put(">,", R.drawable.d_emoticon_14)\n        put(":|", R.drawable.d_emoticon_15)\n        put(":B,", R.drawable.d_emoticon_16)\n        put(":OOo", R.drawable.d_emoticon_17)\n        put(":Zz.", R.drawable.d_emoticon_18)\n        put("O:)", R.drawable.d_emoticon_19)\n        put("))(", R.drawable.d_emoticon_20)\n        put(">><)", R.drawable.d_emoticon_47)\n        put("<:D", R.drawable.d_emoticon_clown)\n        put("(cU)", R.drawable.d_emoticon_drink)\n        put("<:)", R.drawable.d_emoticon_party)\n        put("(+)", R.drawable.d_emoticon_sick)\n        put("@};-", R.drawable.d_emoticon_rose)\n\n        // Keep numbered markers emitted by the picker/backward-compatible data.\n        for (code in listOf(11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 47)) {\n            put("[emoticon-$code]", when (code) {\n                11 -> R.drawable.d_emoticon_11\n                12 -> R.drawable.d_emoticon_12\n                13 -> R.drawable.d_emoticon_13\n                14 -> R.drawable.d_emoticon_14\n                15 -> R.drawable.d_emoticon_15\n                16 -> R.drawable.d_emoticon_16\n                17 -> R.drawable.d_emoticon_17\n                18 -> R.drawable.d_emoticon_18\n                19 -> R.drawable.d_emoticon_19\n                20 -> R.drawable.d_emoticon_20\n                47 -> R.drawable.d_emoticon_47\n                else -> error("Unsupported numbered emoticon: $code")\n            })\n        }
 
         put("[head-buntis]", R.drawable.d_head_buntis)
         put("[head-deckard]", R.drawable.d_head_deckard)
