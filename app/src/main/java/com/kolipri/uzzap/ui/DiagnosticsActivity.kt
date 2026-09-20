@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
@@ -27,7 +28,9 @@ class DiagnosticsActivity : BaseChromeActivity() {
     private lateinit var healthView: TextView
     private lateinit var logView: TextView
     private lateinit var filterView: TextView
-    private lateinit var logScroll: ScrollView
+    private lateinit var contentScroll: ScrollView
+    private lateinit var healthContainer: View
+    private lateinit var logContainer: View
     private val handler = Handler(Looper.getMainLooper())
     private var autoRefresh = false
     private var filter = "ALL"
@@ -67,103 +70,171 @@ class DiagnosticsActivity : BaseChromeActivity() {
         this.text = label
         textSize = 12f
         setAllCaps(false)
-        minHeight = dp(44)
+        minHeight = dp(42)
+        setPadding(dp(4), 0, dp(4), 0)
         setOnClickListener { action() }
+    }
+
+    private fun sectionHeader(title: String, initiallyOpen: Boolean = true): TextView =
+        text(if (initiallyOpen) "▼  $title" else "▶  $title", 13f, true).apply {
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.rgb(35, 42, 50))
+            setPadding(dp(10), dp(9), dp(10), dp(9))
+        }
+
+    private fun addButton(row: LinearLayout, label: String, weight: Float = 1f, action: () -> Unit) {
+        row.addView(button(label, action), LinearLayout.LayoutParams(0, dp(44), weight).apply {
+            leftMargin = dp(2)
+            rightMargin = dp(2)
+            bottomMargin = dp(2)
+        })
     }
 
     private fun showDiagnostics() {
         setScreenTitle("App Diagnostics")
         showConnectedBall(SupabaseClient.isOnline)
+
+        val outer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), dp(6), dp(10), dp(12))
+        }
+
+        outer.addView(text("UZZAP • DIAGNOSTICS", 19f, true).apply {
+            setPadding(dp(4), dp(3), dp(4), dp(1))
+        })
+        outer.addView(text("Moderator console • health, performance and crash troubleshooting", 11f).apply {
+            setTextColor(Color.LTGRAY)
+            setPadding(dp(4), 0, dp(4), dp(7))
+        })
+
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+            isVerticalScrollBarEnabled = true
+        }
+        contentScroll = scroll
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(8), dp(12), dp(16))
         }
-        root.addView(text("UZZAP • FUNCTION HEALTH", 20f, true).apply { setPadding(dp(4), dp(4), dp(4), dp(2)) })
-        root.addView(text("Moderator diagnostic console • live local logs", 12f).apply {
-            setTextColor(Color.LTGRAY); setPadding(dp(4), 0, dp(4), dp(10))
+        scroll.addView(root, ViewGroup.LayoutParams(-1, -2))
+        outer.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+
+        summaryView = text("Loading status…", 12f, true).apply {
+            setPadding(dp(10), dp(9), dp(10), dp(9))
+            setBackgroundColor(Color.rgb(35, 42, 50))
+        }
+        root.addView(summaryView, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            bottomMargin = dp(6)
         })
-        summaryView = text("Loading status…", 13f, true).apply {
-            setPadding(dp(12), dp(10), dp(12), dp(10)); setBackgroundColor(Color.rgb(35, 42, 50))
+
+        val mainActions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
         }
-        root.addView(summaryView, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
+        addButton(mainActions, "Run checks", 1.2f) { runChecks() }
+        addButton(mainActions, "Refresh") { render() }
+        addButton(mainActions, if (autoRefresh) "Auto ON" else "Auto OFF") { toggleAutoRefresh() }
+        root.addView(mainActions)
 
-        val primary = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        addButton(primary, "Run checks") { runChecks() }
-        addButton(primary, "Refresh") { render() }
-        addButton(primary, if (autoRefresh) "Auto: ON" else "Auto: OFF") { toggleAutoRefresh() }
-        root.addView(primary)
-
-        val secondary = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        addButton(secondary, "Copy logs") { copyLogs() }
-        addButton(secondary, "Clear logs") {
-            AppDiagnostics.clear(this); render()
+        val tools = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+        addButton(tools, "Copy report") { copyLogs() }
+        addButton(tools, "Clear logs") {
+            AppDiagnostics.clear(this)
+            render()
             Toast.makeText(this, "Diagnostic logs cleared", Toast.LENGTH_SHORT).show()
         }
-        addButton(secondary, "Clear crash") {
-            CrashDiagnostics.clear(this); render()
+        addButton(tools, "Clear crash") {
+            CrashDiagnostics.clear(this)
+            render()
             Toast.makeText(this, "Crash report cleared", Toast.LENGTH_SHORT).show()
         }
-        root.addView(secondary)
+        root.addView(tools, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(2)
+            bottomMargin = dp(6)
+        })
+
+        val healthHeader = sectionHeader("FUNCTION HEALTH", true)
+        root.addView(healthHeader)
+        healthView = text("", 11f).apply {
+            typeface = Typeface.MONOSPACE
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            setBackgroundColor(Color.rgb(28, 34, 40))
+            setLineSpacing(0f, 1.08f)
+            setTextIsSelectable(true)
+        }
+        healthContainer = healthView
+        root.addView(healthView)
+        healthHeader.setOnClickListener {
+            val open = healthContainer.visibility != View.VISIBLE
+            healthContainer.visibility = if (open) View.VISIBLE else View.GONE
+            healthHeader.text = if (open) "▼  FUNCTION HEALTH" else "▶  FUNCTION HEALTH"
+        }
+
+        val performanceHeader = sectionHeader("PERFORMANCE", false)
+        root.addView(performanceHeader)
+        val performanceInfo = text(
+            "Performance tests will appear here: screen startup, network latency, database/message loading, realtime and UzzapBot response time.",
+            11f
+        ).apply {
+            setTextColor(Color.LTGRAY)
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            setBackgroundColor(Color.rgb(28, 34, 40))
+        }
+        root.addView(performanceInfo)
+        performanceInfo.visibility = View.GONE
+        performanceHeader.setOnClickListener {
+            val open = performanceInfo.visibility != View.VISIBLE
+            performanceInfo.visibility = if (open) View.VISIBLE else View.GONE
+            performanceHeader.text = if (open) "▼  PERFORMANCE" else "▶  PERFORMANCE"
+        }
+
+        val logHeader = sectionHeader("EVENT LOG", true)
+        root.addView(logHeader)
 
         val filterRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(8), 0, dp(6))
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(4), 0, dp(4))
         }
-        filterView = text("LOG FILTER: ALL", 12f, true)
-        filterRow.addView(filterView, LinearLayout.LayoutParams(0, dp(42), 1f))
-        addButton(filterRow, "ALL") { setFilter("ALL") }
-        addButton(filterRow, "OK") { setFilter("OK") }
-        addButton(filterRow, "ERROR") { setFilter("ERROR") }
-        addButton(filterRow, "START") { setFilter("STARTED") }
+        filterView = text("FILTER: ALL", 11f, true).apply {
+            setPadding(dp(6), dp(6), dp(6), dp(6))
+        }
+        filterRow.addView(filterView, LinearLayout.LayoutParams(0, dp(40), 1f))
+        addButton(filterRow, "ALL", 0.7f) { setFilter("ALL") }
+        addButton(filterRow, "OK", 0.7f) { setFilter("OK") }
+        addButton(filterRow, "ERR", 0.7f) { setFilter("ERROR") }
+        addButton(filterRow, "START", 0.9f) { setFilter("STARTED") }
         root.addView(filterRow)
 
-        root.addView(text("EVENT LOG • LIVE / SCROLLABLE", 12f, true).apply {
-            setPadding(dp(4), dp(8), dp(4), dp(5))
-        })
-        logView = text("", 11f).apply {
+        logView = text("", 10.5f).apply {
             typeface = Typeface.MONOSPACE
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.rgb(18, 22, 27))
             setTextIsSelectable(true)
-            setPadding(dp(12), dp(12), dp(12), dp(24))
-            setLineSpacing(0f, 1.15f)
+            setPadding(dp(10), dp(10), dp(10), dp(18))
+            setLineSpacing(0f, 1.12f)
         }
-        logScroll = ScrollView(this).apply {
-            isFillViewport = true
-            isVerticalScrollBarEnabled = true
-            setBackgroundColor(Color.rgb(18, 22, 27))
-            addView(logView, ViewGroup.LayoutParams(-1, -2))
+        logContainer = logView
+        root.addView(logView)
+        logHeader.setOnClickListener {
+            val open = logContainer.visibility != View.VISIBLE
+            logContainer.visibility = if (open) View.VISIBLE else View.GONE
+            filterRow.visibility = if (open) View.VISIBLE else View.GONE
+            logHeader.text = if (open) "▼  EVENT LOG" else "▶  EVENT LOG"
         }
-        root.addView(logScroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
-        root.addView(text("FUNCTION STATUS • LATEST RESULT", 12f, true).apply {
-            setPadding(dp(4), dp(8), dp(4), dp(5))
-        })
-        healthView = text("", 13f).apply {
-            typeface = Typeface.MONOSPACE
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            setBackgroundColor(Color.rgb(28, 34, 40))
-            setLineSpacing(0f, 1.1f)
-        }
-        val healthScroll = ScrollView(this).apply {
-            isFillViewport = true
-            addView(healthView, ViewGroup.LayoutParams(-1, -2))
-        }
-        root.addView(healthScroll, LinearLayout.LayoutParams(-1, dp(145)))
-
-        contentFrame.addView(root, ViewGroup.LayoutParams(-1, -1))
+        contentFrame.addView(outer, ViewGroup.LayoutParams(-1, -1))
         AppDiagnostics.activity(this, "DiagnosticsActivity", "opened")
         render()
     }
 
-    private fun addButton(row: LinearLayout, label: String, action: () -> Unit) {
-        row.addView(button(label, action), LinearLayout.LayoutParams(0, dp(46), 1f).apply {
-            leftMargin = dp(2); rightMargin = dp(2)
-        })
-    }
-
     private fun setFilter(value: String) {
-        filter = value; filterView.text = "LOG FILTER: $filter"; render()
+        filter = value
+        filterView.text = "FILTER: $filter"
+        render()
     }
 
     private fun toggleAutoRefresh() {
@@ -175,7 +246,7 @@ class DiagnosticsActivity : BaseChromeActivity() {
     private fun copyLogs() {
         val crash = CrashDiagnostics.read(this)
         val content = buildString {
-            append("===== FUNCTION HEALTH =====\n")
+            append("===== UZZAP DIAGNOSTICS =====\n")
             append(AppDiagnostics.healthSummary(this@DiagnosticsActivity))
             append("\n\n===== EVENT LOG =====\n")
             append(filteredEvents())
@@ -183,7 +254,7 @@ class DiagnosticsActivity : BaseChromeActivity() {
         }
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("Uzzap Diagnostics", content))
-        Toast.makeText(this, "Diagnostics copied to clipboard", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Diagnostics report copied", Toast.LENGTH_SHORT).show()
     }
 
     private fun filteredEvents(): String {
@@ -200,34 +271,40 @@ class DiagnosticsActivity : BaseChromeActivity() {
     }
 
     private fun render() {
-        if (!::summaryView.isInitialized || !::healthView.isInitialized || !::logView.isInitialized || !::logScroll.isInitialized) return
+        if (!::summaryView.isInitialized || !::healthView.isInitialized || !::logView.isInitialized) return
+
         val crash = CrashDiagnostics.read(this)
         val authenticated = !SupabaseClient.userAccessToken.isNullOrBlank()
+
         summaryView.text = buildString {
             append("ACCESS  •  MODERATOR / ADMIN\n")
             append("SESSION •  ").append(if (authenticated) "AUTHENTICATED" else "NOT AUTHENTICATED")
             append("\nSERVER  •  ").append(if (SupabaseClient.isOnline) "ONLINE" else "OFFLINE / UNKNOWN")
             append("\nUSER    •  ").append(AppState.username.ifBlank { "<none>" })
-            append("\nAUTO    •  ").append(if (autoRefresh) "REFRESHING EVERY 3s" else "OFF")
+            append("\nAUTO    •  ").append(if (autoRefresh) "REFRESH 3s" else "OFF")
             if (crash != null) append("\nCRASH   •  ⚠ REPORT AVAILABLE")
         }
+
         healthView.text = AppDiagnostics.healthSummary(this).ifBlank { "No tracked functions yet." }
         val events = filteredEvents()
         logView.text = if (crash == null) events else "$events\n\n===== LAST CRASH REPORT =====\n$crash"
-        logView.post { logScroll.fullScroll(ScrollView.FOCUS_DOWN) }
         showConnectedBall(SupabaseClient.isOnline)
     }
 
     private fun runChecks() {
         AppDiagnostics.started(this, "HealthCheck.run")
         summaryView.text = "RUNNING HEALTH CHECK…\nChecking network, database and authentication."
+
         SupabaseClient.checkHealth { online, tables, status ->
             if (online) AppDiagnostics.success(this, "HealthCheck.Supabase", status)
             else AppDiagnostics.failed(this, "HealthCheck.Supabase", status)
             if (tables) AppDiagnostics.success(this, "HealthCheck.Database", "room_messages endpoint reachable")
             else AppDiagnostics.failed(this, "HealthCheck.Database", "room_messages endpoint not confirmed")
-            if (SupabaseClient.userAccessToken.isNullOrBlank()) AppDiagnostics.warn(this, "HealthCheck.Auth", "No active session")
-            else AppDiagnostics.success(this, "HealthCheck.Auth", "Session token present")
+            if (SupabaseClient.userAccessToken.isNullOrBlank()) {
+                AppDiagnostics.warn(this, "HealthCheck.Auth", "No active session")
+            } else {
+                AppDiagnostics.success(this, "HealthCheck.Auth", "Session token present")
+            }
             AppDiagnostics.success(this, "HealthCheck.run", "Completed")
             runOnUiThread { render() }
         }
