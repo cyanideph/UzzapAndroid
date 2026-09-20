@@ -16,9 +16,6 @@ android {
         versionCode = 8
         versionName = "1.0-beta.8"
 
-        // Client-side Supabase configuration.
-        // Only the publishable/anon key belongs in an Android client.
-        // Never put a service-role/secret key in the APK.
         val envProps = Properties().apply {
             val envExample = rootProject.file(".env.example")
             if (envExample.exists()) envExample.inputStream().use { load(it) }
@@ -26,11 +23,8 @@ android {
             if (envFile.exists()) envFile.inputStream().use { load(it) }
         }
 
-        // Production/source-of-truth Uzzap database: KOTLINJARZAP.
-        // Local/CI configuration can override it with -PSUPABASE_URL or SUPABASE_URL.
         val defaultSupabaseUrl = "https://hrjgblvxhtbopuyzyasu.supabase.co"
         val defaultSupabaseAnonKey = ""
-
         val projectSupabaseUrl = providers.gradleProperty("SUPABASE_URL").orNull
         val projectSupabasePublishableKey = providers.gradleProperty("SUPABASE_PUBLISHABLE_KEY").orNull
         val projectSupabaseAnonKey = providers.gradleProperty("SUPABASE_ANON_KEY").orNull
@@ -40,28 +34,14 @@ android {
         val fileSupabaseUrl = envProps.getProperty("SUPABASE_URL")
         val fileSupabasePublishableKey = envProps.getProperty("SUPABASE_PUBLISHABLE_KEY")
         val fileSupabaseAnonKey = envProps.getProperty("SUPABASE_ANON_KEY")
-        val projectSentryDsn = providers.gradleProperty("SENTRY_DSN").orNull
-        val envSentryDsn = System.getenv("SENTRY_DSN")
-        val fileSentryDsn = envProps.getProperty("SENTRY_DSN")
 
-        val supabaseUrl = (projectSupabaseUrl ?: envSupabaseUrl ?: fileSupabaseUrl ?: defaultSupabaseUrl)
-            .trim().trimEnd('/').ifBlank { defaultSupabaseUrl }
-        val supabaseKey = (projectSupabasePublishableKey
-            ?: envSupabasePublishableKey
-            ?: fileSupabasePublishableKey
-            ?: projectSupabaseAnonKey
-            ?: envSupabaseAnonKey
-            ?: fileSupabaseAnonKey
-            ?: defaultSupabaseAnonKey)
-            .trim()
+        val supabaseUrl = (projectSupabaseUrl ?: envSupabaseUrl ?: fileSupabaseUrl ?: defaultSupabaseUrl).trim().trimEnd('/').ifBlank { defaultSupabaseUrl }
+        val supabaseKey = (projectSupabasePublishableKey ?: envSupabasePublishableKey ?: fileSupabasePublishableKey ?: projectSupabaseAnonKey ?: envSupabaseAnonKey ?: fileSupabaseAnonKey ?: defaultSupabaseAnonKey).trim()
 
-        fun quoteBuildConfig(value: String): String =
-            "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
-
+        fun quoteBuildConfig(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
         buildConfigField("String", "SUPABASE_URL", quoteBuildConfig(supabaseUrl))
         buildConfigField("String", "SUPABASE_ANON_KEY", quoteBuildConfig(supabaseKey))
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoteBuildConfig(supabaseKey))
-        buildConfigField("String", "SENTRY_DSN", quoteBuildConfig(projectSentryDsn ?: envSentryDsn ?: fileSentryDsn ?: ""))
     }
 
     val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
@@ -83,13 +63,8 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            if (!releaseKeystorePath.isNullOrBlank()) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (!releaseKeystorePath.isNullOrBlank()) signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -119,6 +94,5 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-process:2.7.0")
     implementation("com.google.firebase:firebase-messaging:23.4.1")
-    implementation("io.sentry:sentry-android:8.18.0")
     testImplementation("junit:junit:4.13.2")
 }
