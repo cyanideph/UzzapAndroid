@@ -8,6 +8,7 @@ on:
       - phase-2-auth-notifications-sync
       - phase-3-notifications
       - feature/uzzap-parity
+      - feature/uzzap-icon-pack-ui
       - feature/deep-implementation-fixes
       - fix/keyboard-chatroom-composer
       - fix/gradle-source-patching
