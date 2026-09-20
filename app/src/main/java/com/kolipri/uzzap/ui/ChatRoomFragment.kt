@@ -188,7 +188,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
             if (!isAdded) return@join
             if (!ok) {
                 AppDiagnostics.failed("Room.join", "room=$roomName error=${message ?: "Cannot join room"}")
-                UzzapDialogs.show(requireContext(), title = "Cannot Join Room", message = message ?: "This room cannot accept you.", positive = "OK", onPositive = { host.leaveRoom(roomName) }, negative = null)
+                UzzapDialogs.show(requireContext(), title = "Cannot Join Room", message = message ?: "This room cannot accept you.", positive = "OK", onPositive = { host.hideRoom(roomName) }, negative = null)
                 return@join
             }
             joinedSuccessfully = true
@@ -387,7 +387,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
     private fun retryPendingSends() { pendingSends.values.toList().forEach { if (it.attempts < 4) sendPending(it) } }
 
     private fun showOptionsMenu() {
-        J2mePopup.show(requireContext(), listOf(PopupItem("Send Message"), PopupItem("Send Whisper"), PopupItem("Room Members"), PopupItem("Room Info"), PopupItem("Invite Buddy"), PopupItem("Report"), PopupItem("Hide Room"))) { index ->
+        J2mePopup.show(requireContext(), listOf(PopupItem("Send Message"), PopupItem("Send Whisper"), PopupItem("Room Members"), PopupItem("Room Info"), PopupItem("Invite Buddy"), PopupItem("Report"), PopupItem("Hide Room"), PopupItem("Leave Room"))) { index ->
             when (index) {
                 0 -> etMessage.requestFocus()
                 1 -> whisperDialog()
@@ -395,7 +395,8 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
                 3 -> UzzapDialogs.show(requireContext(), iconAsset = "anim-icons/menu_backend.gif", title = roomName, message = "Province chatroom\nLive room\nMessages: ${AppState.messagesFor(roomName).size}", positive = "OK")
                 4 -> startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_ACTIONS, roomName))
                 5 -> showReportDialog()
-                6 -> host.confirmLeaveRoom()
+                6 -> host.confirmHideRoom()
+                7 -> host.confirmLeaveRoom()
             }
         }
     }
