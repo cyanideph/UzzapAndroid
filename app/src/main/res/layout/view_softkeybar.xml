@@ -2,10 +2,11 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/softkey_bar_root"
     android:layout_width="match_parent"
-    android:layout_height="46dp"
-    android:background="@drawable/bar_bottom"
-    android:orientation="horizontal">
-
+    android:layout_height="56dp"
+    android:background="@color/uzzap_green_dark"
+    android:orientation="horizontal"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
     <TextView
         android:id="@+id/btn_left"
         style="@style/UzzapSoftkeyText"
@@ -13,8 +14,8 @@
         android:layout_height="match_parent"
         android:layout_weight="1"
         android:gravity="start|center_vertical"
+        android:textColor="@color/uzzap_white"
         android:text="@string/softkey_options" />
-
     <TextView
         android:id="@+id/btn_right"
         style="@style/UzzapSoftkeyText"
@@ -22,5 +23,6 @@
         android:layout_height="match_parent"
         android:layout_weight="1"
         android:gravity="end|center_vertical"
+        android:textColor="@color/uzzap_white"
         android:text="@string/softkey_exit" />
 </LinearLayout>
