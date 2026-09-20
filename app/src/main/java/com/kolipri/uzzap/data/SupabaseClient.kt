@@ -314,6 +314,44 @@ object SupabaseClient {
         })
     }
 
+    /** Runs non-mutating backend smoke probes and reports elapsed time for diagnostics. */
+    fun runReadOnlyDiagnostics(onResult: (List<DiagnosticProbe>) -> Unit) {
+        if (!authenticated()) {
+            mainHandler.post { onResult(listOf(DiagnosticProbe("Supabase.auth", false, 0L, "No active session"))) }
+            return
+        }
+        val userId = extractUserId()?.let { URLEncoder.encode(it, "UTF-8") }.orEmpty()
+        val probes = listOf(
+            Pair("Supabase.auth", "/auth/v1/user"),
+            Pair("Rooms.LoadCategories", "/rest/v1/chat_categories?select=id&limit=1"),
+            Pair("Rooms.LoadList", "/rest/v1/chat_rooms?select=id&limit=1"),
+            Pair("Profile.Load", "/rest/v1/profiles?select=id,username,nickname&owner_id=eq.$userId&limit=1"),
+            Pair("Buddies.load", "/rest/v1/buddies?select=buddy_handle&limit=1"),
+            Pair("Room.participants", "/rest/v1/room_participants?select=username&limit=1"),
+            Pair("Room.history", "/rest/v1/room_messages?select=id&limit=1")
+        )
+        val results = java.util.Collections.synchronizedList(mutableListOf<DiagnosticProbe>())
+        val remaining = java.util.concurrent.atomic.AtomicInteger(probes.size)
+        probes.forEach { (name, path) ->
+            val startedAt = System.nanoTime()
+            val req = request(path, true).get().build()
+            httpClient.newCall(req).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    results.add(DiagnosticProbe(name, false, (System.nanoTime() - startedAt) / 1_000_000L, e.message ?: "Network failure"))
+                    complete()
+                }
+                override fun onResponse(call: Call, response: Response) {
+                    response.use { results.add(DiagnosticProbe(name, it.isSuccessful, (System.nanoTime() - startedAt) / 1_000_000L, "HTTP ${it.code}")) }
+                    complete()
+                }
+                private fun complete() {
+                    if (remaining.decrementAndGet() == 0) mainHandler.post { onResult(results.sortedBy { it.name }) }
+                }
+            })
+        }
+    }
+
+    data class DiagnosticProbe(val name: String, val success: Boolean, val elapsedMs: Long, val detail: String)
     fun deleteAccount(onResult: (Boolean) -> Unit) {
         if (!authenticated()) { mainHandler.post { onResult(true) }; return }
         // RLS policies allow authenticated users to delete their own profile, buddies, and DM entries
