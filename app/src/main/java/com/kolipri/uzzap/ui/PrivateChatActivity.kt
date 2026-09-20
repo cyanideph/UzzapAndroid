@@ -21,7 +21,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
-import com.kolipri.uzzap.R\nimport com.kolipri.uzzap.data.AppState
+import com.kolipri.uzzap.R
+import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.DirectMessageClient
 import com.kolipri.uzzap.data.PrivateMessageStateClient
 import com.kolipri.uzzap.data.PresenceClient
