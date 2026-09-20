@@ -220,19 +220,28 @@ class DiagnosticsActivity : BaseChromeActivity() {
 
     private fun runChecks() {
         AppDiagnostics.started(this, "HealthCheck.run")
-        summaryView.text = "RUNNING HEALTH CHECK…\nChecking network, database and authentication."
+        summaryView.text = "RUNNING FUNCTION SMOKE TESTS…\nRead-only Supabase probes are running."
         SupabaseClient.checkHealth { online, tables, status ->
-            if (online) AppDiagnostics.success(this, "HealthCheck.Supabase", status)
-            else AppDiagnostics.failed(this, "HealthCheck.Supabase", status)
-            if (tables) AppDiagnostics.success(this, "HealthCheck.Database", "room_messages endpoint reachable")
-            else AppDiagnostics.failed(this, "HealthCheck.Database", "room_messages endpoint not confirmed")
-            if (SupabaseClient.userAccessToken.isNullOrBlank()) AppDiagnostics.warn(this, "HealthCheck.Auth", "No active session")
-            else AppDiagnostics.success(this, "HealthCheck.Auth", "Session token present")
-            AppDiagnostics.success(this, "HealthCheck.run", "Completed")
-            runOnUiThread { render() }
+            if (online) AppDiagnostics.success(this, "HealthCheck.Supabase", status) else AppDiagnostics.failed(this, "HealthCheck.Supabase", status)
+            if (tables) AppDiagnostics.success(this, "HealthCheck.Database", "room_messages endpoint reachable") else AppDiagnostics.failed(this, "HealthCheck.Database", "room_messages endpoint not confirmed")
+            if (SupabaseClient.userAccessToken.isNullOrBlank()) AppDiagnostics.warn(this, "HealthCheck.Auth", "No active session") else AppDiagnostics.success(this, "HealthCheck.Auth", "Session token present")
+            if (!online || !tables || SupabaseClient.userAccessToken.isNullOrBlank()) {
+                AppDiagnostics.warn(this, "HealthCheck.run", "Smoke tests skipped because base health/session check failed")
+                runOnUiThread { render() }
+                return@checkHealth
+            }
+            AppDiagnostics.started(this, "Diagnostics.smokeTests")
+            SupabaseClient.runReadOnlyDiagnostics { probes ->
+                probes.forEach { probe ->
+                    if (probe.success) AppDiagnostics.success(this, probe.name, probe.detail + " • " + probe.elapsedMs + "ms")
+                    else AppDiagnostics.failed(this, probe.name, probe.detail + " • " + probe.elapsedMs + "ms")
+                }
+                AppDiagnostics.success(this, "Diagnostics.smokeTests", "Completed " + probes.size + " read-only probes")
+                AppDiagnostics.success(this, "HealthCheck.run", "Completed")
+                runOnUiThread { render() }
+            }
         }
     }
-
     override fun onDestroy() {
         autoRefresh = false
         handler.removeCallbacksAndMessages(null)
