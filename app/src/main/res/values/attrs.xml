@@ -7,5 +7,7 @@
     <attr name="uzzapColorText" format="color" />
     <attr name="uzzapColorMuted" format="color" />
     <attr name="uzzapColorHeader" format="color" />
+    <attr name="uzzapColorPrimary" format="color" />
+    <attr name="uzzapColorPrimaryDark" format="color" />
     <attr name="uzzapColorDivider" format="color" />
 </resources>
