@@ -5,23 +5,48 @@
     android:orientation="horizontal"
     android:gravity="center_vertical"
     android:background="@drawable/bg_menu_row_selector"
-    android:paddingStart="14dp"
+    android:paddingStart="16dp"
     android:paddingEnd="14dp"
-    android:paddingTop="10dp"
-    android:paddingBottom="10dp">
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp">
 
     <ImageView
         android:id="@+id/iv_room_icon"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:padding="5dp"
+        android:src="@drawable/ic_uzzap_rooms"
         android:contentDescription="@null"/>
 
-    <TextView
-        android:id="@+id/tv_room_label"
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:layout_marginStart="12dp"
-        android:textSize="18sp"
-        android:textColor="?attr/uzzapColorText"/>
+        android:orientation="vertical"
+        android:layout_marginStart="12dp">
+
+        <TextView
+            android:id="@+id/tv_room_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:textColor="?attr/uzzapColorText"/>
+
+        <TextView
+            android:id="@+id/tv_room_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Province room"
+            android:textSize="13sp"
+            android:textColor="?attr/uzzapColorMuted"/>
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="›"
+        android:textColor="?attr/uzzapColorAccent"
+        android:textSize="28sp"/>
 </LinearLayout>
