@@ -98,9 +98,9 @@ class PrivateChatActivity : BaseChromeActivity() {
     }
 
     private fun buildUi() {
-        chatRoot = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(247, 248, 250)) }
+        chatRoot = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(ThemeManager.resolve(this@PrivateChatActivity, R.attr.uzzapColorBg)) }
         contentFrame.addView(chatRoot, FrameLayout.LayoutParams(-1, -1))
-        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(8), dp(8)); background = GradientDrawable().apply { setColor(Color.WHITE); setStroke(dp(1), Color.rgb(232, 234, 238)) } }
+        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(8), dp(8)); background = GradientDrawable().apply { setColor(ThemeManager.resolve(this@PrivateChatActivity, R.attr.uzzapColorBg)); setStroke(dp(1), ThemeManager.resolve(this@PrivateChatActivity, R.attr.uzzapColorDivider)) } }
         header.addView(actionButton("‹", 30).apply { setOnClickListener { finish() }; contentDescription = "Back" }, LinearLayout.LayoutParams(dp(44), dp(48)))
         header.addView(TextView(this).apply { text = buddy.take(1).uppercase(Locale.getDefault()); textSize = 18f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; typeface = Typeface.DEFAULT_BOLD; background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.rgb(55, 112, 82)) } }, LinearLayout.LayoutParams(dp(42), dp(42)))
         val identity = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, dp(6), 0) }
