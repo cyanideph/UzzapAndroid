@@ -18,7 +18,6 @@ import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.data.UzzapNotificationManager
 import com.kolipri.uzzap.data.verifySession
 import com.kolipri.uzzap.model.Presence
-import io.sentry.android.core.SentryAndroid
 
 class UzzapApplication : Application(), DefaultLifecycleObserver {
     private val handler = Handler(Looper.getMainLooper())
@@ -53,20 +52,7 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
         super<Application>.onCreate()
         AppDiagnostics.init(this)
         CrashDiagnostics.install(this)
-        if (BuildConfig.SENTRY_DSN.isNotBlank()) {
-            runCatching {
-                SentryAndroid.init(this) { options ->
-                    options.dsn = BuildConfig.SENTRY_DSN
-                    options.environment = "production"
-                    options.release = "${BuildConfig.APPLICATION_ID}@${BuildConfig.VERSION_NAME}+${BuildConfig.VERSION_CODE}"
-                    options.isSendDefaultPii = false
-                    options.tracesSampleRate = 0.1
-                }
-                AppDiagnostics.success("Sentry.initialize")
-            }.onFailure { AppDiagnostics.exception(this, "Sentry", it) }
-        } else {
-            AppDiagnostics.info(this, "Sentry.initialize", "Disabled: SENTRY_DSN is not configured")
-        }
+        AppDiagnostics.info(this, "Sentry.initialize", "Disabled: Sentry removed from Uzzap")
         AppDiagnostics.info(this, "Application", "UzzapApplication started; whole-app monitor enabled")
         AppDiagnostics.register(
             "Auth.Login", "Auth.Signup", "Auth.Logout", "Auth.RestoreSession", "Auth.verifySession",
