@@ -16,8 +16,8 @@
 
         <ImageView
             android:id="@+id/iv_welcome_logo"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
+            android:layout_width="88dp"
+            android:layout_height="88dp"
             android:layout_gravity="center_horizontal"
             android:src="@drawable/d_logo_large"
             android:scaleType="fitCenter"
@@ -27,11 +27,11 @@
             android:id="@+id/tv_welcome_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="12dp"
             android:gravity="center"
             android:text="Welcome to Uzzap!"
             android:textColor="?attr/uzzapColorAccent"
-            android:textSize="22sp"
+            android:textSize="24sp"
             android:textStyle="bold" />
 
         <TextView
