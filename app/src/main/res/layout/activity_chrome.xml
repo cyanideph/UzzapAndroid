@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/uzzap_black"
+    android:background="?attr/uzzapColorBg"
     android:fitsSystemWindows="false">
 
     <!-- Fills the area behind the status bar with the same black as the
