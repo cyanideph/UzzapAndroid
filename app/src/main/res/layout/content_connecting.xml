@@ -12,8 +12,8 @@
         android:layout_weight="1"/>
 
     <ImageView
-        android:layout_width="220dp"
-        android:layout_height="74dp"
+        android:layout_width="240dp"
+        android:layout_height="82dp"
         android:src="@drawable/d_logo_large"
         android:scaleType="fitCenter"
         android:contentDescription="@string/uzzap_beta"/>
@@ -22,8 +22,8 @@
         android:id="@+id/tv_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:textSize="18sp"
+        android:layout_marginTop="24dp"
+        android:textSize="17sp"
         android:textColor="?attr/uzzapColorText"
         android:text="@string/status_connecting"/>
 
