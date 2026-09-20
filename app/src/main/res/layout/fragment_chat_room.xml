@@ -79,8 +79,10 @@
             android:paddingTop="10dp"
             android:paddingBottom="10dp"
             android:background="@drawable/bg_menu_row_selector"
-            android:textColor="@color/uzzap_special_blue"
+            android:textColor="@color/uzzap_green"
             android:textSize="15sp"
+            android:drawableStart="@drawable/ic_uzzap_send"
+            android:drawablePadding="6dp"
             android:text="Send"/>
     </LinearLayout>
 </LinearLayout>
