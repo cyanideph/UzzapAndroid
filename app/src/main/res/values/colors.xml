@@ -16,5 +16,7 @@
     <color name="uzzap_editor_border">#868686</color>
     <color name="uzzap_white">#FFFFFF</color>
     <color name="uzzap_divider">#E2E2E2</color>
-    <color name="uzzap_green_theme">#8EEF04</color>
+    <color name="uzzap_green">#00A651</color>
+    <color name="uzzap_green_dark">#008C45</color>
+    <color name="uzzap_green_theme">#00A651</color>
 </resources>
