@@ -98,14 +98,15 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
             runCatching { CrashDiagnostics.write(this, Thread.currentThread(), it) }
         }
 
-        runCatching {
-            SupabaseClient.userAccessToken?.let { token ->
-                SupabaseClient.verifySession(token) { success, username, _ ->
-                    if (success) AppDiagnostics.success("Auth.verifySession", "Verified $username")
-                    else AppDiagnostics.failed("Auth.verifySession", "Persisted session could not be verified")
-                }
+        AppDiagnostics.info(
+            this,
+            "Auth",
+            if (SupabaseClient.userAccessToken.isNullOrBlank()) {
+                "No persisted session found"
+            } else {
+                "Persisted session restored"
             }
-        }.onFailure { AppDiagnostics.exception(this, "Auth", it) }
+        )
 
         runCatching {
             UzzapNotificationManager.initialize(this)
