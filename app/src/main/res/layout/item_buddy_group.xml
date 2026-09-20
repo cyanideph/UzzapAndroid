@@ -47,7 +47,7 @@
         <ImageView
             android:layout_width="18dp"
             android:layout_height="18dp"
-            android:src="@drawable/d_search"
+            android:src="@drawable/ic_uzzap_search"
             android:contentDescription="@null"/>
 
         <EditText
