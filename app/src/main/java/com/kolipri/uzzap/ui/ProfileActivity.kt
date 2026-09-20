@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.ScrollView
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 
@@ -27,13 +28,15 @@ class ProfileActivity : BaseChromeActivity() {
         contentFrame.removeAllViews()
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(12), dp(12), dp(18))
+            setBackgroundColor(ThemeManager.resolve(this@ProfileActivity, R.attr.uzzapColorBg))
         }
 
         val items = listOf(
-            EmItem(R.drawable.d_n003_settings_small, "Account Settings", "Manage your Uzzap account") {
+            EmItem(R.drawable.ic_uzzap_settings, "Account Settings", "Manage your Uzzap account") {
                 startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SETTINGS))
             },
-            EmItem(R.drawable.d_d003_status_small, "Change Status", "Set your availability and status message") {
+            EmItem(R.drawable.ic_uzzap_profile, "Change Status", "Set your availability and status message") {
                 startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_STATUS))
             }
         )
@@ -54,7 +57,11 @@ class ProfileActivity : BaseChromeActivity() {
             setPadding(dp(12), dp(10), dp(12), 0)
         })
         items.forEachIndexed { index, item -> addEmRow(root, item, showDivider = index < items.size - 1) }
-        contentFrame.addView(root)
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(root)
+        }
+        contentFrame.addView(scroll)
     }
 
     private data class EmItem(val iconRes: Int, val title: String, val subtitle: String, val action: () -> Unit)
