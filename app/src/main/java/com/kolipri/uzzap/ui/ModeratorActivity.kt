@@ -68,7 +68,7 @@ class ModeratorActivity : BaseChromeActivity() {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(12), dp(8), dp(12), dp(8))
-            setBackgroundColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorPrimary))
+            setBackgroundColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorHeader))
         }
         header.addView(TextView(this).apply {
             text = "🛡️ ${AppState.nickname} (${AppState.role.uppercase()})"
@@ -132,7 +132,7 @@ class ModeratorActivity : BaseChromeActivity() {
 
     private fun updateTabStyles() {
         val activeBg = GradientDrawable().apply {
-            setColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorPrimaryDark))
+            setColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorAccent))
             cornerRadius = dp(6).toFloat()
         }
         val inactiveBg = GradientDrawable().apply {
@@ -152,7 +152,7 @@ class ModeratorActivity : BaseChromeActivity() {
             tabReportsButton.setTextColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorText))
         }
         val actionBg = GradientDrawable().apply {
-            setColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorPrimaryDark))
+            setColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorAccent))
             cornerRadius = dp(6).toFloat()
         }
         tabNewSanctionButton.background = actionBg
