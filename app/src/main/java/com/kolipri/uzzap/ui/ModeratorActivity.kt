@@ -68,7 +68,7 @@ class ModeratorActivity : BaseChromeActivity() {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(12), dp(8), dp(12), dp(8))
-            setBackgroundColor(Color.parseColor("#1B4D3E"))
+            setBackgroundColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorPrimary))
         }
         header.addView(TextView(this).apply {
             text = "🛡️ ${AppState.nickname} (${AppState.role.uppercase()})"
@@ -79,7 +79,7 @@ class ModeratorActivity : BaseChromeActivity() {
         })
         val reloadBtn = TextView(this).apply {
             text = "⟳ Refresh"
-            setTextColor(Color.parseColor("#D4EDDA"))
+            setTextColor(Color.WHITE)
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
             setOnClickListener { refreshCurrentData() }
@@ -91,7 +91,7 @@ class ModeratorActivity : BaseChromeActivity() {
         val tabsRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(8), dp(6), dp(8), dp(6))
-            setBackgroundColor(Color.parseColor("#D8E2DC"))
+            setBackgroundColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorSurface))
         }
 
         tabReportsButton = createTabButton("Reports Queue") { switchTab(TAB_REPORTS) }
@@ -132,11 +132,11 @@ class ModeratorActivity : BaseChromeActivity() {
 
     private fun updateTabStyles() {
         val activeBg = GradientDrawable().apply {
-            setColor(Color.parseColor("#0F5132"))
+            setColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorPrimaryDark))
             cornerRadius = dp(6).toFloat()
         }
         val inactiveBg = GradientDrawable().apply {
-            setColor(Color.parseColor("#BAC7BE"))
+            setColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorDivider))
             cornerRadius = dp(6).toFloat()
         }
 
@@ -149,10 +149,10 @@ class ModeratorActivity : BaseChromeActivity() {
             tabSanctionsButton.background = activeBg
             tabSanctionsButton.setTextColor(Color.WHITE)
             tabReportsButton.background = inactiveBg
-            tabReportsButton.setTextColor(Color.parseColor("#222222"))
+            tabReportsButton.setTextColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorText))
         }
         val actionBg = GradientDrawable().apply {
-            setColor(Color.parseColor("#842029"))
+            setColor(ThemeManager.resolve(this@ModeratorActivity, R.attr.uzzapColorPrimaryDark))
             cornerRadius = dp(6).toFloat()
         }
         tabNewSanctionButton.background = actionBg
