@@ -40,6 +40,9 @@ android {
         val fileSupabaseUrl = envProps.getProperty("SUPABASE_URL")
         val fileSupabasePublishableKey = envProps.getProperty("SUPABASE_PUBLISHABLE_KEY")
         val fileSupabaseAnonKey = envProps.getProperty("SUPABASE_ANON_KEY")
+        val projectSentryDsn = providers.gradleProperty("SENTRY_DSN").orNull
+        val envSentryDsn = System.getenv("SENTRY_DSN")
+        val fileSentryDsn = envProps.getProperty("SENTRY_DSN")
 
         val supabaseUrl = (projectSupabaseUrl ?: envSupabaseUrl ?: fileSupabaseUrl ?: defaultSupabaseUrl)
             .trim().trimEnd('/').ifBlank { defaultSupabaseUrl }
@@ -58,6 +61,7 @@ android {
         buildConfigField("String", "SUPABASE_URL", quoteBuildConfig(supabaseUrl))
         buildConfigField("String", "SUPABASE_ANON_KEY", quoteBuildConfig(supabaseKey))
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoteBuildConfig(supabaseKey))
+        buildConfigField("String", "SENTRY_DSN", quoteBuildConfig(projectSentryDsn ?: envSentryDsn ?: fileSentryDsn ?: ""))
     }
 
     val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
@@ -115,5 +119,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-process:2.7.0")
     implementation("com.google.firebase:firebase-messaging:23.4.1")
+    implementation("io.sentry:sentry-android:8.18.0")
     testImplementation("junit:junit:4.13.2")
 }
