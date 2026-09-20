@@ -57,7 +57,7 @@ android {
 
         buildConfigField("String", "SUPABASE_URL", quoteBuildConfig(supabaseUrl))
         buildConfigField("String", "SUPABASE_ANON_KEY", quoteBuildConfig(supabaseKey))
-        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoteBuildConfig(supabaseKey)))
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoteBuildConfig(supabaseKey))
     }
 
     val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
