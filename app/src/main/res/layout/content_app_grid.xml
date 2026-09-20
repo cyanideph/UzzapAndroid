@@ -12,6 +12,8 @@
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="16dp">
 <ImageButton android:id="@+id/icon_themes" style="@style/GridIcon" android:layout_weight="1" android:src="@drawable/ic_uzzap_rooms" android:contentDescription="Rooms"/>
 <ImageButton android:id="@+id/icon_help" style="@style/GridIcon" android:layout_weight="1" android:src="@drawable/ic_uzzap_search" android:contentDescription="Search"/>
+<ImageButton android:id="@+id/icon_ringtone" style="@style/GridIconSmall" android:src="@drawable/ic_uzzap_settings" android:contentDescription="Silent Mode"/>
+<ImageButton android:id="@+id/icon_battery" style="@style/GridIconSmall" android:src="@drawable/ic_uzzap_settings" android:contentDescription="Battery Saving"/>
 </LinearLayout>
 <TextView android:id="@+id/tv_footer_feature_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:background="@color/uzzap_green" android:gravity="center" android:padding="12dp" android:textColor="@color/uzzap_white" android:textSize="15sp" android:textStyle="bold" android:text="@string/extended_messaging"/>
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center" android:padding="12dp" android:background="?attr/uzzapColorSurface">
