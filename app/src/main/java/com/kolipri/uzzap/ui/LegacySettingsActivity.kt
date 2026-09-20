@@ -34,7 +34,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
-/** Modern Uzzap settings screens using the same black/white/black shared chrome. */
+/** Modern Uzzap settings screens using the shared Uzzap green chrome. */
 class LegacySettingsActivity : BaseChromeActivity() {
     private val http = OkHttpClient()
     private val jsonType = "application/json; charset=utf-8".toMediaType()
@@ -122,7 +122,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
             })
         }
         rowView.addView(textCol, LinearLayout.LayoutParams(0, -2, 1f))
-        rowView.addView(ImageView(this).apply { loadAnimIcon("anim-icons/arrow_row_end_t.gif") }, LinearLayout.LayoutParams(dp(16), dp(16)))
+        rowView.addView(ImageView(this).apply { setImageResource(R.drawable.ic_uzzap_search) }, LinearLayout.LayoutParams(dp(16), dp(16)))
         return rowView
     }
 
@@ -215,7 +215,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
     private fun performAccountDeletion() {
         val textColor = ThemeManager.resolve(this, R.attr.uzzapColorText)
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = GradientDrawable().apply { setColor(0x2B8EEF04); cornerRadius = dp(14).toFloat() } }
+        val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = GradientDrawable().apply { setColor(0x3300A651); cornerRadius = dp(14).toFloat() } }
         tile.addView(ImageView(this).apply { loadAnimIcon("anim-icons/delete_trash.gif") }, LinearLayout.LayoutParams(dp(30), dp(30)))
         row.addView(tile, LinearLayout.LayoutParams(dp(48), dp(48)))
         row.addView(TextView(this).apply { text = "Please wait while your account is deleted..."; textSize = 14f; setTextColor(textColor); setPadding(dp(12), 0, 0, 0) })
