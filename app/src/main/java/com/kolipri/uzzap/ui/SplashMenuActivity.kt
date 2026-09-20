@@ -166,7 +166,7 @@ class SplashMenuActivity : BaseChromeActivity() {
             if (p.length < 6) { pass.error = "Password must be at least 6 characters"; return@form false }
             if (p != c) { confirm.error = "Passwords do not match"; return@form false }
             showLoading("Creating account...")
-            SupabaseClient.signUpWithEmail(e, p, n) { success, token, error -> runOnUiThread { hideLoading(); if (success && !token.isNullOrBlank()) { saveSession(e, n, token); startActivity(Intent(this, ConnectingActivity::class.java)) } else UzzapDialogs.show(this, iconAsset = "anim-icons/menu_register.gif", title = "Registration Failed", message = error ?: "Unable to create account", positive = "OK") } }
+            SupabaseClient.signUpWithEmail(e, p, n) { success, token, error -> runOnUiThread { hideLoading(); if (success) { if (!token.isNullOrBlank()) { saveSession(e, n, token); Toast.makeText(this, "Welcome to Uzzap, $n!", Toast.LENGTH_SHORT).show(); startActivity(Intent(this, ConnectingActivity::class.java)) } else { UzzapDialogs.show(this, iconAsset = "anim-icons/menu_register.gif", title = "Check Your Email", message = error ?: "Account created. Please confirm your email, then log in.", positive = "OK") } } else { UzzapDialogs.show(this, iconAsset = "anim-icons/menu_register.gif", title = "Registration Failed", message = error ?: "Unable to create account", positive = "OK") } } }
             true
         })
     }
