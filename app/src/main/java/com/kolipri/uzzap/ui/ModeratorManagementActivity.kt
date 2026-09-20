@@ -23,14 +23,14 @@ class ModeratorManagementActivity : BaseChromeActivity() {
         setScreenTitle("Moderator Management")
         showConnectedBall(true)
         setSoftkeys("Actions", "Back", onLeft = { showActions() }, onRight = { finish() })
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(18), dp(20), dp(18), dp(20)); setBackgroundColor(Color.parseColor("#EAEFEA")) }
-        root.addView(TextView(this).apply { text = "🛡️ Moderator Management"; textSize = 20f; typeface = Typeface.DEFAULT_BOLD; setTextColor(Color.parseColor("#0F5132")); gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
-        root.addView(TextView(this).apply { text = "Assign or remove moderators by account email.\nAuthorization is enforced by the server."; textSize = 13f; setTextColor(Color.parseColor("#495057")); gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(24) })
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(18), dp(20), dp(18), dp(20)); setBackgroundColor(ThemeManager.resolve(this@ModeratorManagementActivity, R.attr.uzzapColorBg)) }
+        root.addView(TextView(this).apply { text = "🛡️ Moderator Management"; textSize = 20f; typeface = Typeface.DEFAULT_BOLD; setTextColor(ThemeManager.resolve(this@ModeratorManagementActivity, R.attr.uzzapColorPrimaryDark)); gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+        root.addView(TextView(this).apply { text = "Assign or remove moderators by account email.\nAuthorization is enforced by the server."; textSize = 13f; setTextColor(ThemeManager.resolve(this@ModeratorManagementActivity, R.attr.uzzapColorMuted)); gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(24) })
         root.addView(actionButton("➕ Add Moderator") { promptModeratorChange(true) }, buttonParams())
         root.addView(actionButton("➖ Remove Moderator") { promptModeratorChange(false) }, buttonParams())
         root.addView(actionButton("🛡️ Open Moderator Console") { startActivity(ModeratorActivity.intent(this)) }, buttonParams())
         root.addView(actionButton("📋 Moderation Audit Log") { startActivity(ModerationAuditActivity.intent(this)) }, buttonParams())
-        root.addView(TextView(this).apply { text = "Moderator-only room access updates automatically after role changes."; textSize = 12f; setTextColor(Color.parseColor("#6C757D")); gravity = Gravity.CENTER; setPadding(dp(8), dp(24), dp(8), dp(8)) })
+        root.addView(TextView(this).apply { text = "Moderator-only room access updates automatically after role changes."; textSize = 12f; setTextColor(ThemeManager.resolve(this@ModeratorManagementActivity, R.attr.uzzapColorMuted)); gravity = Gravity.CENTER; setPadding(dp(8), dp(24), dp(8), dp(8)) })
         contentFrame.addView(root, android.widget.FrameLayout.LayoutParams(-1, -1))
     }
 
