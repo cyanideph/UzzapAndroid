@@ -75,6 +75,22 @@ object SupabaseRealtimeClient {
     /** True when the room/direct-message WebSocket is currently connected. */
     fun isConnected(): Boolean = connected
 
+    /** Reconnects using the current Supabase access token after session refresh. */
+    fun refreshAuth() {
+        if (!shouldConnect) return
+        main.post {
+            if (!shouldConnect) return@post
+            main.removeCallbacks(reconnect)
+            ws?.close(1000, "Session refreshed")
+            ws = null
+            connected = false
+            connecting = false
+            main.removeCallbacks(heartbeat)
+            notifyConnection(false)
+            connect()
+        }
+    }
+
     fun addRoomMessageListener(l: (ChatMessage, String) -> Unit) { roomListeners.add(l) }
     fun removeRoomMessageListener(l: (ChatMessage, String) -> Unit) { roomListeners.remove(l) }
     fun addRoomMessageDeletedListener(l: (Long, String) -> Unit) { roomDeleteListeners.add(l) }
