@@ -44,6 +44,7 @@ class PrivateChatActivity : BaseChromeActivity() {
     private lateinit var emptyState: TextView
     private val handler = Handler(Looper.getMainLooper())
     private var polling = false
+    private var realtimeConnected = false
     private var buddy = ""
     private var lastId = 0L
     private var oldestId = 0L
@@ -63,13 +64,25 @@ class PrivateChatActivity : BaseChromeActivity() {
         }
     }
 
+    private val connectionListener: (Boolean) -> Unit = { connected ->
+        realtimeConnected = connected
+        if (connected) {
+            polling = false
+            handler.removeCallbacks(poll)
+        } else if (!isFinishing) {
+            polling = true
+            handler.removeCallbacks(poll)
+            handler.post(poll)
+        }
+    }
+
     private val poll = object : Runnable {
         override fun run() {
-            if (!polling || isFinishing) return
+            if (!polling || realtimeConnected || isFinishing) return
             DirectMessageClient.fetchConversation(AppState.username, buddy, lastId) { messages ->
                 if (messages != null) messages.forEach { if (it.id > lastId && renderedIds.add(it.id)) { lastId = it.id; appendMessage(it, true) } }
                 if (messages != null) markReadAndRefreshNotification()
-                if (polling) handler.postDelayed(this, 2500L)
+                if (polling && !realtimeConnected) handler.postDelayed(this, 2500L)
             }
         }
     }
@@ -85,6 +98,7 @@ class PrivateChatActivity : BaseChromeActivity() {
         showConnectedBall(false)
         setSoftkeys(null, null)
         SupabaseRealtimeClient.addDirectMessageListener(realtimeListener)
+        SupabaseRealtimeClient.addConnectionListener(connectionListener)
         ViewCompat.setOnApplyWindowInsetsListener(chatRoot) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
@@ -188,9 +202,9 @@ class PrivateChatActivity : BaseChromeActivity() {
     private fun updateSendState() { if (!::sendButton.isInitialized) return; val enabled = input.text.toString().trim().isNotEmpty() && input.isEnabled; sendButton.isEnabled = enabled; sendButton.alpha = if (enabled) 1f else 0.45f }
     private fun actionButton(label: String, size: Int): TextView = TextView(this).apply { text = label; textSize = size.toFloat(); gravity = Gravity.CENTER; setTextColor(Color.rgb(45, 50, 56)); isClickable = true; isFocusable = true; background = null }
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
-    override fun onResume() { super.onResume(); AppState.activeChatBuddy = buddy; polling = true; handler.removeCallbacks(poll); handler.postDelayed(poll, 2500L); loadPresence() }
+    override fun onResume() { super.onResume(); AppState.activeChatBuddy = buddy; if (!realtimeConnected) { polling = true; handler.removeCallbacks(poll); handler.postDelayed(poll, 2500L) }; loadPresence() }
     override fun onPause() { if (AppState.activeChatBuddy.equals(buddy, ignoreCase = true)) AppState.activeChatBuddy = null; polling = false; handler.removeCallbacks(poll); super.onPause() }
-    override fun onDestroy() { polling = false; handler.removeCallbacksAndMessages(null); SupabaseRealtimeClient.removeDirectMessageListener(realtimeListener); super.onDestroy() }
+    override fun onDestroy() { polling = false; handler.removeCallbacksAndMessages(null); SupabaseRealtimeClient.removeDirectMessageListener(realtimeListener); SupabaseRealtimeClient.removeConnectionListener(connectionListener); super.onDestroy() }
     companion object { private const val EXTRA_BUDDY = "buddy"; fun intent(context: Context, buddy: String) = android.content.Intent(context, PrivateChatActivity::class.java).apply { putExtra(EXTRA_BUDDY, buddy); addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP) } }
     private class SimpleTextWatcher(private val action: () -> Unit) : android.text.TextWatcher { override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit; override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = action(); override fun afterTextChanged(s: android.text.Editable?) = Unit }
 }
