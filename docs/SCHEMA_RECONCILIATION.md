@@ -217,3 +217,68 @@ For a true restore artifact, generate a schema-only dump using an authorized Sup
 
 The live schema has now been independently re-verified after the migration-history audit. No production DDL was changed during this reconciliation.
 
+
+
+## Production object-level inventory
+
+The live catalog was rechecked read-only. All 49 public base tables have RLS enabled; none currently has forced RLS. The inventory below records per-table index and trigger counts so future schema audits can detect structural drift without exposing application data.
+
+| Table | Indexes | Triggers |
+|---|---:|---:|
+| account_deletion_requests | 1 | 0 |
+| blocked_users | 2 | 0 |
+| buddies | 3 | 1 |
+| buddy_requests | 6 | 1 |
+| chat_categories | 1 | 0 |
+| chat_rooms | 3 | 0 |
+| direct_messages | 4 | 2 |
+| game_players | 3 | 0 |
+| game_sessions | 3 | 1 |
+| moderation_actions | 6 | 2 |
+| moderator_roles | 2 | 0 |
+| profiles | 6 | 1 |
+| room_invitations | 4 | 1 |
+| room_messages | 3 | 4 |
+| room_participants | 4 | 5 |
+| room_sanctions | 3 | 0 |
+| user_fcm_tokens | 4 | 0 |
+| user_reports | 5 | 0 |
+| uzzapbot_achievements | 1 | 0 |
+| uzzapbot_ai_rate_state | 1 | 0 |
+| uzzapbot_audit_log | 3 | 0 |
+| uzzapbot_battles | 2 | 0 |
+| uzzapbot_control_settings | 2 | 0 |
+| uzzapbot_cursor | 1 | 0 |
+| uzzapbot_daily_challenges | 3 | 0 |
+| uzzapbot_event_receipts | 2 | 0 |
+| uzzapbot_game_config | 1 | 0 |
+| uzzapbot_game_modes | 1 | 0 |
+| uzzapbot_game_pools | 2 | 0 |
+| uzzapbot_internal_config | 1 | 0 |
+| uzzapbot_memory | 4 | 0 |
+| uzzapbot_player_achievements | 2 | 0 |
+| uzzapbot_player_activity | 3 | 0 |
+| uzzapbot_player_stats | 1 | 0 |
+| uzzapbot_player_titles | 1 | 0 |
+| uzzapbot_powerup_uses | 3 | 0 |
+| uzzapbot_powerups | 1 | 0 |
+| uzzapbot_processed_messages | 2 | 0 |
+| uzzapbot_question_usage | 3 | 0 |
+| uzzapbot_questions | 6 | 0 |
+| uzzapbot_room_activity | 1 | 0 |
+| uzzapbot_room_challenges | 2 | 0 |
+| uzzapbot_room_settings | 1 | 0 |
+| uzzapbot_titles | 1 | 0 |
+| uzzapbot_tournaments | 2 | 0 |
+| uzzapbot_welcomes | 1 | 0 |
+| uzzapbot_word_dataset_entries | 2 | 0 |
+| uzzapbot_word_datasets | 1 | 0 |
+| uzzapbot_xp_history | 2 | 0 |
+
+### RLS policy coverage
+
+The production public schema currently has 54 RLS policies. Policy coverage is concentrated in the core messaging/moderation tables and selected UzzapBot administrative, memory, player-statistics, question-bank, and audit surfaces. This inventory is intentionally descriptive; policy expressions remain in the live database and are not rewritten here as a substitute for migrations.
+
+### Restore status
+
+This audit has reached the point where the remaining gap is **source recovery**, not production repair. Do not apply reconstructed DDL to the production project merely to make Git match the live database. The next canonical recovery artifact should come from an authorized schema-only PostgreSQL dump, followed by a diff against the repository's migrations and baseline.
