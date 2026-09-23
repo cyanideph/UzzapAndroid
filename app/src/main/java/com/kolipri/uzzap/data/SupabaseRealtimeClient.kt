@@ -76,6 +76,8 @@ object SupabaseRealtimeClient {
     fun isConnected(): Boolean = connected
 
     /** Reconnects using the current Supabase access token after session refresh. */
+    fun refreshSubscriptions() { refreshAuth() }
+
     fun refreshAuth() {
         if (!shouldConnect) return
         main.post {
@@ -140,10 +142,26 @@ object SupabaseRealtimeClient {
         val authPayload = JSONObject().apply {
             if (accessToken.isNotBlank()) put("access_token", accessToken)
         }
+        val joinedRooms = AppState.joinedRooms.distinct().filter { it.isNotBlank() }
+        val roomFilter = if (joinedRooms.isNotEmpty() && joinedRooms.size <= 100) {
+            joinedRooms.joinToString(prefix = "room_name=in.(", postfix = ")", separator = ",") { quoteRealtimeFilterValue(it) }
+        } else null
         val roomChanges = JSONArray()
-            .put(JSONObject().put("event", "INSERT").put("schema", "public").put("table", "room_messages"))
-            .put(JSONObject().put("event", "UPDATE").put("schema", "public").put("table", "room_messages"))
-            .put(JSONObject().put("event", "DELETE").put("schema", "public").put("table", "room_messages"))
+            .put(JSONObject().apply {
+                put("event", "INSERT"); put("schema", "public"); put("table", "room_messages")
+                roomFilter?.let { put("filter", it) }
+                put("select", JSONArray().put("id").put("sender").put("body").put("is_system").put("created_at").put("room_name"))
+            })
+            .put(JSONObject().apply {
+                put("event", "UPDATE"); put("schema", "public"); put("table", "room_messages")
+                roomFilter?.let { put("filter", it) }
+                put("select", JSONArray().put("id").put("sender").put("body").put("is_system").put("created_at").put("room_name"))
+            })
+            .put(JSONObject().apply {
+                put("event", "DELETE"); put("schema", "public"); put("table", "room_messages")
+                roomFilter?.let { put("filter", it) }
+                put("select", JSONArray().put("id").put("sender").put("body").put("is_system").put("created_at").put("room_name"))
+            })
         s.send(
             JSONObject()
                 .put("topic", "realtime:public:room_messages")
@@ -153,9 +171,23 @@ object SupabaseRealtimeClient {
                 .toString()
         )
 
+        val currentUser = AppState.username.trim()
         val dmChanges = JSONArray()
-            .put(JSONObject().put("event", "INSERT").put("schema", "public").put("table", "direct_messages"))
-            .put(JSONObject().put("event", "UPDATE").put("schema", "public").put("table", "direct_messages"))
+            .put(JSONObject().apply {
+                put("event", "INSERT"); put("schema", "public"); put("table", "direct_messages")
+                if (currentUser.isNotBlank()) put("filter", "sender=eq." + quoteRealtimeFilterValue(currentUser))
+                put("select", JSONArray().put("id").put("sender").put("recipient").put("body").put("created_at").put("is_read"))
+            })
+            .put(JSONObject().apply {
+                put("event", "INSERT"); put("schema", "public"); put("table", "direct_messages")
+                if (currentUser.isNotBlank()) put("filter", "recipient=eq." + quoteRealtimeFilterValue(currentUser))
+                put("select", JSONArray().put("id").put("sender").put("recipient").put("body").put("created_at").put("is_read"))
+            })
+            .put(JSONObject().apply {
+                put("event", "UPDATE"); put("schema", "public"); put("table", "direct_messages")
+                if (currentUser.isNotBlank()) put("filter", "recipient=eq." + quoteRealtimeFilterValue(currentUser))
+                put("select", JSONArray().put("id").put("sender").put("recipient").put("body").put("created_at").put("is_read"))
+            })
         s.send(
             JSONObject()
                 .put("topic", "realtime:public:direct_messages")
@@ -164,6 +196,14 @@ object SupabaseRealtimeClient {
                 .put("ref", refs.incrementAndGet())
                 .toString()
         )
+    }
+
+    private fun quoteRealtimeFilterValue(value: String): String {
+        val escaped = value
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+
+        return "\"$escaped\""
     }
 
     private fun handle(text: String) {
