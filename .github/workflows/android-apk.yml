@@ -49,10 +49,9 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-        run: ./gradlew :app:testDebugUnitTest -PSUPABASE_URL="${SUPABASE_URL}" -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" --stacktrace
+        run: ./gradlew :app:testDebugUnitTest -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
 
       - name: Run Android instrumentation tests
-        if: github.event_name != 'pull_request'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
@@ -63,13 +62,13 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
-          script: ./gradlew :app:connectedDebugAndroidTest -PSUPABASE_URL="${SUPABASE_URL}" -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" --stacktrace
+          script: ./gradlew :app:connectedDebugAndroidTest -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
 
       - name: Build debug APK
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-        run: ./gradlew :app:assembleDebug -PSUPABASE_URL="${SUPABASE_URL}" -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" --stacktrace
+        run: ./gradlew :app:assembleDebug -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
 
       - name: Upload APK artifact
         if: >-
