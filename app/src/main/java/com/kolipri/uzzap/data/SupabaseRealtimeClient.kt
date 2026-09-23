@@ -201,9 +201,9 @@ object SupabaseRealtimeClient {
     private fun quoteRealtimeFilterValue(value: String): String {
         val escaped = value
             .replace("\\", "\\\\")
-            .replace(""", "\\"")
+            .replace("\"", "\\\"")
 
-        return ""$escaped""
+        return "\"$escaped\""
     }
 
     private fun handle(text: String) {
