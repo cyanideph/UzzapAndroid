@@ -15,6 +15,7 @@ android {
         targetSdk = 36
         versionCode = 8
         versionName = "1.0-beta.8"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         val envProps = Properties().apply {
             val envExample = rootProject.file(".env.example")
