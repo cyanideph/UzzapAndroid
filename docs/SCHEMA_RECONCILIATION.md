@@ -353,3 +353,24 @@ This confirms that table/column counts alone are insufficient for restoration. P
 ### Recovery rule
 
 Do not convert this inventory into guessed `ALTER TABLE` statements. Exact constraint definitions, including CHECK expressions and FK actions, should be recovered from an authorized schema-only dump or exact catalog definitions before a migration is created.
+
+
+## Exact constraint-definition sample from production
+
+A read-only PostgreSQL catalog query using `pg_get_constraintdef()` confirmed that the production constraints contain concrete validation expressions and referential actions, not just names/counts. Examples include:
+
+- `game_sessions.limit_count`: 1–5000
+- `game_sessions.points`: 1–1000
+- `game_sessions.question_number`: >= 0
+- `uzzapbot_questions.points`: 1–1000
+- `uzzapbot_questions.verification_score`: 0–100
+- `uzzapbot_questions.difficulty`: easy/normal/hard
+- `uzzapbot_questions.status`: draft/pending_review/approved/rejected/disabled/archived
+- `uzzapbot_memory.confidence`: 0–1
+- `uzzapbot_memory.memory_type`: fact/preference/context
+- `uzzapbot_memory.source`: explicit/user_confirmed/bot_inferred
+- `buddy_requests_not_self`: requester and recipient handles must differ case-insensitively
+
+The production FK definitions also preserve explicit delete behavior, including CASCADE, SET NULL, and default NO ACTION depending on the relationship. Therefore a future restore artifact must capture the **definition**, not merely the existence of each FK.
+
+The catalog currently reports **55 foreign keys** and **10 unique constraints**. The complete catalog result was used for verification; this document intentionally records the key recovery characteristics rather than copying a large raw catalog dump.
