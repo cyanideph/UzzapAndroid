@@ -56,6 +56,14 @@ class PrivateChatActivity : BaseChromeActivity() {
     private var keyboardVisible = false
     private val renderedIds = LinkedHashSet<Long>()
     private var failedBody: String? = null
+    private var notificationRefreshScheduled = false
+    private val notificationRefresh = Runnable {
+        notificationRefreshScheduled = false
+        PrivateMessageStateClient.fetchUnread(AppState.username) { state ->
+            if (state == null || state.count <= 0) UzzapNotificationManager.clearPrivateMessageNotification(this)
+            else UzzapNotificationManager.notifyPrivateMessages(this, state.count, state.senders, state.messageIds)
+        }
+    }
 
     private val realtimeListener: (DirectMessage) -> Unit = { dm ->
         val me = AppState.username
@@ -216,13 +224,21 @@ class PrivateChatActivity : BaseChromeActivity() {
     private fun viewProfile() { PresenceClient.fetch(buddy) { p -> UzzapDialogs.show(this, iconAsset = "anim-icons/im_profile.gif", title = buddy, message = "Nickname: $buddy\nStatus: ${p?.status ?: "Unknown"}\nPresence: ${if (p?.isOnline == true) "Online" else "Offline"}", positive = "Close") } }
     private fun blockUser() { UzzapDialogs.show(this, iconAsset = "anim-icons/privacy_lock.gif", title = "Block $buddy?", message = "Blocked users cannot send you private messages, and you cannot send them private messages.", positive = "Block", onPositive = { SafetyClient.block(buddy) { ok -> Toast.makeText(this, if (ok) "$buddy blocked" else "Could not block user", Toast.LENGTH_SHORT).show(); if (ok) finish() } }) }
     private fun reportUser() { UzzapDialogs.show(this, iconAsset = "anim-icons/privacy_lock.gif", title = "Report User", message = "Report \"$buddy\" for inappropriate behavior? Moderators will review this report.", inputHint = "Add details (optional)...", positive = "Report", onPositive = { details -> SafetyClient.report(buddy, "Other", details.ifBlank { "Reported from private chat" }) { ok -> Toast.makeText(this, if (ok) "Report submitted" else "Report failed", Toast.LENGTH_SHORT).show() } }) }
-    private fun markReadAndRefreshNotification() { PrivateMessageStateClient.markConversationRead(AppState.username, buddy) { PrivateMessageStateClient.fetchUnread(AppState.username) { state -> if (state == null || state.count <= 0) UzzapNotificationManager.clearPrivateMessageNotification(this) else UzzapNotificationManager.notifyPrivateMessages(this, state.count, state.senders) } } }
+    private fun markReadAndRefreshNotification() {
+        PrivateMessageStateClient.markConversationRead(AppState.username, buddy) {
+            if (!notificationRefreshScheduled) {
+                notificationRefreshScheduled = true
+                handler.removeCallbacks(notificationRefresh)
+                handler.postDelayed(notificationRefresh, 750L)
+            }
+        }
+    }
     private fun updateSendState() { if (!::sendButton.isInitialized) return; val enabled = input.text.toString().trim().isNotEmpty() && input.isEnabled; sendButton.isEnabled = enabled; sendButton.alpha = if (enabled) 1f else 0.45f }
     private fun actionButton(label: String, size: Int): TextView = TextView(this).apply { text = label; textSize = size.toFloat(); gravity = Gravity.CENTER; setTextColor(Color.rgb(45, 50, 56)); isClickable = true; isFocusable = true; background = null }
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
     override fun onResume() { super.onResume(); AppState.activeChatBuddy = buddy; if (!realtimeConnected) { polling = true; handler.removeCallbacks(poll); handler.postDelayed(poll, 2500L) }; loadPresence() }
     override fun onPause() { if (AppState.activeChatBuddy.equals(buddy, ignoreCase = true)) AppState.activeChatBuddy = null; polling = false; handler.removeCallbacks(poll); super.onPause() }
-    override fun onDestroy() { polling = false; handler.removeCallbacksAndMessages(null); SupabaseRealtimeClient.removeDirectMessageListener(realtimeListener); SupabaseRealtimeClient.removeConnectionListener(connectionListener); super.onDestroy() }
+    override fun onDestroy() { polling = false; notificationRefreshScheduled = false; handler.removeCallbacksAndMessages(null); SupabaseRealtimeClient.removeDirectMessageListener(realtimeListener); SupabaseRealtimeClient.removeConnectionListener(connectionListener); super.onDestroy() }
     companion object { private const val EXTRA_BUDDY = "buddy"; fun intent(context: Context, buddy: String) = android.content.Intent(context, PrivateChatActivity::class.java).apply { putExtra(EXTRA_BUDDY, buddy); addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP) } }
     private class SimpleTextWatcher(private val action: () -> Unit) : android.text.TextWatcher { override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit; override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = action(); override fun afterTextChanged(s: android.text.Editable?) = Unit }
 }
