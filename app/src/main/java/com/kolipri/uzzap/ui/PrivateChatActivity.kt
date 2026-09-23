@@ -18,6 +18,8 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
@@ -36,8 +38,9 @@ import java.util.Locale
 
 class PrivateChatActivity : BaseChromeActivity() {
     private lateinit var chatRoot: LinearLayout
-    private lateinit var scroll: ScrollView
-    private lateinit var messagesContainer: LinearLayout
+    private lateinit var messageList: RecyclerView
+    private lateinit var messageAdapter: DirectMessageAdapter
+    private lateinit var layoutManager: LinearLayoutManager
     private lateinit var input: EditText
     private lateinit var sendButton: TextView
     private lateinit var statusText: TextView
@@ -106,7 +109,11 @@ class PrivateChatActivity : BaseChromeActivity() {
             view.updatePadding(bottom = if (keyboardVisible) ime.bottom else bars.bottom)
             insets
         }
-        scroll.setOnScrollChangeListener { _, _, y, _, _ -> if (y <= dp(80)) loadOlderHistory() }
+        messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                if (layoutManager.findFirstVisibleItemPosition() <= 2 && dy <= 0) loadOlderHistory()
+            }
+        })
         loadConversation()
         loadPresence()
     }
@@ -126,9 +133,16 @@ class PrivateChatActivity : BaseChromeActivity() {
         header.addView(actionButton("⋮", 25).apply { contentDescription = "$buddy options"; setOnClickListener { showOptions() } }, LinearLayout.LayoutParams(dp(44), dp(48)))
         chatRoot.addView(header, LinearLayout.LayoutParams(-1, -2))
         val body = FrameLayout(this).apply { setBackgroundColor(Color.rgb(247, 248, 250)) }
-        scroll = ScrollView(this).apply { isFillViewport = true; clipToPadding = false; setPadding(dp(8), dp(10), dp(8), dp(10)); overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS }
-        messagesContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(2), dp(2), dp(2), dp(2)) }
-        scroll.addView(messagesContainer, ViewGroup.LayoutParams(-1, -2)); body.addView(scroll, FrameLayout.LayoutParams(-1, -1))
+        messageList = RecyclerView(this).apply {
+            setPadding(dp(8), dp(10), dp(8), dp(10))
+            clipToPadding = false
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+            layoutManager = LinearLayoutManager(this@PrivateChatActivity).also { layoutManager = it }
+            itemAnimator = null
+        }
+        messageAdapter = DirectMessageAdapter(this)
+        messageList.adapter = messageAdapter
+        body.addView(messageList, FrameLayout.LayoutParams(-1, -1))
         emptyState = TextView(this).apply { text = "Start a conversation with $buddy 👋"; textSize = 15f; gravity = Gravity.CENTER; setTextColor(Color.rgb(105, 110, 118)); setPadding(dp(30), dp(30), dp(30), dp(30)); visibility = View.GONE }
         body.addView(emptyState, FrameLayout.LayoutParams(-1, -1)); chatRoot.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
         val composer = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM; setPadding(dp(8), dp(7), dp(8), dp(7)); setBackgroundColor(Color.WHITE); elevation = dp(3).toFloat() }
@@ -143,42 +157,46 @@ class PrivateChatActivity : BaseChromeActivity() {
     private fun loadConversation() {
         DirectMessageClient.fetchConversation(AppState.username, buddy, 0) { messages ->
             if (messages == null) { emptyState.text = "Unable to load conversation.\nCheck your connection and try again."; emptyState.visibility = View.VISIBLE; return@fetchConversation }
-            messagesContainer.removeAllViews(); renderedIds.clear(); lastId = 0L
+            renderedIds.clear(); lastId = 0L
             messages.forEach { if (it.id > 0) renderedIds.add(it.id); lastId = maxOf(lastId, it.id) }
             oldestId = messages.firstOrNull { it.id > 0 }?.id ?: 0L; hasMoreHistory = messages.size >= 100
             emptyState.visibility = if (messages.isEmpty()) View.VISIBLE else View.GONE
-            messages.forEach { appendMessage(it, false) }
-            scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }; markReadAndRefreshNotification()
+            messageAdapter.setItems(messages)
+            messageList.post { scrollToBottom() }; markReadAndRefreshNotification()
         }
     }
 
     private fun loadOlderHistory() {
         if (historyLoading || !hasMoreHistory || oldestId <= 0L || isFinishing) return
         historyLoading = true
-        val oldHeight = messagesContainer.height; val oldY = scroll.scrollY
+        val oldFirst = layoutManager.findFirstVisibleItemPosition()
+        val oldTop = layoutManager.findViewByPosition(oldFirst)?.top ?: 0
         DirectMessageClient.fetchConversationBefore(AppState.username, buddy, oldestId, 50) { older ->
             historyLoading = false
             if (isFinishing || older == null) return@fetchConversationBefore
             val unique = older.filter { it.id > 0 && renderedIds.add(it.id) }
             if (unique.isEmpty()) { hasMoreHistory = false; return@fetchConversationBefore }
-            unique.asReversed().forEach { appendMessage(it, false, true) }
+            val current = messageAdapter.itemsSnapshot()
+            messageAdapter.setItems(unique + current)
             oldestId = unique.first().id
             if (unique.size < 50) hasMoreHistory = false
-            scroll.post { scroll.scrollTo(0, (oldY + messagesContainer.height - oldHeight).coerceAtLeast(0)) }
+            messageList.post { layoutManager.scrollToPositionWithOffset(oldFirst + unique.size, oldTop) }
         }
     }
 
     private fun appendMessage(message: DirectMessage, scrollToBottom: Boolean, atTop: Boolean = false): View {
         emptyState.visibility = View.GONE
-        val mine = message.sender.equals(AppState.username, true)
-        val row = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = if (mine) Gravity.END else Gravity.START; setPadding(dp(4), dp(2), dp(4), dp(2)) }
-        val bubble = TextView(this).apply { text = message.body; textSize = 15f; setTextColor(if (mine) Color.WHITE else Color.rgb(35, 37, 41)); setPadding(dp(13), dp(9), dp(13), dp(6)); maxWidth = (resources.displayMetrics.widthPixels * 0.78f).toInt(); background = GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(if (mine) Color.rgb(47, 116, 78) else Color.WHITE); if (!mine) setStroke(dp(1), Color.rgb(229, 231, 235)) } }
-        row.addView(bubble, LinearLayout.LayoutParams(-2, -2))
-        val time = if (message.createdAt.isNotBlank()) message.createdAt else SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
-        row.addView(TextView(this).apply { text = if (mine) "$time  ✓" else time; textSize = 10f; setTextColor(Color.rgb(125, 130, 138)); setPadding(dp(5), dp(2), dp(5), 0) })
-        if (atTop) messagesContainer.addView(row, 0) else messagesContainer.addView(row, LinearLayout.LayoutParams(-1, -2))
-        if (scrollToBottom) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
-        return row
+        val current = messageAdapter.itemsSnapshot().toMutableList()
+        if (message.id > 0 && current.any { it.id == message.id }) return messageList
+        if (atTop) current.add(0, message) else current.add(message)
+        messageAdapter.setItems(current)
+        if (scrollToBottom) messageList.post { scrollToBottom() }
+        return messageList
+    }
+
+    private fun scrollToBottom() {
+        val last = messageAdapter.itemCount - 1
+        if (last >= 0) layoutManager.scrollToPosition(last)
     }
 
     private fun sendCurrentMessage() {
