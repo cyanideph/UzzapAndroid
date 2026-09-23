@@ -7,6 +7,7 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.model.DirectMessage
@@ -23,9 +24,19 @@ class DirectMessageAdapter(private val context: Context) : RecyclerView.Adapter<
     fun setItems(messages: List<DirectMessage>) {
         val unique = LinkedHashMap<Long, DirectMessage>()
         messages.forEach { message -> if (message.id > 0) unique[message.id] = message }
+        val next = unique.values.sortedBy { it.id }
+        val old = items.toList()
+        val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+            override fun getOldListSize() = old.size
+            override fun getNewListSize() = next.size
+            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int) =
+                old[oldItemPosition].id == next[newItemPosition].id
+            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int) =
+                old[oldItemPosition] == next[newItemPosition]
+        })
         items.clear()
-        items.addAll(unique.values.sortedBy { it.id })
-        notifyDataSetChanged()
+        items.addAll(next)
+        diff.dispatchUpdatesTo(this)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageHolder {
