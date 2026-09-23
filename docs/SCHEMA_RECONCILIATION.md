@@ -6,7 +6,7 @@
 
 ## Executive result
 
-The checked-in `supabase_schema.sql` is **not a complete standalone production-schema backup**.
+The checked-in `supabase_schema.sql` is **not a complete standalone production-schema backup**. The repository also does not contain the complete migration history that is recorded by the live Supabase project.
 
 The verified live database contains **49 public base tables + 1 public view**, while `supabase_schema.sql` is a much smaller base-schema snapshot. Production additions are represented by incremental migrations and/or backend changes rather than being fully reproduced in the single snapshot.
 
@@ -31,6 +31,30 @@ At the September 2026 inspection:
 | Indexes | 122 |
 
 The live schema also contained 3,333 UzzapBot questions and 37,479 WordHunt entries.
+
+## Migration-history reconciliation
+
+The live Supabase project reports **131 applied migrations** through `20260923060732` (`harden_delete_my_account`). The repository currently contains **25 migration files** under `supabase/migrations/`.
+
+This is not a one-to-one filename comparison: some repository migrations are consolidated/renamed versions of earlier live migrations. Therefore the difference of 106 files must **not** be interpreted as exactly 106 missing migrations. However, the audit confirms a material source-control gap.
+
+Most importantly, the live project reports **57 migrations whose names contain `uzzapbot`**, including the event-receipt/dispatch, question-bank, memory, monitoring, configuration, AI-gating and game-persistence work. There are no corresponding UzzapBot migration files in the repository's current `supabase/migrations/` directory.
+
+The repository does contain a `20260918_baseline_live_schema.sql`, but its 1,479 lines define only 15 core tables; it does not reproduce the complete live UzzapBot schema. It therefore cannot serve as the missing UzzapBot migration history.
+
+### Result
+
+| Layer | Verified state |
+|---|---|
+| Live migration history | 131 applied migrations |
+| Repository migration files | 25 files |
+| Live UzzapBot-named migrations | 57 |
+| Repository UzzapBot migration files | 0 |
+| `supabase_schema.sql` | Foundational/base schema, 483 lines |
+| `20260918_baseline_live_schema.sql` | Core 15-table baseline, 1,479 lines |
+| Live production schema | 49 tables + 1 view |
+
+This means the repository is **not currently a reproducible source-of-truth for the full production database migration path**.
 
 ## Base SQL status
 
