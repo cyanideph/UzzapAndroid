@@ -122,7 +122,13 @@ object SupabaseRealtimeClient {
         connecting = true
         ws = http.newWebSocket(Request.Builder().url(u).build(), object : WebSocketListener() {
             override fun onOpen(s: WebSocket, r: Response) {
-                ws = s
+                // refreshAuth() can replace a socket before the old socket finishes
+                // closing. Never let a stale callback take ownership of the new
+                // connection or tear it down.
+                if (ws !== s || !shouldConnect) {
+                    s.close(1000, "Stale socket")
+                    return
+                }
                 connecting = false
                 connected = true
                 notifyConnection(true)
@@ -130,10 +136,21 @@ object SupabaseRealtimeClient {
                 joinRealtimeTables(s)
             }
 
-            override fun onMessage(s: WebSocket, text: String) { handle(text) }
-            override fun onClosed(s: WebSocket, c: Int, r: String) = disconnect()
-            override fun onFailure(s: WebSocket, t: Throwable, r: Response?) = disconnect()
-            override fun onClosing(s: WebSocket, c: Int, r: String) { s.close(1000, null) }
+            override fun onMessage(s: WebSocket, text: String) {
+                if (ws === s && connected) handle(text)
+            }
+
+            override fun onClosed(s: WebSocket, c: Int, r: String) {
+                if (ws === s) disconnect(s)
+            }
+
+            override fun onFailure(s: WebSocket, t: Throwable, r: Response?) {
+                if (ws === s) disconnect(s)
+            }
+
+            override fun onClosing(s: WebSocket, c: Int, r: String) {
+                if (ws === s) s.close(1000, null) else s.close(1000, "Stale socket")
+            }
         })
     }
 
@@ -270,7 +287,9 @@ object SupabaseRealtimeClient {
         }.onFailure { e -> Log.w(TAG, "Realtime parse error", e) }
     }
 
-    private fun disconnect() {
+    private fun disconnect(socket: WebSocket) {
+        if (ws !== socket) return
+        ws = null
         connected = false
         connecting = false
         main.removeCallbacks(heartbeat)
