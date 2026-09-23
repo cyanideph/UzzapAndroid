@@ -20,42 +20,99 @@ data class UnreadPrivateMessage(
 )
 
 object PrivateMessageStateClient {
+    private const val UNREAD_CACHE_MAX_AGE_MS = 5_000L
+
     private val main = Handler(Looper.getMainLooper())
     private val http = OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).writeTimeout(12, TimeUnit.SECONDS).build()
     private val url = BuildConfig.SUPABASE_URL.trimEnd('/')
     private val key = BuildConfig.SUPABASE_ANON_KEY
     private val json = "application/json; charset=utf-8".toMediaType()
+
+    @Volatile private var cachedUserId: String? = null
+    @Volatile private var cachedUnread: UnreadPrivateMessage? = null
+    @Volatile private var cachedAtMs = 0L
+    private val unreadLock = Any()
+    private val pendingUnreadCallbacks = mutableListOf<(UnreadPrivateMessage?) -> Unit>()
+    private var unreadRequestInFlight = false
+
     private fun req(path: String) = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", SupabaseClient.authHeader()).header("Content-Type", "application/json")
     private fun currentUserId(): String? = SupabaseClient.userAccessToken?.let { token -> runCatching { val p = token.split('.').getOrNull(1) ?: return@runCatching null; val bytes = Base64.decode(p, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING); JSONObject(String(bytes, StandardCharsets.UTF_8)).optString("sub").ifBlank { null } }.getOrNull() }
 
     fun fetchUnread(username: String, onResult: (UnreadPrivateMessage?) -> Unit) {
         val me = currentUserId()
-        if (me.isNullOrBlank()) { main.post { onResult(null) }; return }
+        if (me.isNullOrBlank()) {
+            main.post { onResult(null) }
+            return
+        }
+
+        synchronized(unreadLock) {
+            if (cachedUserId == me && cachedUnread != null && System.currentTimeMillis() - cachedAtMs < UNREAD_CACHE_MAX_AGE_MS) {
+                val result = cachedUnread
+                main.post { onResult(result) }
+                return
+            }
+
+            pendingUnreadCallbacks += onResult
+            if (unreadRequestInFlight) return
+            unreadRequestInFlight = true
+        }
+
         val path = "/rest/v1/direct_messages?recipient_id=eq.$me&is_read=is.false&select=id,sender&order=id.asc&limit=500"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { main.post { onResult(null) } }
-            override fun onResponse(call: Call, response: Response) { response.use {
-                if (!it.isSuccessful) { main.post { onResult(null) }; return }
-                runCatching {
-                    val array = JSONArray(it.body?.string().orEmpty())
-                    val senders = mutableListOf<String>()
-                    val counts = mutableMapOf<String, Int>()
-                    val ids = mutableListOf<Long>()
-                    for (i in 0 until array.length()) {
-                        val item = array.getJSONObject(i)
-                        val sender = item.optString("sender").trim()
-                        val id = item.optLong("id", -1L)
-                        if (sender.isNotBlank()) {
-                            senders += sender
-                            val key = sender.lowercase()
-                            counts[key] = (counts[key] ?: 0) + 1
-                        }
-                        if (id > 0) ids += id
+            override fun onFailure(call: Call, e: IOException) {
+                completeUnreadRequest(me, null)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    if (!it.isSuccessful) {
+                        completeUnreadRequest(me, null)
+                        return
                     }
-                    UnreadPrivateMessage(senders.size, senders.distinct(), counts, ids)
-                }.onSuccess { result -> main.post { onResult(result) } }.onFailure { main.post { onResult(null) } }
-            } }
+                    val result = runCatching {
+                        val array = JSONArray(it.body?.string().orEmpty())
+                        val senders = mutableListOf<String>()
+                        val counts = mutableMapOf<String, Int>()
+                        val ids = mutableListOf<Long>()
+                        for (i in 0 until array.length()) {
+                            val item = array.getJSONObject(i)
+                            val sender = item.optString("sender").trim()
+                            val id = item.optLong("id", -1L)
+                            if (sender.isNotBlank()) {
+                                senders += sender
+                                val senderKey = sender.lowercase()
+                                counts[senderKey] = (counts[senderKey] ?: 0) + 1
+                            }
+                            if (id > 0) ids += id
+                        }
+                        UnreadPrivateMessage(senders.size, senders.distinct(), counts, ids)
+                    }.getOrNull()
+                    completeUnreadRequest(me, result)
+                }
+            }
         })
+    }
+
+    private fun completeUnreadRequest(userId: String, result: UnreadPrivateMessage?) {
+        val callbacks: List<(UnreadPrivateMessage?) -> Unit>
+        synchronized(unreadLock) {
+            if (result != null) {
+                cachedUserId = userId
+                cachedUnread = result
+                cachedAtMs = System.currentTimeMillis()
+            }
+            callbacks = pendingUnreadCallbacks.toList()
+            pendingUnreadCallbacks.clear()
+            unreadRequestInFlight = false
+        }
+        callbacks.forEach { callback -> main.post { callback(result) } }
+    }
+
+    private fun invalidateUnreadCache() {
+        synchronized(unreadLock) {
+            cachedUnread = null
+            cachedAtMs = 0L
+        }
     }
 
     fun markConversationRead(username: String, buddy: String, onResult: ((Boolean) -> Unit)? = null) {
@@ -73,7 +130,10 @@ object PrivateMessageStateClient {
                 val body = JSONObject().put("is_read", true)
                 http.newCall(req(path).header("Prefer", "return=minimal").patch(body.toString().toRequestBody(json)).build()).enqueue(object : Callback {
                     override fun onFailure(call: Call, e: IOException) { main.post { onResult?.invoke(false) } }
-                    override fun onResponse(call: Call, response: Response) { response.use { main.post { onResult?.invoke(it.isSuccessful) } } }
+                    override fun onResponse(call: Call, response: Response) { response.use {
+                        if (it.isSuccessful) invalidateUnreadCache()
+                        main.post { onResult?.invoke(it.isSuccessful) }
+                    } }
                 })
             } }
         })
