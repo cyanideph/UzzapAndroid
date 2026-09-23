@@ -2,6 +2,19 @@
 
 This document describes the high-level architecture of the Uzzap Android application, including the Android UI, messaging layer, social features, moderation, Supabase backend, realtime communication, and Firebase push notifications.
 
+## Uzzap architecture color system
+
+The diagram uses the same visual language as `docs/DATABASE.md`:
+
+| Color | Area |
+|---|---|
+| 🟦 Blue | Android user experience |
+| 🟨 Yellow | Rooms and messaging |
+| 🟩 Green | Buddies and private chat |
+| 🟥 Red | Safety and moderation |
+| 🟪 Indigo | Backend, auth and notifications |
+| 🟦 Teal | Realtime/app-state support |
+
 ## Architecture Diagram
 
 ```mermaid
@@ -85,19 +98,19 @@ node_fcm -->|"delivers events"| node_push_receiver
 node_push_receiver -->|"dispatches notifications"| node_notification
 node_notification -->|"opens private chat"| node_private_ui
 
-classDef toneNeutral fill:#f8fafc,stroke:#334155,stroke-width:1.5px,color:#0f172a
-classDef toneBlue fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#172554
-classDef toneAmber fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
-classDef toneMint fill:#dcfce7,stroke:#16a34a,stroke-width:1.5px,color:#14532d
-classDef toneRose fill:#ffe4e6,stroke:#e11d48,stroke-width:1.5px,color:#881337
-classDef toneIndigo fill:#e0e7ff,stroke:#4f46e5,stroke-width:1.5px,color:#312e81
-classDef toneTeal fill:#ccfbf1,stroke:#0f766e,stroke-width:1.5px,color:#134e4a
+classDef ui fill:#E3F2FD,stroke:#1976D2,stroke-width:2px,color:#0D2A45
+classDef messaging fill:#FFF8E1,stroke:#F9A825,stroke-width:2px,color:#4A3700
+classDef social fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#173A1A
+classDef safety fill:#FFEBEE,stroke:#C62828,stroke-width:2px,color:#4A1515
+classDef platform fill:#E8EAF6,stroke:#3949AB,stroke-width:2px,color:#1A237E
+classDef support fill:#E0F2F1,stroke:#00897B,stroke-width:2px,color:#063D38
 
-class node_rooms_ui,node_room_ui,node_private_ui,node_buddies_ui,node_moderator_ui,node_user toneBlue
-class node_room_data,node_realtime,node_message_data,node_emoticons,node_colors toneAmber
-class node_dm_data,node_buddy_data,node_receipts,node_invitations toneMint
-class node_safety_data,node_moderation,node_audit toneRose
-class node_auth,node_backend,node_push_service,node_fcm,node_push_receiver,node_notification,node_state toneIndigo
+class node_rooms_ui,node_room_ui,node_private_ui,node_buddies_ui,node_moderator_ui,node_user ui
+class node_room_data,node_message_data,node_emoticons,node_colors messaging
+class node_dm_data,node_buddy_data,node_receipts,node_invitations social
+class node_safety_data,node_moderation,node_audit safety
+class node_auth,node_backend,node_push_service,node_fcm,node_push_receiver,node_notification platform
+class node_realtime,node_state support
 ```
 
 ## Main Components
