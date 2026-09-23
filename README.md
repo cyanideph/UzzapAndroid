@@ -46,6 +46,8 @@ The project preserves the recognizable Uzzap community-room experience while reb
 ## 📚 Documentation
 
 - **[Architecture](docs/ARCHITECTURE.md)** — Android components, backend boundaries, notification flow and source mapping
+- **[Backend](docs/BACKEND.md)** — Supabase, Auth, RLS, Realtime, Edge Functions and notifications
+- **[UzzapBot](docs/UZAPBOT.md)** — production bot dispatch, AI routing, games, memory and reliability
 - **[Supabase schema](supabase_schema.sql)** — base database schema
 - **[Database migrations](supabase/migrations/)** — incremental backend changes
 - **[Third-party notices](NOTICE.md)** — original and third-party material notices
