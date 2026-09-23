@@ -12,6 +12,7 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.content.Intent
+import android.net.Uri
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -228,14 +229,18 @@ class LegacySettingsActivity : BaseChromeActivity() {
 
         SupabaseClient.deleteAccount { success ->
             progress.dismiss()
-            Toast.makeText(this, if (success) "Account deleted successfully." else "Local account session cleared.", Toast.LENGTH_SHORT).show()
-            AppState.resetSession()
-            SessionStore.clear()
-            val intent = Intent(this, SplashMenuActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            if (success) {
+                Toast.makeText(this, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
+                AppState.resetSession()
+                SessionStore.clear()
+                val intent = Intent(this, SplashMenuActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+                startActivity(intent)
+                finish()
+            } else {
+                Toast.makeText(this, "Account deletion failed. Your account was not deleted.", Toast.LENGTH_LONG).show()
             }
-            startActivity(intent)
-            finish()
         }
     }
 
@@ -343,7 +348,41 @@ class LegacySettingsActivity : BaseChromeActivity() {
         { finish() }
     ), listOf("Open the private messaging list", "Return to Settings"))
 
-    private fun privacyScreen() = toggleScreen("Privacy", listOf("Allow buddy invitations", "Allow room invitations", "Show my online presence"), "privacy")
+    private fun privacyScreen() {
+        rows(
+            "Privacy",
+            listOf("Privacy Policy", "Request Account Deletion", "Allow buddy invitations", "Allow room invitations", "Show my online presence"),
+            listOf(
+                { openWebPage("https://hrjgblvxhtbopuyzyasu.supabase.co/functions/v1/uzzap-privacy") },
+                { openWebPage("https://hrjgblvxhtbopuyzyasu.supabase.co/functions/v1/uzzap-privacy?delete=1") },
+                { togglePrivacyPreference("privacy_allow_buddy_invitations", "Allow buddy invitations") },
+                { togglePrivacyPreference("privacy_allow_room_invitations", "Allow room invitations") },
+                { togglePrivacyPreference("privacy_show_presence", "Show my online presence") }
+            ),
+            listOf(
+                "How Uzzap collects, uses and deletes data",
+                "Delete your account even if the app is unavailable",
+                "Allow other users to send buddy invitations",
+                "Allow room invitations",
+                "Control your online presence"
+            )
+        )
+    }
+
+    private fun togglePrivacyPreference(key: String, label: String) {
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val next = !prefs.getBoolean(key, true)
+        prefs.edit().putBoolean(key, next).apply()
+        toast("$label: ${if (next) "ON" else "OFF"}")
+    }
+
+    private fun openWebPage(url: String) {
+        runCatching {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }.onFailure {
+            toast("Unable to open web page")
+        }
+    }
 
     private fun subscriptionScreen() {
         prepareScreen("Subscription", null, "Back", onLeft = null, onRight = { finish() })
