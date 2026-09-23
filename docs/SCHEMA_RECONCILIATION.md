@@ -190,3 +190,30 @@ This is a schema-source gap, not a request to recreate tables blindly. Existing 
 No destructive migration was applied.
 
 The correct reconstruction target is a **new, versioned production schema snapshot/migration artifact**, generated from the verified live schema and reconciled against the 131 live migration records. It should be reviewed before becoming the repository's canonical restore path.
+
+
+## Live schema snapshot manifest
+
+A fresh read-only inspection of the production public schema returned:
+
+| Object class | Count |
+|---|---:|
+| Base tables | 49 |
+| Views | 1 |
+| Public routines | 81 |
+| RLS policies | 54 |
+| Non-internal triggers | 18 |
+| Indexes | 122 |
+
+The single public view is `public.uzzapbot_performance_24h`. It derives its metrics from `uzzapbot_event_receipts` and is therefore part of the UzzapBot operational schema.
+
+### Why this is a manifest, not a dump
+
+The available database connector can inspect and safely query the live schema, but it does not expose a direct production `pg_dump --schema-only` artifact through this workflow. Consequently, this audit does **not** fabricate DDL from partial metadata.
+
+For a true restore artifact, generate a schema-only dump using an authorized Supabase/Postgres database connection, review it, and commit the resulting SQL separately. The generated dump should be treated as sensitive infrastructure documentation and checked for secrets before publication.
+
+### Current decision
+
+The live schema has now been independently re-verified after the migration-history audit. No production DDL was changed during this reconciliation.
+
