@@ -108,8 +108,8 @@ object PrivateMessageStateClient {
             if (requestGeneration != unreadGeneration) {
                 // A read operation invalidated this request while it was in flight.
                 // Do not publish or cache stale unread state; immediately re-query.
-                unreadRequestInFlight = false
                 restart = pendingUnreadCallbacks.isNotEmpty()
+                unreadRequestInFlight = restart
                 callbacks = emptyList()
             } else {
                 if (result != null) {
@@ -123,7 +123,6 @@ object PrivateMessageStateClient {
             }
         }
         if (restart) {
-            synchronized(unreadLock) { unreadRequestInFlight = true }
             startUnreadRequest(userId)
             return
         }
