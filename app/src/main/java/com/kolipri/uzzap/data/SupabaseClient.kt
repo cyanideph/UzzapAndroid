@@ -206,11 +206,31 @@ object SupabaseClient {
         val json = JSONObject().apply { put("room_name", roomName); put("sender", sender); put("body", body.trim()); put("is_system", isSystem) }
         httpClient.newCall(request("/rest/v1/room_messages", true).header("Prefer", "return=representation").post(json.toString().toRequestBody(jsonMediaType)).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { Log.w(TAG, "sendMessage failed: ${errorText(it, "HTTP ${it.code}")}"); mainHandler.post { onResult(null) }; return }; try { val o = JSONArray(it.body?.string().orEmpty()).optJSONObject(0); mainHandler.post { onResult(o?.let { x -> ChatMessage(x.optString("sender"), x.optString("body"), x.optBoolean("is_system"), x.optLong("id"), x.optString("created_at")) } ?: ChatMessage(sender, body.trim())) } } catch (_: Exception) { mainHandler.post { onResult(ChatMessage(sender, body.trim())) } } } } })
     }
-    fun fetchOnlineCount(onResult: (Int) -> Unit) { val req = request("/rest/v1/profiles?is_online=eq.true&select=username").get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(-1) } }; override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { mainHandler.post { onResult(-1) }; return }; try { val body = it.body?.string().orEmpty(); val count = JSONArray(body).length(); mainHandler.post { onResult(count) } } catch (e: Exception) { mainHandler.post { onResult(-1) } } } } }) }
+    /** Uses a server-side aggregate instead of downloading every online profile. */
+    fun fetchOnlineCount(onResult: (Int) -> Unit) {
+        val req = request("/rest/v1/rpc/get_online_user_count", true)
+            .post(JSONObject().toString().toRequestBody(jsonMediaType))
+            .build()
+        httpClient.newCall(req).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(-1) } }
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    if (!it.isSuccessful) { mainHandler.post { onResult(-1) }; return }
+                    val count = runCatching {
+                        JSONArray(it.body?.string().orEmpty()).optJSONObject(0)?.optLong("user_count", -1L)?.toInt() ?: -1
+                    }.getOrDefault(-1)
+                    mainHandler.post { onResult(count) }
+                }
+            }
+        })
+    }
 
     fun fetchParticipants(roomName: String, onResult: (List<String>?) -> Unit) { val room = URLEncoder.encode(roomName, "UTF-8"); val req = request("/rest/v1/room_participants?room_name=eq.$room&select=username&order=username.asc").get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { mainHandler.post { onResult(null) }; return }; try { val arr = JSONArray(it.body?.string().orEmpty()); mainHandler.post { onResult(List(arr.length()) { i -> arr.getJSONObject(i).optString("username") }) } } catch (_: Exception) { mainHandler.post { onResult(null) } } } } }) }
+    /** Uses a server-side aggregate instead of downloading every participant row. */
     fun fetchLiveRoomCounts(onResult: (Map<String, Int>?) -> Unit) {
-        val req = request("/rest/v1/room_participants?select=room_name,username").get().build()
+        val req = request("/rest/v1/rpc/get_live_room_counts", true)
+            .post(JSONObject().toString().toRequestBody(jsonMediaType))
+            .build()
         httpClient.newCall(req).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.w(TAG, "fetchLiveRoomCounts failed", e)
@@ -218,27 +238,18 @@ object SupabaseClient {
             }
             override fun onResponse(call: Call, response: Response) {
                 response.use {
-                    if (!it.isSuccessful) {
-                        mainHandler.post { onResult(null) }
-                        return
-                    }
-                    try {
+                    if (!it.isSuccessful) { mainHandler.post { onResult(null) }; return }
+                    val counts = runCatching {
                         val arr = JSONArray(it.body?.string().orEmpty())
-                        val counts = mutableMapOf<String, MutableSet<String>>()
-                        for (i in 0 until arr.length()) {
-                            val o = arr.getJSONObject(i)
-                            val room = o.optString("room_name").trim()
-                            val user = o.optString("username").trim()
-                            if (room.isNotEmpty() && user.isNotEmpty()) {
-                                counts.getOrPut(room) { mutableSetOf() }.add(user)
+                        buildMap<String, Int> {
+                            for (i in 0 until arr.length()) {
+                                val row = arr.optJSONObject(i) ?: continue
+                                val room = row.optString("room_name").trim()
+                                if (room.isNotBlank()) put(room, row.optLong("user_count", 0L).toInt())
                             }
                         }
-                        val map = counts.mapValues { entry -> entry.value.size }
-                        mainHandler.post { onResult(map) }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "fetchLiveRoomCounts parse failed", e)
-                        mainHandler.post { onResult(null) }
-                    }
+                    }.getOrDefault(emptyMap())
+                    mainHandler.post { onResult(counts) }
                 }
             }
         })
@@ -302,7 +313,7 @@ object SupabaseClient {
         }
     }
     fun leaveRoom(roomName: String, username: String) { if (!authenticated()) return; val room = URLEncoder.encode(roomName, "UTF-8"); val uid = extractUserId()?.let { URLEncoder.encode(it, "UTF-8") } ?: return; httpClient.newCall(request("/rest/v1/room_participants?room_name=eq.$room&owner_id=eq.$uid", true).delete().build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) = Unit; override fun onResponse(call: Call, response: Response) { response.close() } }) }
-    fun fetchBuddies(userHandle: String, onResult: (Map<String, List<String>>?) -> Unit) { if (!authenticated()) { mainHandler.post { onResult(null) }; return }; val req = request("/rest/v1/buddies?select=buddy_handle,group_name&order=buddy_handle.asc", true).get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "fetchBuddies network failure", e); mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { val body = it.body?.string().orEmpty(); if (!it.isSuccessful) { Log.w(TAG, "fetchBuddies HTTP ${it.code}: $body"); mainHandler.post { onResult(null) }; return }; try { val arr = JSONArray(body); val grouped = mutableMapOf<String, MutableList<String>>(); for (i in 0 until arr.length()) { val o = arr.getJSONObject(i); val buddy = o.optString("buddy_handle").trim(); if (buddy.isNotEmpty()) grouped.getOrPut(o.optString("group_name").ifBlank { "My Friends" }) { mutableListOf() }.add(buddy) }; Log.d(TAG, "fetchBuddies: ${arr.length()} rows for $userHandle"); mainHandler.post { onResult(grouped) } } catch (e: Exception) { Log.e(TAG, "fetchBuddies parse failed", e); mainHandler.post { onResult(null) } } } } }) }
+    fun fetchBuddies(userHandle: String, onResult: (Map<String, List<String>>?) -> Unit) { if (!authenticated()) { mainHandler.post { onResult(null) }; return }; val normalizedUser = userHandle.trim().lowercase().replace(" ", "_"); val encodedUser = URLEncoder.encode(normalizedUser, "UTF-8"); val req = request("/rest/v1/buddies?user_handle=eq.$encodedUser&select=buddy_handle,group_name&order=buddy_handle.asc", true).get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "fetchBuddies network failure", e); mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { val body = it.body?.string().orEmpty(); if (!it.isSuccessful) { Log.w(TAG, "fetchBuddies HTTP ${it.code}: $body"); mainHandler.post { onResult(null) }; return }; try { val arr = JSONArray(body); val grouped = mutableMapOf<String, MutableList<String>>(); for (i in 0 until arr.length()) { val o = arr.getJSONObject(i); val buddy = o.optString("buddy_handle").trim(); if (buddy.isNotEmpty()) grouped.getOrPut(o.optString("group_name").ifBlank { "My Friends" }) { mutableListOf() }.add(buddy) }; Log.d(TAG, "fetchBuddies: ${arr.length()} rows for $userHandle"); mainHandler.post { onResult(grouped) } } catch (e: Exception) { Log.e(TAG, "fetchBuddies parse failed", e); mainHandler.post { onResult(null) } } } } }) }
     fun addBuddy(userHandle: String, buddyHandle: String, groupName: String, onResult: (Boolean) -> Unit) { if (!authenticated()) { mainHandler.post { onResult(false) }; return }; val json = JSONObject().put("user_handle", userHandle).put("buddy_handle", buddyHandle).put("group_name", groupName); httpClient.newCall(request("/rest/v1/buddies?on_conflict=user_handle,buddy_handle", true).header("Prefer", "resolution=merge-duplicates").post(json.toString().toRequestBody(jsonMediaType)).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(false) } }; override fun onResponse(call: Call, response: Response) { response.use { mainHandler.post { onResult(it.isSuccessful) } } } }) }
     fun deleteBuddy(userHandle: String, buddyHandle: String, onResult: (Boolean) -> Unit) {
         if (!authenticated()) { mainHandler.post { onResult(false) }; return }
