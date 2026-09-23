@@ -6,7 +6,7 @@
 
 ## Scope
 
-- **Public base tables:** 48
+- **Public base tables:** 49
 - **Public views:** 1
 - **Public RLS:** enabled on every listed base table
 - **Foreign-key relationships:** 16 between public tables, plus relationships from public tables to Supabase Auth `auth.users`
@@ -583,14 +583,14 @@ The live public schema also contains:
 
 | Area | Tables |
 |---|---|
-| Core Uzzap | 19 |
-| UzzapBot operations/AI | 17 |
+| Core Uzzap | 18 |
+| UzzapBot operations/AI | 18 |
 | UzzapBot progression/competitive | 11 |
 | WordHunt | 2 |
 | **Total base tables** | **49** |
 | Views | 1 |
 
-> The inventory count above is based on the live Supabase metadata. The ER diagrams intentionally group related tables for readability.
+> The inventory count above is based on the live Supabase metadata. The ER diagrams intentionally group related tables for readability. Live public-object counts at inspection time: **81 functions, 54 RLS policies, 18 non-internal triggers, and 122 indexes**.
 
 ## 7. Important schema observations
 
@@ -605,7 +605,7 @@ The live public schema also contains:
 
 ## 8. What this document does not replace
 
-This is the **live database ER architecture**, not a replacement for the complete executable SQL schema dump.
+This is the **live database ER architecture**, not a replacement for the complete executable SQL schema dump. The live public schema currently has **49 base tables + 1 view**; the older repository baseline description should therefore be treated as stale.
 
 For a truly reproducible database baseline, the repository should also retain/generated:
 
