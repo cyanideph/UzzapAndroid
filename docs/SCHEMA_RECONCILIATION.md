@@ -374,3 +374,19 @@ A read-only PostgreSQL catalog query using `pg_get_constraintdef()` confirmed th
 The production FK definitions also preserve explicit delete behavior, including CASCADE, SET NULL, and default NO ACTION depending on the relationship. Therefore a future restore artifact must capture the **definition**, not merely the existence of each FK.
 
 The catalog currently reports **55 foreign keys** and **10 unique constraints**. The complete catalog result was used for verification; this document intentionally records the key recovery characteristics rather than copying a large raw catalog dump.
+
+
+## Exact index-definition audit
+
+Production was rechecked through `pg_indexes`. The public schema contains **122 indexes**. Their catalog definitions were captured for reconciliation rather than reconstructed manually.
+
+Notable characteristics:
+
+- **4 partial indexes** with `WHERE` predicates.
+- **8 expression indexes**, including case-normalized `lower(...)` indexes used by username/handle/request lookup paths.
+- Primary/unique constraint indexes are included in the 122 total.
+- UzzapBot has indexes covering event-receipt status, question status/category, memory by user/room, player activity, WordHunt normalization, XP history, tournaments/challenges, and related game state.
+
+A significant production detail was detected on `profiles`: both `profiles_owner_id_uidx` and `profiles_owner_id_unique` are present and are equivalent-looking partial unique indexes on `owner_id WHERE owner_id IS NOT NULL`. They are retained in the audit as distinct production objects; they should not be silently deduplicated during schema recovery.
+
+No index DDL was applied to production.
