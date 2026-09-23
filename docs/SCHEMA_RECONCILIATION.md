@@ -413,3 +413,29 @@ The live trigger inventory contains an unexpected trigger named `uzzapbot-ai-roo
 Because trigger definitions can contain external URLs, headers, and operational logic, the next recovery artifact must capture exact trigger definitions and compare them with repository migrations before any cleanup is attempted.
 
 No RLS policy or trigger was modified by this audit.
+
+
+## Function/routine audit
+
+Production currently contains **81 public functions**: **64 SECURITY DEFINER** and **17 invoker-security** functions. The SECURITY DEFINER functions are generally owned by `postgres`; many explicitly pin `search_path` to `public` or empty, which reduces search-path hijacking risk.
+
+The UzzapBot operational layer includes separate routines for dispatch, event/receipt claiming and completion, cursor handling, AI admission/rate control, memory, game persistence, WordHunt selection, question validation/usage, control-center monitoring, and admin controls. The challenge-message handler is explicitly retired and raises an exception directing callers to the live Edge Function dispatch path.
+
+### Execute-privilege findings
+
+The routine privilege catalog was also checked. Most UzzapBot mutation/dispatch routines are restricted to `service_role`, while selected control-center routines are callable by authenticated users and perform their own admin checks.
+
+The following public/anonymous execution grants deserve source-level review because they expose SECURITY DEFINER or privileged-adjacent routines through the API surface:
+
+- `uzzapbot_get_memory(uuid,text)` is executable by `anon` and `authenticated` and is SECURITY DEFINER. Its function body filters by the supplied `p_user_id`; it does not itself require that the supplied user ID equals `auth.uid()`. This should be reconciled with the intended privacy model before any grant is changed.
+- `uzzapbot_upsert_memory(...)` is executable by `anon` and `authenticated` and is SECURITY DEFINER. Its body writes using the supplied `p_user_id` and does not itself establish ownership. The current table RLS policies are not a substitute when a SECURITY DEFINER function performs the write. This is a **high-priority security review item**.
+- `can_moderate_target(uuid)`, `is_admin()`, `is_moderator()`, and `is_moderator_or_admin()` are callable publicly/through authenticated API roles, but their bodies primarily return authorization state or target eligibility; they should still be retained only where the client needs those checks.
+- Other legacy moderation/report helpers have API execute grants for `anon`/authenticated. Their internal authorization checks should be compared against the current moderation RPC design before public exposure is retained.
+
+This audit does **not** revoke grants automatically. Changing EXECUTE privileges can break the Android client or existing RPC workflows, so the next step should be a targeted dependency check of the flagged functions and repository call sites.
+
+### Important security principle
+
+For SECURITY DEFINER functions, table RLS does not automatically protect callers from what the function itself can read/write. Each such function must enforce its own authorization boundary or be restricted to a trusted role. This is particularly important for UzzapBot memory and administrative routines.
+
+No function definitions or EXECUTE grants were modified by this audit.
