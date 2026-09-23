@@ -50,6 +50,7 @@ The project preserves the recognizable Uzzap community-room experience while reb
 - **[UzzapBot](docs/UZAPBOT.md)** — production bot dispatch, AI routing, games, memory and reliability
 - **[Supabase schema](supabase_schema.sql)** — base database schema
 - **[Database migrations](supabase/migrations/)** — incremental backend changes
+- **[Schema reconciliation](docs/SCHEMA_RECONCILIATION.md)** — checked-in schema vs. verified production baseline
 - **[Third-party notices](NOTICE.md)** — original and third-party material notices
 
 ---
