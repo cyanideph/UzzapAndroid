@@ -390,3 +390,26 @@ Notable characteristics:
 A significant production detail was detected on `profiles`: both `profiles_owner_id_uidx` and `profiles_owner_id_unique` are present and are equivalent-looking partial unique indexes on `owner_id WHERE owner_id IS NOT NULL`. They are retained in the audit as distinct production objects; they should not be silently deduplicated during schema recovery.
 
 No index DDL was applied to production.
+
+
+## RLS and trigger-definition audit
+
+Production currently has RLS enabled on **all 49 public base tables**; none has forced RLS. The live catalog exposes **54 RLS policies**. Policy definitions were queried directly, including their roles, commands, USING predicates, and WITH CHECK predicates. This confirms that the security model depends on concrete ownership, membership, moderator, sanction, and admin predicates—not merely on the presence of RLS.
+
+A trigger inventory query also confirmed **18 non-internal trigger objects** across the public schema, including:
+
+- room message rate limiting and sender assignment;
+- UzzapBot dispatch on new room messages;
+- buddy request, DM, and room-invitation push notifications;
+- game question-usage telemetry;
+- moderation synchronization/application;
+- profile nickname normalization;
+- participant identity/ownership, capacity, welcome, and leave behavior.
+
+### Production security finding requiring source reconciliation
+
+The live trigger inventory contains an unexpected trigger named `uzzapbot-ai-room-test` on `room_messages`. Its catalog action statement directly references a Supabase Edge Function endpoint and an inline `x-ai-room-secret` value. This is **not being changed automatically during reconciliation**, but it should be treated as a production configuration/security finding and compared against the repository and current intended architecture. The intended production UzzapBot path uses the `uzzapbot` Edge Function and the configured Cloudflare/Puter AI endpoints; a legacy test trigger should not remain silently undocumented.
+
+Because trigger definitions can contain external URLs, headers, and operational logic, the next recovery artifact must capture exact trigger definitions and compare them with repository migrations before any cleanup is attempted.
+
+No RLS policy or trigger was modified by this audit.
