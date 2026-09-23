@@ -68,11 +68,55 @@ object PresenceClient {
         })
     }
 
+    /** Fetches buddy presence in one PostgREST request instead of one HTTP request per buddy. */
     fun fetchMultiple(usernames: List<String>, onResult: (Map<String, BuddyPresence>) -> Unit) {
-        val distinct = usernames.distinct()
-        if (distinct.isEmpty()) { main.post { onResult(emptyMap()) }; return }
-        val results = java.util.concurrent.ConcurrentHashMap<String, BuddyPresence>()
-        var remaining = distinct.size
-        for (username in distinct) fetch(username) { presence -> if (presence != null) results[presence.username.lowercase()] = presence; remaining--; if (remaining == 0) main.post { onResult(results) } }
+        val normalized = usernames
+            .map { it.trim().lowercase().replace(" ", "_") }
+            .filter { it.isNotBlank() }
+            .distinct()
+        if (normalized.isEmpty()) {
+            main.post { onResult(emptyMap()) }
+            return
+        }
+
+        val filter = URLEncoder.encode("(${normalized.joinToString(",")})", "UTF-8")
+        val path = "/rest/v1/profiles?username=in.$filter&select=username,is_online,last_seen,status"
+
+        http.newCall(req(path).get().build()).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                main.post { onResult(emptyMap()) }
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    if (!it.isSuccessful) {
+                        main.post { onResult(emptyMap()) }
+                        return
+                    }
+
+                    val result = runCatching {
+                        val array = JSONArray(it.body?.string().orEmpty())
+                        buildMap<String, BuddyPresence> {
+                            for (i in 0 until array.length()) {
+                                val obj = array.optJSONObject(i) ?: continue
+                                val username = obj.optString("username").trim()
+                                if (username.isBlank()) continue
+                                val last = obj.optString("last_seen")
+                                val recent = TimeUtils.isWithinWindow(last, ONLINE_WINDOW_SECONDS)
+                                val presence = BuddyPresence(
+                                    username = username,
+                                    isOnline = obj.optBoolean("is_online") && recent,
+                                    lastSeen = last,
+                                    status = obj.optString("status", "offline")
+                                )
+                                put(username.lowercase(), presence)
+                            }
+                        }
+                    }.getOrDefault(emptyMap())
+
+                    main.post { onResult(result) }
+                }
+            }
+        })
     }
 }
