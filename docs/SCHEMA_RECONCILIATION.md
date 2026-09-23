@@ -139,3 +139,54 @@ Credentials belong in the appropriate secret-management system, not in Git or do
 - `docs/UZAPBOT.md` — UzzapBot production architecture
 - `supabase_schema.sql` — foundational repository schema
 - `supabase/migrations/` — incremental database changes
+
+
+## Concrete table-level gap
+
+The verified live public schema contains 49 base tables. The checked-in `20260918_baseline_live_schema.sql` defines 15 core tables. Therefore **34 live tables are outside that baseline file**.
+
+The 34 additional live tables are:
+
+- `game_players`
+- `game_sessions`
+- `uzzapbot_achievements`
+- `uzzapbot_ai_rate_state`
+- `uzzapbot_audit_log`
+- `uzzapbot_battles`
+- `uzzapbot_control_settings`
+- `uzzapbot_cursor`
+- `uzzapbot_daily_challenges`
+- `uzzapbot_event_receipts`
+- `uzzapbot_game_config`
+- `uzzapbot_game_modes`
+- `uzzapbot_game_pools`
+- `uzzapbot_internal_config`
+- `uzzapbot_memory`
+- `uzzapbot_player_achievements`
+- `uzzapbot_player_activity`
+- `uzzapbot_player_stats`
+- `uzzapbot_player_titles`
+- `uzzapbot_powerup_uses`
+- `uzzapbot_powerups`
+- `uzzapbot_processed_messages`
+- `uzzapbot_question_usage`
+- `uzzapbot_questions`
+- `uzzapbot_room_activity`
+- `uzzapbot_room_challenges`
+- `uzzapbot_room_settings`
+- `uzzapbot_titles`
+- `uzzapbot_tournaments`
+- `uzzapbot_welcomes`
+- `uzzapbot_word_dataset_entries`
+- `uzzapbot_word_datasets`
+- `uzzapbot_xp_history`
+- `account_deletion_requests`
+- `buddy_requests`
+
+This is a schema-source gap, not a request to recreate tables blindly. Existing production objects should be preserved while their definitions are reconstructed from authoritative migration/source history.
+
+## Safe reconstruction decision
+
+No destructive migration was applied.
+
+The correct reconstruction target is a **new, versioned production schema snapshot/migration artifact**, generated from the verified live schema and reconciled against the 131 live migration records. It should be reviewed before becoming the repository's canonical restore path.
