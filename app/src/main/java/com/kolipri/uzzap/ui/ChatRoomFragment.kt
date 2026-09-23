@@ -113,7 +113,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
 
     private val pollRunnable = object : Runnable {
         override fun run() {
-            if (!isPollingActive || !isAdded || !joinedSuccessfully || pollInFlight) return
+            if (!isPollingActive || realtimeConnected || !isAdded || !joinedSuccessfully || pollInFlight) return
             pollInFlight = true
             val current = AppState.messagesFor(roomName)
             val afterId = current.maxOfOrNull { it.id } ?: 0L
@@ -334,8 +334,8 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         host.setSoftkeys(getString(R.string.softkey_options), getString(R.string.softkey_buddies), onLeft = { showOptionsMenu() }, onRight = { host.goToBuddyList() })
     }
 
-    private fun startPolling() { if (isPollingActive || !joinedSuccessfully) return; isPollingActive = true; pollInFlight = false; handler.removeCallbacks(pollRunnable); handler.post(pollRunnable) }
-    private fun scheduleNextPoll() { if (isPollingActive && isAdded && joinedSuccessfully) { handler.removeCallbacks(pollRunnable); handler.postDelayed(pollRunnable, 2_500L) } }
+    private fun startPolling() { if (realtimeConnected || isPollingActive || !joinedSuccessfully) return; isPollingActive = true; pollInFlight = false; handler.removeCallbacks(pollRunnable); handler.post(pollRunnable) }
+    private fun scheduleNextPoll() { if (isPollingActive && !realtimeConnected && isAdded && joinedSuccessfully) { handler.removeCallbacks(pollRunnable); handler.postDelayed(pollRunnable, 2_500L) } }
     private fun stopPolling() { isPollingActive = false; pollInFlight = false; handler.removeCallbacks(pollRunnable) }
 
     private fun hasNetwork(): Boolean {
