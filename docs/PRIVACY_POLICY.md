@@ -22,7 +22,7 @@ Uzzap uses Supabase for authentication, database storage and realtime/backend se
 
 Uzzap uses Firebase Cloud Messaging (FCM) for push notifications. Firebase Analytics collection is disabled in the application.
 
-When UzzapBot's AI conversational feature is enabled and a message is selected for AI processing, relevant message text may be sent to Groq's API to generate a response. Passwords and authentication credentials are not intentionally sent to the AI provider as part of this feature.
+When UzzapBot's AI conversational feature is enabled and a message is selected for AI processing, relevant message text may be sent to Uzzap's configured AI service for response generation. The current production architecture routes AI requests through Uzzap's Cloudflare Worker AI service and may use a configured fallback AI service when necessary. Passwords and authentication credentials are not intentionally sent to the AI service as part of this feature.
 
 ## Chat content
 
@@ -36,7 +36,7 @@ Uzzap processes information needed for blocking, reporting and moderation. Certa
 
 ## Sharing
 
-Uzzap does not sell personal information. Information may be processed by service providers acting on our behalf, including Supabase, Firebase Cloud Messaging and, when AI functionality is used, Groq. Information may also be disclosed when required by law or reasonably necessary to protect users, the service or others.
+Uzzap does not sell personal information. Information may be processed by service providers acting on our behalf, including Supabase, Firebase Cloud Messaging and the configured AI service used for UzzapBot. Information may also be disclosed when required by law or reasonably necessary to protect users, the service or others.
 
 ## Security
 
