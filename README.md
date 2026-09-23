@@ -192,7 +192,7 @@ The **About Uzzap** screen reports the live application version/build and docume
 
 ### v1.0-beta.8 — September 2026
 - Security audit fixes verified against the live database: anon email enumeration closed via nickname-login RPC; leaked API key rotated, legacy JWT keys disabled
-- Canonical live-schema baseline migration — repo now matches production (36 functions, 37 policies, 21 triggers, 15 tables)
+- Canonical live-schema baseline documentation updated to reflect the current production schema; see `docs/DATABASE.md` for the verified inventory and current object counts.
 - Fixed room/buddy leave silently failing after nickname changes (delete by owner_id)
 - Whisper is now a true private message (previously broadcast to the whole room)
 - Fixed moderators being unable to delete/moderate their own messages
