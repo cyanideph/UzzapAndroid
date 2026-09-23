@@ -282,3 +282,63 @@ The production public schema currently has 54 RLS policies. Policy coverage is c
 ### Restore status
 
 This audit has reached the point where the remaining gap is **source recovery**, not production repair. Do not apply reconstructed DDL to the production project merely to make Git match the live database. The next canonical recovery artifact should come from an authorized schema-only PostgreSQL dump, followed by a diff against the repository's migrations and baseline.
+
+
+## Column-level production manifest
+
+A fresh read-only catalog query confirmed the production column counts below. This is metadata only; no row contents were exported.
+
+| Table | Columns |
+|---|---:|
+| account_deletion_requests | 6 |
+| blocked_users | 4 |
+| buddies | 6 |
+| buddy_requests | 6 |
+| chat_categories | 3 |
+| chat_rooms | 7 |
+| direct_messages | 8 |
+| game_players | 11 |
+| game_sessions | 24 |
+| moderation_actions | 12 |
+| moderator_roles | 4 |
+| profiles | 11 |
+| room_invitations | 9 |
+| room_messages | 7 |
+| room_participants | 5 |
+| room_sanctions | 10 |
+| user_fcm_tokens | 5 |
+| user_reports | 11 |
+| uzzapbot_achievements | 5 |
+| uzzapbot_ai_rate_state | 5 |
+| uzzapbot_audit_log | 7 |
+| uzzapbot_battles | 10 |
+| uzzapbot_control_settings | 4 |
+| uzzapbot_cursor | 3 |
+| uzzapbot_daily_challenges | 10 |
+| uzzapbot_event_receipts | 9 |
+| uzzapbot_game_config | 6 |
+| uzzapbot_game_modes | 6 |
+| uzzapbot_game_pools | 8 |
+| uzzapbot_internal_config | 3 |
+| uzzapbot_memory | 10 |
+| uzzapbot_performance_24h (view) | 5 |
+| uzzapbot_player_achievements | 3 |
+| uzzapbot_player_activity | 6 |
+| uzzapbot_player_stats | 10 |
+| uzzapbot_player_titles | 3 |
+| uzzapbot_powerup_uses | 8 |
+| uzzapbot_powerups | 4 |
+| uzzapbot_processed_messages | 3 |
+| uzzapbot_question_usage | 7 |
+| uzzapbot_questions | 19 |
+| uzzapbot_room_activity | 13 |
+| uzzapbot_room_challenges | 7 |
+| uzzapbot_room_settings | 7 |
+| uzzapbot_titles | 4 |
+| uzzapbot_tournaments | 11 |
+| uzzapbot_welcomes | 3 |
+| uzzapbot_word_dataset_entries | 6 |
+| uzzapbot_word_datasets | 9 |
+| uzzapbot_xp_history | 8 |
+
+This establishes a second machine-checkable drift signal beyond table/index/trigger counts. A future recovery script can compare these counts and, preferably, exact column signatures against a schema-only dump.
