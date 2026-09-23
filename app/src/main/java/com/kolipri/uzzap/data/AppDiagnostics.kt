@@ -85,7 +85,6 @@ object AppDiagnostics {
                     file.writeText((lines + line).joinToString("\n"), Charsets.UTF_8)
                 }
             }
-            }
         }
     }
 
