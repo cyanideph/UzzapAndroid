@@ -47,6 +47,18 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: ./gradlew :app:testDebugUnitTest -PSUPABASE_URL="${SUPABASE_URL}" -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" --stacktrace
+      - name: Run Android instrumentation tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: ./gradlew :app:connectedDebugAndroidTest -PSUPABASE_URL="${SUPABASE_URL}" -PSUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" --stacktrace
       - name: Build debug APK
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
