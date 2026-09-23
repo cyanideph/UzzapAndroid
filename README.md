@@ -1,4 +1,59 @@
-# Uzzap for Android\n\n<p align="center">\n  <strong>A modern Android revival of the classic Uzzap chat experience.</strong><br>\n  Philippine community rooms • Private chat • Buddies • Realtime messaging • Push notifications • Moderation\n</p>\n\n<p align="center">\n  <img src="https://img.shields.io/badge/release-1.0--beta.8-informational" alt="Release">\n  <img src="https://img.shields.io/badge/platform-Android-brightgreen" alt="Android">\n  <img src="https://img.shields.io/badge/language-Kotlin-purple" alt="Kotlin">\n  <img src="https://img.shields.io/badge/backend-Supabase-3ECF8E" alt="Supabase">\n  <img src="https://img.shields.io/badge/push-Firebase-orange" alt="Firebase">\n</p>\n\n<p align="center">\n  <a href="https://github.com/cyanideph/UzzapAndroid/actions">CI</a> •\n  <a href="docs/ARCHITECTURE.md">Architecture</a> •\n  <a href="#current-feature-set">Features</a> •\n  <a href="#security-model">Security</a> •\n  <a href="#build">Build</a>\n</p>\n\n---\n\n## 🌐 Overview\n\n**Uzzap** is a from-scratch Android/Kotlin modernization of the classic Uzzap mobile chat experience, created by **CY**.\n\nThe project preserves the recognizable Uzzap community-room experience while rebuilding it around a modern Android client and a Supabase-powered backend.\n\n> **Status:** Beta — the current `main` branch contains the Phase 1–4 implementation plus the beta.8 security, messaging, profile, welcome-system and moderation fixes.\n\n### At a glance\n\n| Area | What it provides |\n|---|---|\n| 💬 Community | Philippine regions and province-based chat rooms |\n| ⚡ Realtime | Live room messaging and private conversations |\n| 👥 Social | Buddies, requests, invitations and unread state |\n| 🔔 Notifications | Firebase Cloud Messaging and tap-to-chat navigation |\n| 🛡️ Safety | Reports, blocks, moderation, sanctions and audit history |\n| 🎨 Classic feel | Uzzap colors, emoticons, menus and room-flow concepts |\n| 🔐 Backend | Supabase Auth, PostgreSQL/RLS and server-side authorization |\n\n## 📚 Documentation\n\n- **[Architecture](docs/ARCHITECTURE.md)** — Android components, backend boundaries, notification flow and source mapping\n- **[Supabase schema](supabase_schema.sql)** — base database schema\n- **[Database migrations](supabase/migrations/)** — incremental backend changes\n- **[Third-party notices](NOTICE.md)** — original and third-party material notices\n\n---\n\n## Current feature set\n
+# Uzzap for Android
+
+<p align="center">
+  <strong>A modern Android revival of the classic Uzzap chat experience.</strong><br>
+  Philippine community rooms • Private chat • Buddies • Realtime messaging • Push notifications • Moderation
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/release-1.0--beta.8-informational" alt="Release">
+  <img src="https://img.shields.io/badge/platform-Android-brightgreen" alt="Android">
+  <img src="https://img.shields.io/badge/language-Kotlin-purple" alt="Kotlin">
+  <img src="https://img.shields.io/badge/backend-Supabase-3ECF8E" alt="Supabase">
+  <img src="https://img.shields.io/badge/push-Firebase-orange" alt="Firebase">
+</p>
+
+<p align="center">
+  <a href="https://github.com/cyanideph/UzzapAndroid/actions">CI</a> •
+  <a href="docs/ARCHITECTURE.md">Architecture</a> •
+  <a href="#current-feature-set">Features</a> •
+  <a href="#security-model">Security</a> •
+  <a href="#build">Build</a>
+</p>
+
+---
+
+## 🌐 Overview
+
+**Uzzap** is a from-scratch Android/Kotlin modernization of the classic Uzzap mobile chat experience, created by **CY**.
+
+The project preserves the recognizable Uzzap community-room experience while rebuilding it around a modern Android client and a Supabase-powered backend.
+
+> **Status:** Beta — the current `main` branch contains the Phase 1–4 implementation plus the beta.8 security, messaging, profile, welcome-system and moderation fixes.
+
+### At a glance
+
+| Area | What it provides |
+|---|---|
+| 💬 Community | Philippine regions and province-based chat rooms |
+| ⚡ Realtime | Live room messaging and private conversations |
+| 👥 Social | Buddies, requests, invitations and unread state |
+| 🔔 Notifications | Firebase Cloud Messaging and tap-to-chat navigation |
+| 🛡️ Safety | Reports, blocks, moderation, sanctions and audit history |
+| 🎨 Classic feel | Uzzap colors, emoticons, menus and room-flow concepts |
+| 🔐 Backend | Supabase Auth, PostgreSQL/RLS and server-side authorization |
+
+## 📚 Documentation
+
+- **[Architecture](docs/ARCHITECTURE.md)** — Android components, backend boundaries, notification flow and source mapping
+- **[Supabase schema](supabase_schema.sql)** — base database schema
+- **[Database migrations](supabase/migrations/)** — incremental backend changes
+- **[Third-party notices](NOTICE.md)** — original and third-party material notices
+
+---
+
+## Current feature set
+
 
 ### Account and profile
 - Login and signup
