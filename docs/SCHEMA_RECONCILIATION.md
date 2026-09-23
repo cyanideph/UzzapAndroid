@@ -342,3 +342,14 @@ A fresh read-only catalog query confirmed the production column counts below. Th
 | uzzapbot_xp_history | 8 |
 
 This establishes a second machine-checkable drift signal beyond table/index/trigger counts. A future recovery script can compare these counts and, preferably, exact column signatures against a schema-only dump.
+
+
+## Constraint inventory
+
+The live public schema was rechecked read-only and currently contains **49 primary keys, 55 foreign keys, 10 unique constraints, and 310 CHECK constraints**. The CHECK count includes PostgreSQL-generated NOT NULL constraints, so it should not be interpreted as 310 application-defined validation rules.
+
+This confirms that table/column counts alone are insufficient for restoration. Primary keys, foreign keys, uniqueness rules, and CHECK constraints must also be preserved by any future baseline snapshot.
+
+### Recovery rule
+
+Do not convert this inventory into guessed `ALTER TABLE` statements. Exact constraint definitions, including CHECK expressions and FK actions, should be recovered from an authorized schema-only dump or exact catalog definitions before a migration is created.
