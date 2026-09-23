@@ -4,6 +4,21 @@
 >
 > This document is generated from the current PostgreSQL metadata rather than an older repository SQL snapshot. It documents the public-schema tables, columns, primary keys, foreign keys, and the production UzzapBot data model.
 
+## Uzzap diagram color system
+
+The Mermaid diagrams use a consistent Uzzap visual language:
+
+| Color | Area |
+|---|---|
+| 🟩 Green | Core Uzzap users, rooms, messaging |
+| 🟦 Blue | UzzapBot operations and AI |
+| 🟨 Yellow | Games, progression and competitive systems |
+| 🟪 Purple | WordHunt datasets |
+| 🟥 Red | Moderation and safety |
+| ⚪ Gray | Supabase Auth / external infrastructure |
+
+> GitHub Mermaid rendering does not support arbitrary app-wide CSS, so the diagrams use Mermaid `classDef` styling. The colors are diagram-local and may vary slightly with GitHub's rendering/theme.
+
 ## Scope
 
 - **Public base tables:** 49
@@ -232,6 +247,18 @@ erDiagram
     room_invitations }o--|| auth_users : invitee_id_to_id
     user_fcm_tokens }o--|| auth_users : user_id_to_id
     game_players }o--|| auth_users : user_id_to_id
+
+    classDef core fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#173A1A
+    classDef messaging fill:#E3F2FD,stroke:#1976D2,stroke-width:2px,color:#0D2A45
+    classDef safety fill:#FFEBEE,stroke:#C62828,stroke-width:2px,color:#4A1515
+    classDef games fill:#FFF8E1,stroke:#F9A825,stroke-width:2px,color:#4A3700
+    classDef auth fill:#F5F5F5,stroke:#616161,stroke-width:2px,color:#212121
+
+    class profiles,chat_categories,chat_rooms,room_participants,buddies,buddy_requests,blocked_users,account_deletion_requests core
+    class room_messages,direct_messages,room_invitations,user_fcm_tokens messaging
+    class moderation_actions,moderator_roles,room_sanctions,user_reports safety
+    class game_players,game_sessions games
+    class auth_users auth
 ```
 
 ## 2. UzzapBot operational and AI schema
@@ -401,7 +428,7 @@ erDiagram
 
     uzzapbot_event_receipts }o--|| room_messages : message_id_to_id
     uzzapbot_question_usage }o--|| uzzapbot_questions : question_id_to_id
-    uzzapbot_questions }o--|| uzzapbot_questions : duplicate_of_to_id
+    uzzapbot_questions }o--o| uzzapbot_questions : duplicate_of_to_id
 
     uzzapbot_memory }o--|| auth_users : user_id_to_id
     uzzapbot_player_activity }o--|| auth_users : user_id_to_id
@@ -409,6 +436,16 @@ erDiagram
     uzzapbot_questions }o--|| auth_users : reviewed_by_to_id
     uzzapbot_game_config }o--|| auth_users : updated_by_to_id
     uzzapbot_audit_log }o--|| auth_users : actor_id_to_id
+
+    classDef bot fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0B2B45
+    classDef core fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#173A1A
+    classDef games fill:#FFF8E1,stroke:#F9A825,stroke-width:2px,color:#4A3700
+    classDef auth fill:#F5F5F5,stroke:#616161,stroke-width:2px,color:#212121
+
+    class uzzapbot_achievements,uzzapbot_ai_rate_state,uzzapbot_audit_log,uzzapbot_control_settings,uzzapbot_cursor,uzzapbot_event_receipts,uzzapbot_game_config,uzzapbot_game_modes,uzzapbot_game_pools,uzzapbot_internal_config,uzzapbot_memory,uzzapbot_player_activity,uzzapbot_processed_messages,uzzapbot_question_usage,uzzapbot_questions,uzzapbot_room_activity,uzzapbot_room_settings,uzzapbot_welcomes bot
+    class room_messages core
+    class game_sessions games
+    class auth_users auth
 ```
 
 ## 3. UzzapBot progression, challenges and competitive games
@@ -539,6 +576,14 @@ erDiagram
     uzzapbot_room_challenges }o--|| auth_users : creator_id_to_id
     uzzapbot_tournaments }o--|| auth_users : creator_id_to_id
     uzzapbot_tournaments }o--|| auth_users : winner_id_to_id
+
+    classDef games fill:#FFF8E1,stroke:#F9A825,stroke-width:2px,color:#4A3700
+    classDef bot fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0B2B45
+    classDef auth fill:#F5F5F5,stroke:#616161,stroke-width:2px,color:#212121
+
+    class uzzapbot_player_stats,uzzapbot_powerups,uzzapbot_powerup_uses,uzzapbot_xp_history,uzzapbot_player_achievements,uzzapbot_titles,uzzapbot_player_titles,uzzapbot_daily_challenges,uzzapbot_battles,uzzapbot_room_challenges,uzzapbot_tournaments games
+    class game_sessions bot
+    class auth_users auth
 ```
 
 ## 4. WordHunt data model
@@ -566,6 +611,9 @@ erDiagram
     }
 
     uzzapbot_word_dataset_entries }o--|| uzzapbot_word_datasets : dataset_id_to_id
+
+    classDef wordhunt fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#351047
+    class uzzapbot_word_datasets,uzzapbot_word_dataset_entries wordhunt
 ```
 
 ## 5. View
