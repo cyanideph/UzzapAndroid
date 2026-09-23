@@ -34,6 +34,7 @@ object PrivateMessageStateClient {
     private val unreadLock = Any()
     private val pendingUnreadCallbacks = mutableListOf<(UnreadPrivateMessage?) -> Unit>()
     private var unreadRequestInFlight = false
+    private var unreadGeneration = 0L
 
     private fun req(path: String) = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", SupabaseClient.authHeader()).header("Content-Type", "application/json")
     private fun currentUserId(): String? = SupabaseClient.userAccessToken?.let { token -> runCatching { val p = token.split('.').getOrNull(1) ?: return@runCatching null; val bytes = Base64.decode(p, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING); JSONObject(String(bytes, StandardCharsets.UTF_8)).optString("sub").ifBlank { null } }.getOrNull() }
@@ -45,6 +46,7 @@ object PrivateMessageStateClient {
             return
         }
 
+        var startRequest = false
         synchronized(unreadLock) {
             if (cachedUserId == me && cachedUnread != null && System.currentTimeMillis() - cachedAtMs < UNREAD_CACHE_MAX_AGE_MS) {
                 val result = cachedUnread
@@ -53,20 +55,26 @@ object PrivateMessageStateClient {
             }
 
             pendingUnreadCallbacks += onResult
-            if (unreadRequestInFlight) return
-            unreadRequestInFlight = true
+            if (!unreadRequestInFlight) {
+                unreadRequestInFlight = true
+                startRequest = true
+            }
         }
+        if (startRequest) startUnreadRequest(me)
+    }
 
-        val path = "/rest/v1/direct_messages?recipient_id=eq.$me&is_read=is.false&select=id,sender&order=id.asc&limit=500"
+    private fun startUnreadRequest(userId: String) {
+        val requestGeneration = synchronized(unreadLock) { unreadGeneration }
+        val path = "/rest/v1/direct_messages?recipient_id=eq.$userId&is_read=is.false&select=id,sender&order=id.asc&limit=500"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                completeUnreadRequest(me, null)
+                completeUnreadRequest(userId, requestGeneration, null)
             }
 
             override fun onResponse(call: Call, response: Response) {
                 response.use {
                     if (!it.isSuccessful) {
-                        completeUnreadRequest(me, null)
+                        completeUnreadRequest(userId, requestGeneration, null)
                         return
                     }
                     val result = runCatching {
@@ -87,29 +95,44 @@ object PrivateMessageStateClient {
                         }
                         UnreadPrivateMessage(senders.size, senders.distinct(), counts, ids)
                     }.getOrNull()
-                    completeUnreadRequest(me, result)
+                    completeUnreadRequest(userId, requestGeneration, result)
                 }
             }
         })
     }
 
-    private fun completeUnreadRequest(userId: String, result: UnreadPrivateMessage?) {
+    private fun completeUnreadRequest(userId: String, requestGeneration: Long, result: UnreadPrivateMessage?) {
+        var restart = false
         val callbacks: List<(UnreadPrivateMessage?) -> Unit>
         synchronized(unreadLock) {
-            if (result != null) {
-                cachedUserId = userId
-                cachedUnread = result
-                cachedAtMs = System.currentTimeMillis()
+            if (requestGeneration != unreadGeneration) {
+                // A read operation invalidated this request while it was in flight.
+                // Do not publish or cache stale unread state; immediately re-query.
+                unreadRequestInFlight = false
+                restart = pendingUnreadCallbacks.isNotEmpty()
+                callbacks = emptyList()
+            } else {
+                if (result != null) {
+                    cachedUserId = userId
+                    cachedUnread = result
+                    cachedAtMs = System.currentTimeMillis()
+                }
+                callbacks = pendingUnreadCallbacks.toList()
+                pendingUnreadCallbacks.clear()
+                unreadRequestInFlight = false
             }
-            callbacks = pendingUnreadCallbacks.toList()
-            pendingUnreadCallbacks.clear()
-            unreadRequestInFlight = false
+        }
+        if (restart) {
+            synchronized(unreadLock) { unreadRequestInFlight = true }
+            startUnreadRequest(userId)
+            return
         }
         callbacks.forEach { callback -> main.post { callback(result) } }
     }
 
     private fun invalidateUnreadCache() {
         synchronized(unreadLock) {
+            unreadGeneration++
             cachedUnread = null
             cachedAtMs = 0L
         }
