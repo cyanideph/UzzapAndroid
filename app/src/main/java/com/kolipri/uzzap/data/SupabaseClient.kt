@@ -152,6 +152,7 @@ object SupabaseClient {
                             AppState.nickname,
                             AppState.role
                         )
+                        SupabaseRealtimeClient.refreshAuth()
                         true
                     }.getOrElse { e ->
                         Log.w(TAG, "Invalid refresh response", e)
