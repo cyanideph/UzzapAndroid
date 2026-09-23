@@ -365,23 +365,55 @@ object SupabaseClient {
 
     data class DiagnosticProbe(val name: String, val success: Boolean, val elapsedMs: Long, val detail: String)
     fun deleteAccount(onResult: (Boolean) -> Unit) {
-        if (!authenticated()) { mainHandler.post { onResult(true) }; return }
-        // RLS policies allow authenticated users to delete their own profile, buddies, and DM entries
-        val profileReq = request("/rest/v1/profiles", true).delete().build()
-        httpClient.newCall(profileReq).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(false) } }
-            override fun onResponse(call: Call, response: Response) {
-                response.close()
-                val buddiesReq = request("/rest/v1/buddies", true).delete().build()
-                httpClient.newCall(buddiesReq).enqueue(object : Callback {
-                    override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(true) } }
-                    override fun onResponse(call: Call, resp2: Response) {
-                        resp2.close()
+        if (!authenticated()) {
+            mainHandler.post { onResult(false) }
+            return
+        }
+
+        fun invokeDeletion(retryAfterRefresh: Boolean) {
+            val req = request("/functions/v1/uzzap-delete-account", true)
+                .post(JSONObject().toString().toRequestBody(jsonMediaType))
+                .build()
+
+            httpClient.newCall(req).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.w(TAG, "Account deletion request failed", e)
+                    mainHandler.post { onResult(false) }
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    response.use {
+                        val body = it.body?.string().orEmpty()
+                        if (it.code == 401 && retryAfterRefresh) {
+                            Log.i(TAG, "Account deletion received 401; refreshing session and retrying once")
+                            ensureValidSession(forceRefresh = true) { refreshed ->
+                                if (refreshed) invokeDeletion(false)
+                                else mainHandler.post { onResult(false) }
+                            }
+                            return
+                        }
+
+                        if (!it.isSuccessful) {
+                            Log.w(TAG, "Account deletion HTTP ${it.code}: ${errorTextFromBody(body, "Deletion failed")}")
+                            mainHandler.post { onResult(false) }
+                            return
+                        }
+
+                        // The backend has already removed auth.users and owned data.
+                        // Clear local credentials only after the server confirms deletion.
                         signOut()
                         mainHandler.post { onResult(true) }
                     }
-                })
+                }
+            })
+        }
+
+        ensureValidSession { ready ->
+            if (ready) invokeDeletion(true)
+            else {
+                Log.w(TAG, "Account deletion blocked because the session could not be refreshed")
+                mainHandler.post { onResult(false) }
             }
-        })
+        }
     }
 }
