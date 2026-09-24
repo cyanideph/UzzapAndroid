@@ -92,3 +92,12 @@ The v3 visual language applies consistently to:
 - Existing messaging, moderation, realtime, notification and diagnostics behavior is not changed merely for visual work.
 - Accessibility contrast and touch-target requirements remain higher priority than decorative styling.
 - Any new asset must support the v3 light canvas and the app's theme-aware asset strategy.
+
+
+## NameThatUI-informed component vocabulary
+
+The v3 implementation uses the applicable mobile interaction patterns documented by NameThatUI: bottom navigation/tab bar, selected tabs, badges, presence indicators, chat bubbles, cards, headers/navigation bars, form fields, alerts/callouts, modal/sheet surfaces, popovers, empty states, accordion/disclosure groups, search fields, incremental history loading, progress/loading states, dividers, fixed navigation/composer chrome, focus states, truncation and semantic status labels.
+
+Desktop/macOS-only patterns are not copied literally. The implementation uses Android-native equivalents while preserving Uzzap's interaction behavior.
+
+See docs/UI_NAMETHATUI_MAPPING.md for the full pattern map and acceptance checklist.
