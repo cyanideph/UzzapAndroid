@@ -72,7 +72,7 @@ abstract class BaseChromeActivity : AppCompatActivity() {
         window.navigationBarColor = Color.TRANSPARENT
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
-            isAppearanceLightNavigationBars = false
+            isAppearanceLightNavigationBars = ThemeManager.current(this) == "clay"
         }
 
         setContentView(R.layout.activity_chrome)
