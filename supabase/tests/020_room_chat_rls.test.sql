@@ -59,9 +59,14 @@ select set_config(
 
 select ok((select is_active_room_member((select name from e2e_room))), 'Alice is an active room member');
 
-select lives_ok(
-  $$ insert into public.room_messages(room_name,sender,body,is_system,sender_id)
-     values ((select name from e2e_room),'e2e_alice','hello from Alice',false,auth.uid()) $$,
+select is(
+  (with ins as (
+     insert into public.room_messages(room_name,sender,body,is_system,sender_id)
+     values ((select name from e2e_room),'e2e_alice','hello from Alice',false,auth.uid())
+     returning id
+   )
+   select count(*) from ins),
+  1::bigint,
   'Alice can send a room message'
 );
 
