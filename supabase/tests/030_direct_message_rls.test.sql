@@ -41,10 +41,15 @@ select is(
   'Alice can read her DM'
 );
 
-select lives_ok(
-  $$ insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
+select is(
+  (with ins as (
+     insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
      values ('e2e_alice','e2e_bob','hello',auth.uid(),
-             (select uid from e2e_users where label='bob')) $$,
+             (select uid from e2e_users where label='bob'))
+     returning id
+   )
+   select count(*) from ins),
+  1::bigint,
   'Alice can send Bob a DM'
 );
 
@@ -76,17 +81,16 @@ select is(
   'Bob can read the Alice-to-Bob conversation'
 );
 
-select lives_ok(
-  $$ update public.direct_messages
-     set is_read=true
-     where sender='e2e_alice' and recipient='e2e_bob' $$,
-  'Bob can mark received DMs read'
-);
-
 select is(
-  (select count(*) from public.direct_messages where sender='e2e_alice' and recipient='e2e_bob' and is_read=true),
+  (with upd as (
+     update public.direct_messages
+     set is_read=true
+     where sender='e2e_alice' and recipient='e2e_bob'
+     returning id
+   )
+   select count(*) from upd),
   2::bigint,
-  'Bob read-state update is visible'
+  'Bob can mark received DMs read'
 );
 
 select set_config(
