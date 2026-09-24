@@ -27,6 +27,7 @@ select 'e2e_alice','e2e_bob','seed DM',
        (select uid from e2e_users where label='alice'),
        (select uid from e2e_users where label='bob');
 
+grant select on e2e_users to authenticated;
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
