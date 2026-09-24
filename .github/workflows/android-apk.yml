@@ -38,7 +38,7 @@ jobs:
 
       - name: Validate Supabase client key
         env:
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ github.actor == 'dependabot[bot]' && 'sb_publishable_ci_placeholder' || secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           if [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
             echo "SUPABASE_PUBLISHABLE_KEY GitHub Actions secret is missing."
@@ -52,13 +52,13 @@ jobs:
       - name: Run unit tests
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ github.actor == 'dependabot[bot]' && 'sb_publishable_ci_placeholder' || secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: ./gradlew :app:testDebugUnitTest -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
 
       - name: Build debug APK
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ github.actor == 'dependabot[bot]' && 'sb_publishable_ci_placeholder' || secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: ./gradlew :app:assembleDebug -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
 
       - name: Publish debug APK to GitHub Release
