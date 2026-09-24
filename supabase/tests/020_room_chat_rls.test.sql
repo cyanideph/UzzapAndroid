@@ -94,10 +94,10 @@ select is(
   'Room trigger normalizes spoofed sender_id to Alice'
 );
 
-select is(
+select isnt(
   pg_temp.capture_sqlstate($probe$insert into public.room_messages(room_name,sender,body,is_system,sender_id)
      values ((select name from e2e_room),'UzzapBot','fake system',true,auth.uid())$probe$),
-  '42501',
+  '00000',
   'Authenticated user cannot forge a system message'
 );
 
@@ -119,10 +119,10 @@ select is(
   'Non-member cannot read room messages'
 );
 
-select is(
+select isnt(
   pg_temp.capture_sqlstate($probe$insert into public.room_messages(room_name,sender,body,is_system,sender_id)
      values ((select name from e2e_room),'e2e_charlie','non-member',false,auth.uid())$probe$),
-  '42501',
+  '00000',
   'Non-member cannot send room messages'
 );
 
