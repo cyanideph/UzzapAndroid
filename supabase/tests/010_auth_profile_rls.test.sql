@@ -22,6 +22,7 @@ select uid, 'authenticated', 'authenticated', username || '@e2e.invalid',
        now(), now()
 from e2e_users;
 
+grant select on e2e_users to authenticated;
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
