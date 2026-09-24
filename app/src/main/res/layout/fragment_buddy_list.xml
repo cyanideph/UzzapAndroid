@@ -46,7 +46,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Presence & status"
+                android:text="Presence &amp; status"
                 android:textSize="12sp"
                 android:textColor="@color/uzzap_clay_muted"/>
         </LinearLayout>
