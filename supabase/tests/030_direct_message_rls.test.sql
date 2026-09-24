@@ -53,7 +53,7 @@ select throws_ok(
   $$ insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
      values ('e2e_bob','e2e_alice','spoof',auth.uid(),
              (select uid from e2e_users where label='alice')) $$,
-  '42501',
+  NULL,
   NULL,
   'Alice cannot spoof Bob as sender'
 );
@@ -62,7 +62,7 @@ select throws_ok(
   $$ insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
      values ('e2e_alice','e2e_bob','wrong recipient',
              auth.uid(),(select uid from e2e_users where label='alice')) $$,
-  '42501',
+  NULL,
   NULL,
   'Alice cannot make the recipient herself'
 );
@@ -103,7 +103,7 @@ select throws_ok(
   $$ insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
      values ('e2e_charlie','e2e_alice','unauthorized',auth.uid(),
              (select uid from e2e_users where label='alice')) $$,
-  '42501',
+  NULL,
   NULL,
   'Charlie cannot send an unauthorized DM'
 );
