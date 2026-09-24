@@ -43,12 +43,9 @@ select is(
   'Alice profile update persisted'
 );
 
-select results_eq(
-  $$ update public.profiles
-     set status_message = 'SPOOFED'
-     where owner_id = (select uid from e2e_users where label='bob')
-     returning username $$,
-  $ select username from e2e_users where false $,
+select isnt(
+  (select status_message from public.profiles where username='e2e_bob'),
+  'SPOOFED',
   'Alice cannot update Bob profile'
 );
 
