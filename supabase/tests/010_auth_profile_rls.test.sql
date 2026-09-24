@@ -51,6 +51,7 @@ select throws_ok(
      values ((select uid from e2e_users where label='bob'),
              'e2e_spoof_profile','Spoof','spoof@e2e.invalid') $$,
   '42501',
+  NULL,
   'Alice cannot insert a profile owned by Bob'
 );
 
