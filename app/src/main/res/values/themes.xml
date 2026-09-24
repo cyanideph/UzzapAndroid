@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.Uzzap" parent="Theme.AppCompat.Light.NoActionBar">
-        <item name="android:windowBackground">@color/uzzap_white</item>
-        <item name="colorPrimary">@color/uzzap_black</item>
-        <item name="colorPrimaryDark">@color/uzzap_black</item>
-        <item name="colorAccent">@color/uzzap_special_blue</item>
-        <item name="android:textColor">@color/uzzap_text</item>
+        <item name="android:windowBackground">@color/uzzap_clay_bg</item>
+        <item name="colorPrimary">@color/uzzap_clay_primary</item>
+        <item name="colorPrimaryDark">@color/uzzap_clay_primary_dark</item>
+        <item name="colorAccent">@color/uzzap_clay_accent</item>
+        <item name="android:textColor">@color/uzzap_clay_text</item>
     </style>
 
     <style name="Theme.Uzzap.NoTitle" parent="Theme.Uzzap">
         <item name="android:windowNoTitle">true</item>
-        <item name="android:statusBarColor">@color/uzzap_black</item>
-        <item name="android:navigationBarColor">@color/uzzap_black</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowFullscreen">false</item>
         <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
@@ -20,7 +20,7 @@
     </style>
 
     <style name="UzzapSoftkeyText">
-        <item name="android:textColor">@color/uzzap_bar_font</item>
+        <item name="android:textColor">@color/uzzap_clay_bar_font</item>
         <item name="android:textSize">15sp</item>
         <item name="android:textAllCaps">false</item>
         <item name="android:padding">10dp</item>
@@ -28,7 +28,7 @@
     </style>
 
     <style name="UzzapTitleText">
-        <item name="android:textColor">@color/uzzap_bar_font</item>
+        <item name="android:textColor">@color/uzzap_clay_bar_font</item>
         <item name="android:textSize">17sp</item>
         <item name="android:textAllCaps">false</item>
     </style>
@@ -65,24 +65,31 @@
         <item name="android:paddingStart">14dp</item>
         <item name="android:paddingEnd">14dp</item>
         <item name="android:textSize">18sp</item>
-        <item name="android:textColor">@color/uzzap_text</item>
+        <item name="android:textColor">@color/uzzap_clay_text</item>
         <item name="android:background">@drawable/bg_menu_row_selector</item>
         <item name="android:gravity">center_vertical</item>
         <item name="android:drawablePadding">10dp</item>
     </style>
 
-    <!-- ============ REAL RUNTIME THEMES (see ThemeManager) ============ -->
-    <style name="UzzapTheme.Classic" parent="Theme.AppCompat.Light.NoActionBar">
-        <item name="uzzapColorBg">#FFFFFF</item>
-        <item name="uzzapColorSurface">#FFFFFF</item>
-        <item name="uzzapColorAccent">#8EEF04</item>
-        <item name="uzzapColorText">#191919</item>
-        <item name="uzzapColorMuted">#5F5F5F</item>
-        <item name="uzzapColorHeader">#0D0CAF</item>
-        <item name="uzzapColorDivider">#C8C8C8</item>
-        <item name="android:windowBackground">@color/uzzap_white</item>
-        <item name="colorAccent">#8EEF04</item>
+    <!-- FINAL DESIGN: Uzzap Android UI Design System v3.0 "Claymorphism" -->
+    <style name="UzzapTheme.Clay" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="uzzapColorBg">@color/uzzap_clay_bg</item>
+        <item name="uzzapColorSurface">@color/uzzap_clay_surface</item>
+        <item name="uzzapColorAccent">@color/uzzap_clay_accent</item>
+        <item name="uzzapColorText">@color/uzzap_clay_text</item>
+        <item name="uzzapColorMuted">@color/uzzap_clay_muted</item>
+        <item name="uzzapColorHeader">@color/uzzap_clay_header</item>
+        <item name="uzzapColorDivider">@color/uzzap_clay_divider</item>
+        <item name="android:windowBackground">@color/uzzap_clay_bg</item>
+        <item name="colorPrimary">@color/uzzap_clay_primary</item>
+        <item name="colorPrimaryDark">@color/uzzap_clay_primary_dark</item>
+        <item name="colorAccent">@color/uzzap_clay_accent</item>
+        <item name="android:fontFamily">sans</item>
     </style>
+
+    <!-- Legacy theme names remain supported so existing preferences do not break. -->
+    <style name="UzzapTheme.Classic" parent="UzzapTheme.Clay" />
+
     <style name="UzzapTheme.Dark" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="uzzapColorBg">#101510</item>
         <item name="uzzapColorSurface">#182114</item>
@@ -93,6 +100,7 @@
         <item name="uzzapColorDivider">#26351F</item>
         <item name="android:windowBackground">#101510</item>
     </style>
+
     <style name="UzzapTheme.Black" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="uzzapColorBg">#000000</item>
         <item name="uzzapColorSurface">#0D0D0D</item>
@@ -104,6 +112,7 @@
         <item name="android:windowBackground">@color/uzzap_black</item>
         <item name="colorAccent">#8EEF04</item>
     </style>
+
     <style name="UzzapTheme.Blue" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="uzzapColorBg">#0C1524</item>
         <item name="uzzapColorSurface">#12203A</item>
@@ -114,6 +123,7 @@
         <item name="uzzapColorDivider">#22385C</item>
         <item name="android:windowBackground">#0C1524</item>
     </style>
+
     <style name="UzzapTheme.Green" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="uzzapColorBg">#0C1206</item>
         <item name="uzzapColorSurface">#131C0A</item>
