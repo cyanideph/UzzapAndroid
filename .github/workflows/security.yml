@@ -36,7 +36,7 @@ jobs:
           )
           found=0
           for pattern in "${patterns[@]}"; do
-            if git grep -nI -E "$pattern" -- . ':!docs/UZAPBOT.md'; then
+            if git grep -nI -E "$pattern" -- . ':!docs/UZAPBOT.md' ':!.github/workflows/security.yml'; then
               found=1
             fi
           done
