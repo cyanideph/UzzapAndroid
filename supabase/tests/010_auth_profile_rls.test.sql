@@ -48,7 +48,7 @@ select results_eq(
      set status_message = 'SPOOFED'
      where owner_id = (select uid from e2e_users where label='bob')
      returning username $$,
-  $$ values $$,
+  $ select username from e2e_users where false $,
   'Alice cannot update Bob profile'
 );
 
@@ -84,7 +84,7 @@ select results_eq(
      set status_message = 'CHARLIE SPOOF'
      where owner_id = (select uid from e2e_users where label='alice')
      returning username $$,
-  $$ values $$,
+  $ select username from e2e_users where false $,
   'Charlie cannot update Alice profile'
 );
 
