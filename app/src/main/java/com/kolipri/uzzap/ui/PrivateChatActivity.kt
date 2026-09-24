@@ -128,7 +128,7 @@ class PrivateChatActivity : BaseChromeActivity() {
     }
 
     private fun buildUi() {
-        chatRoot = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(ThemeManager.resolve(this, R.attr.uzzapColorBg)) }
+        chatRoot = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(ThemeManager.resolve(this@PrivateChatActivity, R.attr.uzzapColorBg)) }
         contentFrame.addView(chatRoot, FrameLayout.LayoutParams(-1, -1))
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(8), dp(8)); background = GradientDrawable().apply { setColor(Color.WHITE); setStroke(dp(1), Color.rgb(232, 234, 238)) } }
         header.addView(actionButton("‹", 30).apply { setOnClickListener { finish() }; contentDescription = "Back" }, LinearLayout.LayoutParams(dp(44), dp(48)))
