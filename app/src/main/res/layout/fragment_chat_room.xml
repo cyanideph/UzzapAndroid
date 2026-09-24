@@ -1,93 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/uzzap_clay_bg">
-
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/room_swipe_refresh"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/room_messages"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp"
-            android:overScrollMode="ifContentScrolls" />
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:paddingTop="7dp"
-        android:paddingBottom="4dp">
-
-        <TextView
-            android:id="@+id/tv_to_room"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textColor="@color/uzzap_clay_header"
-            android:textStyle="bold"
-            android:textSize="13sp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="To: Main Lobby"/>
-
-        <ImageView
-            android:id="@+id/iv_emoticon_picker"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:src="@drawable/d_emoticon_wink"
-            android:padding="7dp"
-            android:background="@drawable/bg_clay_nav_selector"
-            android:contentDescription="Add Emoticon"/>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/uzzap_clay_bg">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="14dp" android:paddingEnd="14dp" android:paddingTop="10dp" android:paddingBottom="8dp" android:gravity="center_vertical">
+        <FrameLayout android:layout_width="42dp" android:layout_height="42dp" android:background="@drawable/bg_clay_primary" android:padding="10dp"><ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/ic_clay_chat" android:contentDescription="@null"/></FrameLayout>
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="10dp">
+            <TextView android:id="@+id/tv_to_room" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/uzzap_clay_header" android:textStyle="bold" android:textSize="16sp" android:ellipsize="end" android:maxLines="1" android:text="Main Lobby"/>
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Live room" android:textColor="@color/uzzap_clay_muted" android:textSize="11sp"/>
+        </LinearLayout>
+        <ImageView android:id="@+id/iv_emoticon_picker" android:layout_width="42dp" android:layout_height="42dp" android:src="@drawable/d_emoticon_wink" android:padding="9dp" android:background="@drawable/bg_clay_nav_selector" android:contentDescription="Add Emoticon"/>
     </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:paddingTop="4dp"
-        android:paddingBottom="10dp">
-
-        <EditText
-            android:id="@+id/et_message"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@drawable/bg_clay_input"
-            android:textSize="15sp"
-            android:textColor="@color/uzzap_clay_text"
-            android:textColorHint="@color/uzzap_clay_muted"
-            android:hint="Type a message"
-            android:minHeight="46dp"
-            android:maxLines="3"/>
-
-        <TextView
-            android:id="@+id/btn_send"
-            android:layout_width="72dp"
-            android:layout_height="46dp"
-            android:layout_marginStart="8dp"
-            android:gravity="center"
-            android:background="@drawable/bg_clay_primary"
-            android:textColor="#16210A"
-            android:textStyle="bold"
-            android:textSize="15sp"
-            android:text="Send"/>
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout android:id="@+id/room_swipe_refresh" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <androidx.recyclerview.widget.RecyclerView android:id="@+id/room_messages" android:layout_width="match_parent" android:layout_height="match_parent" android:clipToPadding="false" android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="8dp" android:paddingBottom="12dp" android:overScrollMode="ifContentScrolls"/>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="7dp" android:paddingBottom="10dp">
+        <EditText android:id="@+id/et_message" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:background="@drawable/bg_clay_input" android:textSize="15sp" android:textColor="@color/uzzap_clay_text" android:textColorHint="@color/uzzap_clay_muted" android:hint="Message the room…" android:singleLine="true"/>
+        <TextView android:id="@+id/btn_send" android:layout_width="56dp" android:layout_height="48dp" android:layout_marginStart="8dp" android:gravity="center" android:background="@drawable/bg_clay_primary" android:textColor="#20233A" android:textStyle="bold" android:textSize="0sp" android:drawableTop="@drawable/ic_clay_send" android:contentDescription="Send"/>
     </LinearLayout>
 </LinearLayout>
