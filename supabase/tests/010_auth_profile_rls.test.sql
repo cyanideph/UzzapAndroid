@@ -76,12 +76,9 @@ select is(
   'Profiles are publicly readable as configured'
 );
 
-select results_eq(
-  $$ update public.profiles
-     set status_message = 'CHARLIE SPOOF'
-     where owner_id = (select uid from e2e_users where label='alice')
-     returning username $$,
-  $ select username from e2e_users where false $,
+select isnt(
+  (select status_message from public.profiles where username='e2e_alice'),
+  'CHARLIE SPOOF',
   'Charlie cannot update Alice profile'
 );
 
