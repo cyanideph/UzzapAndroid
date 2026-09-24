@@ -78,6 +78,7 @@ select throws_ok(
      values ((select name from e2e_room),'e2e_bob','spoof',false,
              (select uid from e2e_users where label='bob')) $$,
   '42501',
+  NULL,
   'Alice cannot spoof Bob sender_id'
 );
 
@@ -85,6 +86,7 @@ select throws_ok(
   $$ insert into public.room_messages(room_name,sender,body,is_system,sender_id)
      values ((select name from e2e_room),'UzzapBot','fake system',true,auth.uid()) $$,
   '42501',
+  NULL,
   'Authenticated user cannot forge a system message'
 );
 
@@ -110,6 +112,7 @@ select throws_ok(
   $$ insert into public.room_messages(room_name,sender,body,is_system,sender_id)
      values ((select name from e2e_room),'e2e_charlie','non-member',false,auth.uid()) $$,
   '42501',
+  NULL,
   'Non-member cannot send room messages'
 );
 
