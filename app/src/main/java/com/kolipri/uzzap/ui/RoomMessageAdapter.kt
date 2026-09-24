@@ -4,6 +4,8 @@ import android.content.Context
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.graphics.drawable.GradientDrawable
+import android.graphics.Typeface
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -81,15 +83,19 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
                 layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                 gravity = Gravity.CENTER
                 textAlignment = View.TEXT_ALIGNMENT_CENTER
-                setPadding(12, 8, 12, 8)
-                textSize = 15f
-                setTextColor(ContextCompat.getColor(context, R.color.uzzap_special_blue))
+                setPadding(18, 12, 18, 12)
+                textSize = 14f
+                setTextColor(ContextCompat.getColor(context, R.color.uzzap_clay_header))
+                background = GradientDrawable().apply {
+                    setColor(ContextCompat.getColor(context, R.color.uzzap_clay_surface))
+                    cornerRadius = 18f
+                }
             })
         } else {
             val container = LinearLayout(context).apply {
                 layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                 orientation = LinearLayout.VERTICAL
-                setPadding(12, 4, 12, 4)
+                setPadding(10, 5, 10, 5)
             }
             NormalHolder(container)
         }
@@ -105,15 +111,28 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
             holder.text.text = EmoticonParser.parse(context, message.body, 16f)
         } else if (holder is NormalHolder) {
             holder.container.removeAllViews()
-            holder.container.addView(TextView(context).apply {
-                text = renderFormatted(displaySender(message.sender) + ":", R.color.uzzap_special_red)
-                textSize = 17f
-                setTypeface(typeface, android.graphics.Typeface.BOLD)
+            val bubble = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(14, 10, 14, 10)
+                background = GradientDrawable().apply {
+                    setColor(ContextCompat.getColor(context, R.color.uzzap_clay_surface))
+                    cornerRadius = 18f
+                }
+                elevation = 1.5f
+            }
+            bubble.addView(TextView(context).apply {
+                text = renderFormatted(displaySender(message.sender), R.color.uzzap_special_red)
+                textSize = 13f
+                setTypeface(typeface, Typeface.BOLD)
             })
-            holder.container.addView(TextView(context).apply {
+            bubble.addView(TextView(context).apply {
                 text = renderFormatted(message.body, R.color.uzzap_text)
-                textSize = 16f
+                textSize = 15f
+                setPadding(0, 3, 0, 0)
             })
+            holder.container.addView(bubble, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
         }
     }
 
