@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download APK artifact from successful Android build
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: Uzzap-debug-apk
           path: dist
