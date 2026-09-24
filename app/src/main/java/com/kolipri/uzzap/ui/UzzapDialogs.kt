@@ -23,7 +23,7 @@ import com.kolipri.uzzap.R
 /** Shared modern dialog: rounded card, animated icon tile, themed text,
  *  optional input fields, pill buttons. Theme-aware (light/dark/green/blue/black). */
 object UzzapDialogs {
-    val GREEN: Int = 0xFF8EEF04.toInt()
+    fun accent(context: Context): Int = ThemeManager.resolve(context, R.attr.uzzapColorAccent)
     private val GREEN_DARK_TEXT: Int = 0xFF16210A.toInt()
 
     class FieldSpec(val hint: String, val prefilled: String = "", val password: Boolean = false, val email: Boolean = false)
@@ -74,7 +74,7 @@ object UzzapDialogs {
         val tile = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            background = rounded(context, withAlpha(GREEN, 64), 16)
+            background = rounded(context, withAlpha(accent(context), 64), 16)
         }
         tile.addView(ImageView(context).apply { loadAnimIcon(this, asset) },
             LinearLayout.LayoutParams(dp(context, 34), dp(context, 34)))
@@ -122,8 +122,8 @@ object UzzapDialogs {
                 textSize = 14f
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
-                setTextColor(GREEN_DARK_TEXT)
-                background = rounded(context, GREEN, 22)
+                setTextColor(0xFF1A250D.toInt())
+                background = rounded(context, accent(context), 22)
             }
             buttons.addView(posBtn, LinearLayout.LayoutParams(0, dp(context, 44), if (negative != null) 1f else 2f))
         }
