@@ -27,6 +27,15 @@ select 'e2e_alice','e2e_bob','seed DM',
        (select uid from e2e_users where label='alice'),
        (select uid from e2e_users where label='bob');
 
+create or replace function pg_temp.capture_sqlstate(statement text) returns text language plpgsql as $fn$
+begin
+  execute statement;
+  return '00000';
+exception when others then
+  return sqlstate;
+end
+$fn$;
+
 grant select on e2e_users to authenticated;
 set local role authenticated;
 select set_config(
@@ -49,21 +58,19 @@ with ins as (
 )
 select is((select count(*) from ins),1::bigint,'Alice can send Bob a DM');
 
-select throws_ok(
-  $$ insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
+select is(
+  pg_temp.capture_sqlstate($insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
      values ('e2e_bob','e2e_alice','spoof',auth.uid(),
-             (select uid from e2e_users where label='alice')) $$,
-  NULL,
-  NULL,
+             (select uid from e2e_users where label='alice'))$),
+  '42501',
   'Alice cannot spoof Bob as sender'
 );
 
-select throws_ok(
-  $$ insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
+select is(
+  pg_temp.capture_sqlstate($insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
      values ('e2e_alice','e2e_bob','wrong recipient',
-             auth.uid(),(select uid from e2e_users where label='alice')) $$,
-  NULL,
-  NULL,
+             auth.uid(),(select uid from e2e_users where label='alice'))$),
+  '42501',
   'Alice cannot make the recipient herself'
 );
 
@@ -99,12 +106,11 @@ select is(
   'Unrelated user cannot read the DM conversation'
 );
 
-select throws_ok(
-  $$ insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
+select is(
+  pg_temp.capture_sqlstate($insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
      values ('e2e_charlie','e2e_alice','unauthorized',auth.uid(),
-             (select uid from e2e_users where label='alice')) $$,
-  NULL,
-  NULL,
+             (select uid from e2e_users where label='alice'))$),
+  '42501',
   'Charlie cannot send an unauthorized DM'
 );
 
