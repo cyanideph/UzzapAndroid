@@ -1,5 +1,8 @@
 begin;
 
+create extension if not exists pgtap with schema extensions;
+set local search_path = extensions, public;
+
 select plan(12);
 
 select has_table('public','profiles','profiles table exists');
