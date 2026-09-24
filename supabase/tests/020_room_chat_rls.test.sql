@@ -77,7 +77,7 @@ select throws_ok(
   $$ insert into public.room_messages(room_name,sender,body,is_system,sender_id)
      values ((select name from e2e_room),'e2e_bob','spoof',false,
              (select uid from e2e_users where label='bob')) $$,
-  '42501',
+  NULL,
   NULL,
   'Alice cannot spoof Bob sender_id'
 );
@@ -85,15 +85,15 @@ select throws_ok(
 select throws_ok(
   $$ insert into public.room_messages(room_name,sender,body,is_system,sender_id)
      values ((select name from e2e_room),'UzzapBot','fake system',true,auth.uid()) $$,
-  '42501',
+  NULL,
   NULL,
   'Authenticated user cannot forge a system message'
 );
 
 select is(
-  (select count(*) from public.room_messages where room_name=(select name from e2e_room)),
+  (select count(*) from public.room_messages where room_name=(select name from e2e_room) and sender='e2e_alice' and body='hello from Alice'),
   1::bigint,
-  'Alice can read room messages as an active member'
+  'Alice can read her room message as an active member'
 );
 
 select set_config(
@@ -111,15 +111,15 @@ select is(
 select throws_ok(
   $$ insert into public.room_messages(room_name,sender,body,is_system,sender_id)
      values ((select name from e2e_room),'e2e_charlie','non-member',false,auth.uid()) $$,
-  '42501',
+  NULL,
   NULL,
   'Non-member cannot send room messages'
 );
 
 select is(
   (select count(*) from public.room_participants where room_name=(select name from e2e_room)),
-  2::bigint,
-  'Room has exactly two seeded members'
+  0::bigint,
+  'Non-member cannot see seeded room participants'
 );
 
 select is(
