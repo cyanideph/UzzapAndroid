@@ -1,29 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="?attr/uzzapColorBg">
-
-    <Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1.3"/>
-
-    <ImageView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:src="@drawable/d_logo_large"
-        android:scaleType="fitCenter"
-        android:contentDescription="@string/uzzap_beta"/>
-
-    <Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1.6"/>
-
-    <LinearLayout
-        android:id="@+id/menu_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingTop="4dp"
-        android:paddingBottom="4dp"/>
-
-    <Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="3"/>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/uzzap_clay_bg" android:paddingStart="18dp" android:paddingEnd="18dp">
+    <Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="0.7"/>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:background="@drawable/bg_clay_card" android:elevation="5dp" android:padding="24dp">
+        <ImageView android:layout_width="84dp" android:layout_height="84dp" android:src="@drawable/d_logo_large" android:scaleType="fitCenter" android:contentDescription="@string/uzzap_beta"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Uzzap" android:textColor="@color/uzzap_clay_header" android:textSize="30sp" android:textStyle="bold"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="Your social space to chat and connect" android:textColor="@color/uzzap_clay_muted" android:textSize="13sp"/>
+    </LinearLayout>
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:layout_marginBottom="6dp" android:text="QUICK START" android:textColor="@color/uzzap_clay_header" android:textSize="12sp" android:textStyle="bold"/>
+    <LinearLayout android:id="@+id/menu_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_clay_card" android:padding="6dp" android:elevation="3dp"/>
+    <Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"/>
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:paddingBottom="18dp" android:text="Built for conversations, communities and buddies" android:textColor="@color/uzzap_clay_muted" android:textSize="12sp"/>
 </LinearLayout>
