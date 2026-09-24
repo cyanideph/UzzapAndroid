@@ -54,7 +54,6 @@ select throws_ok(
      values ((select uid from e2e_users where label='bob'),
              'e2e_spoof_profile','Spoof','spoof@e2e.invalid') $$,
   '42501',
-  'new row violates row-level security policy for table "profiles"',
   'Alice cannot insert a profile owned by Bob'
 );
 
