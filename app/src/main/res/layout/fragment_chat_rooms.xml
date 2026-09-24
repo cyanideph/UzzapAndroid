@@ -2,15 +2,15 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/uzzapColorBg">
+    android:background="@color/uzzap_clay_bg">
 
     <TextView
         android:id="@+id/tv_loading"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:textSize="17sp"
-        android:textColor="?attr/uzzapColorText"
+        android:textSize="16sp"
+        android:textColor="@color/uzzap_clay_muted"
         android:text="@string/status_getting_categories"/>
 
     <LinearLayout
@@ -18,23 +18,31 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:visibility="gone">
+        android:visibility="gone"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp">
 
         <TextView
             android:id="@+id/tv_header"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="14dp"
-            android:textColor="?attr/uzzapColorAccent"
-            android:textSize="16sp"
-            android:text="Categories (1/1)"/>
+            android:layout_marginTop="12dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="10dp"
+            android:textColor="@color/uzzap_clay_header"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:text="Regions (1/1)"/>
 
         <ListView
             android:id="@+id/list_rooms"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:divider="@color/uzzap_divider"
-            android:dividerHeight="1dp"/>
+            android:divider="@android:color/transparent"
+            android:dividerHeight="8dp"
+            android:clipToPadding="false"
+            android:paddingBottom="12dp"/>
     </LinearLayout>
 </FrameLayout>
