@@ -1,31 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:background="@drawable/bg_clay_card"
-    android:minHeight="58dp"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
-    android:paddingTop="10dp"
-    android:paddingBottom="10dp">
-
-    <ImageView
-        android:id="@+id/iv_room_icon"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:contentDescription="@null"/>
-
-    <TextView
-        android:id="@+id/tv_room_label"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:layout_marginStart="14dp"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:textColor="@color/uzzap_clay_text"/>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/bg_clay_card" android:minHeight="76dp" android:paddingStart="16dp" android:paddingEnd="14dp" android:paddingTop="12dp" android:paddingBottom="12dp" android:elevation="3dp">
+    <FrameLayout android:layout_width="46dp" android:layout_height="46dp" android:background="@drawable/bg_clay_primary" android:padding="11dp">
+        <ImageView android:id="@+id/iv_room_icon" android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/ic_clay_chat" android:contentDescription="@null"/>
+    </FrameLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
+        <TextView android:id="@+id/tv_room_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="17sp" android:textStyle="bold" android:ellipsize="end" android:maxLines="1" android:textColor="@color/uzzap_clay_text"/>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="Province room • Tap to enter" android:textSize="12sp" android:textColor="@color/uzzap_clay_muted"/>
+    </LinearLayout>
+    <ImageView android:layout_width="34dp" android:layout_height="34dp" android:padding="8dp" android:src="@drawable/ic_clay_arrow" android:contentDescription="@null"/>
 </LinearLayout>
