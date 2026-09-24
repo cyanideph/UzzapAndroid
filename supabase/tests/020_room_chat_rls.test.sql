@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public;
 
-select plan(11);
+select plan(10);
 
 create temporary table e2e_users (
   label text primary key,
