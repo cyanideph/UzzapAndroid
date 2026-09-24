@@ -2,18 +2,20 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:background="@drawable/bg_clay_card">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:background="@drawable/bg_menu_row_selector"
+        android:minHeight="54dp"
+        android:background="@drawable/bg_clay_nav_selector"
         android:paddingStart="14dp"
         android:paddingEnd="14dp"
-        android:paddingTop="10dp"
-        android:paddingBottom="10dp">
+        android:paddingTop="9dp"
+        android:paddingBottom="9dp">
 
         <ImageView
             android:id="@+id/iv_group_icon"
@@ -27,8 +29,9 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="12dp"
-            android:textSize="18sp"
-            android:textColor="?attr/uzzapColorText"/>
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/uzzap_clay_text"/>
     </LinearLayout>
 
     <LinearLayout
@@ -37,11 +40,12 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:background="@color/uzzap_editor_bg"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
+        android:background="@drawable/bg_clay_input"
+        android:layout_margin="10dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
         android:visibility="gone">
 
         <ImageView
@@ -55,10 +59,10 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="8dp"
             android:background="@null"
             android:hint="Search buddies"
-            android:textSize="15sp"
+            android:textSize="14sp"
             android:singleLine="true"/>
     </LinearLayout>
 
@@ -73,11 +77,11 @@
         android:id="@+id/tv_empty"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingStart="46dp"
+        android:paddingStart="50dp"
         android:paddingEnd="14dp"
-        android:paddingBottom="10dp"
-        android:textSize="14sp"
-        android:textColor="?attr/uzzapColorMuted"
+        android:paddingBottom="14dp"
+        android:textSize="13sp"
+        android:textColor="@color/uzzap_clay_muted"
         android:text="No buddies yet."
         android:visibility="gone"/>
 </LinearLayout>
