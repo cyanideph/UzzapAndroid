@@ -4,16 +4,17 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:background="@drawable/bg_menu_row_selector"
-    android:paddingStart="14dp"
-    android:paddingEnd="14dp"
+    android:background="@drawable/bg_clay_card"
+    android:minHeight="58dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
     android:paddingTop="10dp"
     android:paddingBottom="10dp">
 
     <ImageView
         android:id="@+id/iv_room_icon"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
         android:contentDescription="@null"/>
 
     <TextView
@@ -21,7 +22,10 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:layout_marginStart="12dp"
-        android:textSize="18sp"
-        android:textColor="?attr/uzzapColorText"/>
+        android:layout_marginStart="14dp"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/uzzap_clay_text"/>
 </LinearLayout>
