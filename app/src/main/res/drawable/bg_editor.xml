@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="@color/uzzap_editor_bg"/>
-    <stroke android:width="1dp" android:color="@color/uzzap_editor_border"/>
-    <padding
-        android:left="6dp"
-        android:top="4dp"
-        android:right="6dp"
-        android:bottom="4dp"/>
+    <solid android:color="@color/uzzap_clay_surface"/>
+    <stroke android:width="1dp" android:color="@color/uzzap_clay_divider"/>
+    <corners android:radius="18dp"/>
+    <padding android:left="8dp" android:top="6dp" android:right="8dp" android:bottom="6dp"/>
 </shape>
