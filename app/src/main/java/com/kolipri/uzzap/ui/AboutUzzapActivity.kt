@@ -101,7 +101,7 @@ class AboutUzzapActivity : BaseChromeActivity() {
             this.text = text
             textSize = 20f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(UzzapDialogs.accent(this))
+            setTextColor(UzzapDialogs.accent(this@AboutUzzapActivity))
             setPadding(0, dp(22), 0, dp(8))
         }
         parent.addView(view)
