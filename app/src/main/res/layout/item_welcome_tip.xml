@@ -1,28 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="5dp"
-    android:layout_marginBottom="5dp"
-    android:background="@drawable/bg_welcome_card"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:minHeight="72dp">
-
-    <ImageView
-        android:id="@+id/iv_tip_icon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginEnd="12dp"
-        android:contentDescription="@null"
-        android:scaleType="fitCenter" />
-
-    <TextView
-        android:id="@+id/tv_tip_text"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:lineSpacingExtra="2dp"
-        android:textSize="15sp"
-        android:textColor="?attr/uzzapColorText" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="10dp" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/bg_clay_card" android:padding="14dp" android:elevation="2dp">
+    <FrameLayout android:layout_width="42dp" android:layout_height="42dp" android:background="@drawable/bg_clay_primary" android:padding="10dp"><ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/ic_clay_chat" android:contentDescription="@null"/></FrameLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="12dp">
+        <TextView android:id="@+id/tv_tip_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/uzzap_clay_text" android:textStyle="bold" android:textSize="15sp" android:text="Chat"/>
+        <TextView android:id="@+id/tv_tip_body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:textColor="@color/uzzap_clay_muted" android:textSize="12sp" android:text="Connect with people."/>
+    </LinearLayout>
+    <ImageView android:layout_width="28dp" android:layout_height="28dp" android:padding="7dp" android:src="@drawable/ic_clay_arrow" android:contentDescription="@null"/>
 </LinearLayout>
