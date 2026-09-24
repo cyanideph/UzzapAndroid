@@ -1,87 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="@drawable/bg_clay_card">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:minHeight="54dp"
-        android:background="@drawable/bg_clay_nav_selector"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:paddingTop="9dp"
-        android:paddingBottom="9dp">
-
-        <ImageView
-            android:id="@+id/iv_group_icon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:contentDescription="@null"/>
-
-        <TextView
-            android:id="@+id/tv_group_name"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="12dp"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@color/uzzap_clay_text"/>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_clay_card" android:elevation="3dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:minHeight="60dp" android:paddingStart="14dp" android:paddingEnd="14dp" android:paddingTop="10dp" android:paddingBottom="10dp">
+        <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_clay_nav_selector" android:padding="9dp"><ImageView android:id="@+id/iv_group_icon" android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/ic_clay_people" android:contentDescription="@null"/></FrameLayout>
+        <TextView android:id="@+id/tv_group_name" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/uzzap_clay_text"/>
+        <ImageView android:layout_width="30dp" android:layout_height="30dp" android:padding="7dp" android:src="@drawable/ic_clay_arrow" android:contentDescription="@null"/>
     </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/search_row"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/bg_clay_input"
-        android:layout_margin="10dp"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:paddingTop="5dp"
-        android:paddingBottom="5dp"
-        android:visibility="gone">
-
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/d_search"
-            android:contentDescription="@null"/>
-
-        <EditText
-            android:id="@+id/et_search"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:background="@null"
-            android:hint="Search buddies"
-            android:textSize="14sp"
-            android:singleLine="true"/>
+    <LinearLayout android:id="@+id/search_row" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/bg_clay_input" android:layout_margin="10dp" android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="5dp" android:paddingBottom="5dp" android:visibility="gone">
+        <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_clay_search" android:contentDescription="@null"/>
+        <EditText android:id="@+id/et_search" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:background="@null" android:hint="Search buddies" android:textSize="14sp" android:singleLine="true"/>
     </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/container_buddies"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/tv_empty"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingStart="50dp"
-        android:paddingEnd="14dp"
-        android:paddingBottom="14dp"
-        android:textSize="13sp"
-        android:textColor="@color/uzzap_clay_muted"
-        android:text="No buddies yet."
-        android:visibility="gone"/>
+    <LinearLayout android:id="@+id/container_buddies" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone"/>
+    <TextView android:id="@+id/tv_empty" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="66dp" android:paddingEnd="14dp" android:paddingBottom="14dp" android:textSize="13sp" android:textColor="@color/uzzap_clay_muted" android:text="No buddies yet." android:visibility="gone"/>
 </LinearLayout>
