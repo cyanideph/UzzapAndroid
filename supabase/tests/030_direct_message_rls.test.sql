@@ -59,7 +59,7 @@ with ins as (
 select is((select count(*) from ins),1::bigint,'Alice can send Bob a DM');
 
 select is(
-  pg_temp.capture_sqlstate($insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
+  pg_temp.capture_sqlstate($probe$insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
      values ('e2e_bob','e2e_alice','spoof',auth.uid(),
              (select uid from e2e_users where label='alice'))$),
   '42501',
@@ -67,7 +67,7 @@ select is(
 );
 
 select is(
-  pg_temp.capture_sqlstate($insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
+  pg_temp.capture_sqlstate($probe$insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
      values ('e2e_alice','e2e_bob','wrong recipient',
              auth.uid(),(select uid from e2e_users where label='alice'))$),
   '42501',
@@ -107,7 +107,7 @@ select is(
 );
 
 select is(
-  pg_temp.capture_sqlstate($insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
+  pg_temp.capture_sqlstate($probe$insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
      values ('e2e_charlie','e2e_alice','unauthorized',auth.uid(),
              (select uid from e2e_users where label='alice'))$),
   '42501',
