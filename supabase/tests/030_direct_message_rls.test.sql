@@ -16,10 +16,11 @@ insert into e2e_users values
   ('bob','00000000-0000-0000-0000-0000000000b2','e2e_bob'),
   ('charlie','00000000-0000-0000-0000-0000000000c3','e2e_charlie');
 
-insert into public.profiles(owner_id, username, nickname)
-select uid, username, initcap(username)
-from e2e_users
-on conflict do nothing;
+insert into auth.users(id, aud, role, email, raw_user_meta_data, created_at, updated_at)
+select uid, 'authenticated', 'authenticated', username || '@e2e.invalid',
+       jsonb_build_object('username',username,'nickname',initcap(username)),
+       now(), now()
+from e2e_users;
 
 insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
 select 'e2e_alice','e2e_bob','seed DM',
