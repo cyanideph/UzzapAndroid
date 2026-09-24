@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.DirectMessageClient
 import com.kolipri.uzzap.data.PrivateMessageStateClient
@@ -127,14 +128,14 @@ class PrivateChatActivity : BaseChromeActivity() {
     }
 
     private fun buildUi() {
-        chatRoot = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(247, 248, 250)) }
+        chatRoot = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(ThemeManager.resolve(this, R.attr.uzzapColorBg)) }
         contentFrame.addView(chatRoot, FrameLayout.LayoutParams(-1, -1))
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(8), dp(8)); background = GradientDrawable().apply { setColor(Color.WHITE); setStroke(dp(1), Color.rgb(232, 234, 238)) } }
         header.addView(actionButton("‹", 30).apply { setOnClickListener { finish() }; contentDescription = "Back" }, LinearLayout.LayoutParams(dp(44), dp(48)))
-        header.addView(TextView(this).apply { text = buddy.take(1).uppercase(Locale.getDefault()); textSize = 18f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; typeface = Typeface.DEFAULT_BOLD; background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.rgb(55, 112, 82)) } }, LinearLayout.LayoutParams(dp(42), dp(42)))
+        header.addView(TextView(this).apply { text = buddy.take(1).uppercase(Locale.getDefault()); textSize = 18f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; typeface = Typeface.DEFAULT_BOLD; background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(ThemeManager.resolve(this@PrivateChatActivity, R.attr.uzzapColorHeader)) } }, LinearLayout.LayoutParams(dp(42), dp(42)))
         val identity = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, dp(6), 0) }
-        identity.addView(TextView(this).apply { text = buddy; textSize = 17f; typeface = Typeface.DEFAULT_BOLD; setTextColor(Color.rgb(25, 27, 31)); maxLines = 1 })
-        statusText = TextView(this).apply { text = "Checking status…"; textSize = 12f; setTextColor(Color.rgb(100, 105, 112)) }
+        identity.addView(TextView(this).apply { text = buddy; textSize = 17f; typeface = Typeface.DEFAULT_BOLD; setTextColor(ThemeManager.resolve(this@PrivateChatActivity, R.attr.uzzapColorText)); maxLines = 1 })
+        statusText = TextView(this).apply { text = "Checking status…"; textSize = 12f; setTextColor(ThemeManager.resolve(this@PrivateChatActivity, R.attr.uzzapColorMuted)) }
         identity.addView(statusText)
         header.addView(identity, LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(actionButton("ⓘ", 21).apply { contentDescription = "View profile"; setOnClickListener { viewProfile() } }, LinearLayout.LayoutParams(dp(44), dp(48)))
@@ -151,13 +152,13 @@ class PrivateChatActivity : BaseChromeActivity() {
         messageAdapter = DirectMessageAdapter(this)
         messageList.adapter = messageAdapter
         body.addView(messageList, FrameLayout.LayoutParams(-1, -1))
-        emptyState = TextView(this).apply { text = "Start a conversation with $buddy 👋"; textSize = 15f; gravity = Gravity.CENTER; setTextColor(Color.rgb(105, 110, 118)); setPadding(dp(30), dp(30), dp(30), dp(30)); visibility = View.GONE }
+        emptyState = TextView(this).apply { text = "Start a conversation with $buddy 👋"; textSize = 15f; gravity = Gravity.CENTER; setTextColor(ThemeManager.resolve(this@PrivateChatActivity, R.attr.uzzapColorMuted)); setPadding(dp(30), dp(30), dp(30), dp(30)); visibility = View.GONE }
         body.addView(emptyState, FrameLayout.LayoutParams(-1, -1)); chatRoot.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
         val composer = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM; setPadding(dp(8), dp(7), dp(8), dp(7)); setBackgroundColor(Color.WHITE); elevation = dp(3).toFloat() }
         composer.addView(actionButton("☺", 22).apply { contentDescription = "Add emoticon"; setOnClickListener { EmoticonPickerDialog.show(this@PrivateChatActivity) { code -> val prefix = if (input.text.isNotEmpty() && !input.text.endsWith(" ")) " " else ""; input.append("$prefix$code "); input.setSelection(input.text.length) } } }, LinearLayout.LayoutParams(dp(44), dp(48)))
-        input = EditText(this).apply { hint = "Message $buddy…"; textSize = 15f; setTextColor(Color.rgb(30, 32, 36)); setHintTextColor(Color.rgb(145, 149, 156)); setPadding(dp(15), dp(5), dp(15), dp(5)); minHeight = dp(44); maxLines = 5; isSingleLine = false; background = GradientDrawable().apply { cornerRadius = dp(22).toFloat(); setColor(Color.rgb(245, 246, 248)); setStroke(dp(1), Color.rgb(228, 230, 234)) } }
+        input = EditText(this).apply { hint = "Message $buddy…"; textSize = 15f; setTextColor(ThemeManager.resolve(this@PrivateChatActivity, R.attr.uzzapColorText)); setHintTextColor(ThemeManager.resolve(this@PrivateChatActivity, R.attr.uzzapColorMuted)); setPadding(dp(15), dp(5), dp(15), dp(5)); minHeight = dp(44); maxLines = 5; isSingleLine = false; background = GradientDrawable().apply { cornerRadius = dp(22).toFloat(); setColor(Color.rgb(245, 246, 248)); setStroke(dp(1), Color.rgb(228, 230, 234)) } }
         composer.addView(input, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = dp(7) })
-        sendButton = TextView(this).apply { text = "➤"; textSize = 21f; gravity = Gravity.CENTER; typeface = Typeface.DEFAULT_BOLD; setTextColor(Color.WHITE); background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.rgb(45, 112, 75)) }; contentDescription = "Send message"; isEnabled = false; alpha = 0.45f }
+        sendButton = TextView(this).apply { text = "➤"; textSize = 21f; gravity = Gravity.CENTER; typeface = Typeface.DEFAULT_BOLD; setTextColor(Color.WHITE); background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(ThemeManager.resolve(this@PrivateChatActivity, R.attr.uzzapColorAccent)) }; contentDescription = "Send message"; isEnabled = false; alpha = 0.45f }
         composer.addView(sendButton, LinearLayout.LayoutParams(dp(46), dp(46))); chatRoot.addView(composer, LinearLayout.LayoutParams(-1, -2))
         input.addTextChangedListener(SimpleTextWatcher { updateSendState() }); sendButton.setOnClickListener { sendCurrentMessage() }
     }
