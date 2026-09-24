@@ -1,0 +1,63 @@
+name: Security Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-scan:
+    name: Tracked-file secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Scan tracked files for high-risk credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          patterns=(
+            'sb_secret_[A-Za-z0-9_\-]+'
+            'service_role[_-][A-Za-z0-9_\-]+'
+            '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'
+            'ghp_[A-Za-z0-9]{20,}'
+            'github_pat_[A-Za-z0-9_]{20,}'
+            'AKIA[0-9A-Z]{16}'
+          )
+          found=0
+          for pattern in "${patterns[@]}"; do
+            if git grep -nI -E "$pattern" -- . ':!docs/UZAPBOT.md'; then
+              found=1
+            fi
+          done
+          if [ "$found" -ne 0 ]; then
+            echo "High-risk credential pattern detected in tracked files."
+            exit 1
+          fi
+          echo "No high-risk credential patterns detected."
+
+  gradle-validation:
+    name: Gradle validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Validate Gradle wrapper
+        run: ./gradlew --version
