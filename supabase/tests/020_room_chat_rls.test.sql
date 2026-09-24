@@ -29,12 +29,15 @@ insert into public.chat_rooms(id, category_id, name, topic, capacity, is_moderat
 select 'e2e-' || substr(gen_random_uuid()::text,1,8), null, name, 'pgTAP E2E', 50, false
 from e2e_room;
 
+grant select on e2e_room to authenticated;
+
 insert into public.room_participants(room_name, username, owner_id)
 select r.name, u.username, u.uid
 from e2e_room r
 cross join e2e_users u
 where u.label in ('alice','bob');
 
+grant select on e2e_users to authenticated;
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
