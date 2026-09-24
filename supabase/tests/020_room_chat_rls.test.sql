@@ -30,15 +30,27 @@ select 'e2e-' || substr(gen_random_uuid()::text,1,8), null, name, 'pgTAP E2E', 5
 from e2e_room;
 
 grant select on e2e_room to authenticated;
+grant select on e2e_users to authenticated;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  json_build_object('role','authenticated','sub',(select uid::text from e2e_users where label='alice'))::text,
+  true
+);
 
 insert into public.room_participants(room_name, username, owner_id)
-select r.name, u.username, u.uid
-from e2e_room r
-cross join e2e_users u
-where u.label in ('alice','bob');
+values ((select name from e2e_room),'e2e_alice',auth.uid());
 
-grant select on e2e_users to authenticated;
-set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  json_build_object('role','authenticated','sub',(select uid::text from e2e_users where label='bob'))::text,
+  true
+);
+
+insert into public.room_participants(room_name, username, owner_id)
+values ((select name from e2e_room),'e2e_bob',auth.uid());
+
 select set_config(
   'request.jwt.claims',
   json_build_object('role','authenticated','sub',(select uid::text from e2e_users where label='alice'))::text,
