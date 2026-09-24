@@ -108,10 +108,10 @@ select is(
 
 select is(
   pg_temp.capture_sqlstate($probe$insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
-     values ('e2e_charlie','e2e_alice','unauthorized',auth.uid(),
+     values ('e2e_alice','e2e_alice','spoofed sender',auth.uid(),
              (select uid from e2e_users where label='alice'))$probe$),
   '42501',
-  'Charlie cannot send an unauthorized DM'
+  'Charlie cannot spoof another sender in a DM'
 );
 
 select * from finish();
