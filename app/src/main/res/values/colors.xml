@@ -1,38 +1,38 @@
 <resources>
-    <!-- Final v3 Claymorphism design tokens -->
-    <color name="uzzap_clay_bg">#F2F6FF</color>
-    <color name="uzzap_clay_surface">#FFFFFF</color>
-    <color name="uzzap_clay_primary">#7478F2</color>
-    <color name="uzzap_clay_primary_dark">#5559C9</color>
-    <color name="uzzap_clay_accent">#8FEA4F</color>
-    <color name="uzzap_clay_accent_soft">#C9F5A7</color>
-    <color name="uzzap_clay_header">#4E55D8</color>
-    <color name="uzzap_clay_cyan">#59D9D2</color>
-    <color name="uzzap_clay_lilac">#C7B9FF</color>
-    <color name="uzzap_clay_text">#1E2440</color>
-    <color name="uzzap_clay_muted">#68708D</color>
-    <color name="uzzap_clay_divider">#DCE3F4</color>
+    <!-- Uzzap v4 visual system: soft Claymorphism + playful modern depth -->
+    <color name="uzzap_clay_bg">#EEF1FA</color>
+    <color name="uzzap_clay_surface">#F9FAFF</color>
+    <color name="uzzap_clay_surface_alt">#E9EDF8</color>
+    <color name="uzzap_clay_primary">#6C63E8</color>
+    <color name="uzzap_clay_primary_dark">#5148C5</color>
+    <color name="uzzap_clay_accent">#B7F36B</color>
+    <color name="uzzap_clay_accent_soft">#E0F9BD</color>
+    <color name="uzzap_clay_header">#403A92</color>
+    <color name="uzzap_clay_cyan">#55D8D2</color>
+    <color name="uzzap_clay_lilac">#D8CFFF</color>
+    <color name="uzzap_clay_text">#20233A</color>
+    <color name="uzzap_clay_muted">#737991</color>
+    <color name="uzzap_clay_divider">#D8DEEF</color>
     <color name="uzzap_clay_bar_font">#FFFFFF</color>
-    <color name="uzzap_clay_error">#E56B6F</color>
+    <color name="uzzap_clay_error">#E56B7A</color>
     <color name="uzzap_clay_warning">#F2B84B</color>
-    <color name="uzzap_clay_online">#7ED957</color>
-
-    <!-- Existing compatibility colors -->
-    <color name="uzzap_black">#000000</color>
-    <color name="uzzap_bar_top">#7478F2</color>
-    <color name="uzzap_bar_bottom">#59D9D2</color>
-    <color name="uzzap_menu_selected">#E6EBFA</color>
-    <color name="uzzap_text">#1E2440</color>
+    <color name="uzzap_clay_online">#73D66A</color>
+    <color name="uzzap_clay_shadow">#26000000</color>
+    <color name="uzzap_black">#10131F</color>
+    <color name="uzzap_bar_top">#6C63E8</color>
+    <color name="uzzap_bar_bottom">#55D8D2</color>
+    <color name="uzzap_menu_selected">#E4E7FF</color>
+    <color name="uzzap_text">#20233A</color>
     <color name="uzzap_special_red">#D95B68</color>
-    <color name="uzzap_special_blue">#4E55D8</color>
-    <color name="uzzap_tabbar_bg">#F7F9FF</color>
-    <color name="uzzap_popup_bg">#FFFFFF</color>
+    <color name="uzzap_special_blue">#5148C5</color>
+    <color name="uzzap_tabbar_bg">#F9FAFF</color>
+    <color name="uzzap_popup_bg">#F9FAFF</color>
     <color name="uzzap_bar_font">#FFFFFF</color>
-    <color name="uzzap_scroll_fill">#AAB5D1</color>
-    <color name="uzzap_scroll_bg">#E7ECF8</color>
-    <color name="uzzap_editor_bg">#F7F9FF</color>
-    <color name="uzzap_editor_border">#CAD3E8</color>
+    <color name="uzzap_scroll_fill">#A8B1CC</color>
+    <color name="uzzap_scroll_bg">#E1E6F4</color>
+    <color name="uzzap_editor_bg">#F9FAFF</color>
+    <color name="uzzap_editor_border">#CBD3E7</color>
     <color name="uzzap_white">#FFFFFF</color>
-    <color name="uzzap_divider">#DCE3F4</color>
-    <color name="uzzap_green_theme">#8FEA4F</color>
+    <color name="uzzap_divider">#D8DEEF</color>
+    <color name="uzzap_green_theme">#B7F36B</color>
 </resources>
