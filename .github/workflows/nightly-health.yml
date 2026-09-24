@@ -1,0 +1,44 @@
+name: Nightly Uzzap Health Check
+
+on:
+  schedule:
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-health
+  cancel-in-progress: true
+
+jobs:
+  health:
+    name: Nightly unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: Validate Supabase configuration
+        env:
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          test -n "$SUPABASE_PUBLISHABLE_KEY"
+          case "$SUPABASE_PUBLISHABLE_KEY" in
+            sb_publishable_*) ;;
+            *) echo "Invalid Supabase publishable key format."; exit 1 ;;
+          esac
+      - name: Run unit tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: ./gradlew :app:testDebugUnitTest -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
