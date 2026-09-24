@@ -29,6 +29,15 @@ insert into public.chat_rooms(id, category_id, name, topic, capacity, is_moderat
 select 'e2e-' || substr(gen_random_uuid()::text,1,8), null, name, 'pgTAP E2E', 50, false
 from e2e_room;
 
+create or replace function pg_temp.capture_sqlstate(statement text) returns text language plpgsql as $fn$
+begin
+  execute statement;
+  return '00000';
+exception when others then
+  return sqlstate;
+end
+$fn$;
+
 grant select on e2e_room to authenticated;
 grant select on e2e_users to authenticated;
 
@@ -73,20 +82,22 @@ select is(
   'Alice message exists'
 );
 
-select throws_ok(
-  $$ insert into public.room_messages(room_name,sender,body,is_system,sender_id)
-     values ((select name from e2e_room),'e2e_bob','spoof',false,
-             (select uid from e2e_users where label='bob')) $$,
-  NULL,
-  NULL,
-  'Alice cannot spoof Bob sender_id'
+with ins as (
+  insert into public.room_messages(room_name,sender,body,is_system,sender_id)
+  values ((select name from e2e_room),'e2e_bob','spoof',false,
+          (select uid from e2e_users where label='bob'))
+  returning id,sender,sender_id,is_system
+)
+select is(
+  (select sender_id from ins),
+  (select uid from e2e_users where label='alice'),
+  'Room trigger normalizes spoofed sender_id to Alice'
 );
 
-select throws_ok(
-  $$ insert into public.room_messages(room_name,sender,body,is_system,sender_id)
-     values ((select name from e2e_room),'UzzapBot','fake system',true,auth.uid()) $$,
-  NULL,
-  NULL,
+select is(
+  pg_temp.capture_sqlstate($insert into public.room_messages(room_name,sender,body,is_system,sender_id)
+     values ((select name from e2e_room),'UzzapBot','fake system',true,auth.uid())$),
+  '42501',
   'Authenticated user cannot forge a system message'
 );
 
@@ -108,11 +119,10 @@ select is(
   'Non-member cannot read room messages'
 );
 
-select throws_ok(
-  $$ insert into public.room_messages(room_name,sender,body,is_system,sender_id)
-     values ((select name from e2e_room),'e2e_charlie','non-member',false,auth.uid()) $$,
-  NULL,
-  NULL,
+select is(
+  pg_temp.capture_sqlstate($insert into public.room_messages(room_name,sender,body,is_system,sender_id)
+     values ((select name from e2e_room),'e2e_charlie','non-member',false,auth.uid())$),
+  '42501',
   'Non-member cannot send room messages'
 );
 
