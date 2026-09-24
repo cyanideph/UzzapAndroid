@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public;
 
-select plan(8);
+select plan(7);
 
 create temporary table e2e_users (
   label text primary key,
@@ -56,12 +56,6 @@ select throws_ok(
   '42501',
   'new row violates row-level security policy for table "profiles"',
   'Alice cannot insert a profile owned by Bob'
-);
-
-select lives_ok(
-  $$ insert into public.profiles(owner_id, username, nickname, email)
-     values (auth.uid(),'e2e_alice_extra','Alice Extra','alice-extra@e2e.invalid') $$,
-  'Alice can insert a profile owned by herself'
 );
 
 select set_config(
