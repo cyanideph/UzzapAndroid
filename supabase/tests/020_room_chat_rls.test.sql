@@ -95,8 +95,8 @@ select is(
 );
 
 select is(
-  pg_temp.capture_sqlstate($insert into public.room_messages(room_name,sender,body,is_system,sender_id)
-     values ((select name from e2e_room),'UzzapBot','fake system',true,auth.uid())$),
+  pg_temp.capture_sqlstate($probe$insert into public.room_messages(room_name,sender,body,is_system,sender_id)
+     values ((select name from e2e_room),'UzzapBot','fake system',true,auth.uid())$probe$),
   '42501',
   'Authenticated user cannot forge a system message'
 );
@@ -120,8 +120,8 @@ select is(
 );
 
 select is(
-  pg_temp.capture_sqlstate($insert into public.room_messages(room_name,sender,body,is_system,sender_id)
-     values ((select name from e2e_room),'e2e_charlie','non-member',false,auth.uid())$),
+  pg_temp.capture_sqlstate($probe$insert into public.room_messages(room_name,sender,body,is_system,sender_id)
+     values ((select name from e2e_room),'e2e_charlie','non-member',false,auth.uid())$probe$),
   '42501',
   'Non-member cannot send room messages'
 );
