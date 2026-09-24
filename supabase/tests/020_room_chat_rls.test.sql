@@ -77,7 +77,7 @@ select is((select count(*) from ins),1::bigint,'Alice can send a room message');
 
 select is(
   (select count(*) from public.room_messages
-   where room_name=(select name from e2e_room) and sender='e2e_alice' and body='hello from Alice'),
+   where room_name=(select name from e2e_room) and sender='E2e_alice' and body='hello from Alice'),
   1::bigint,
   'Alice message exists'
 );
@@ -102,7 +102,7 @@ select isnt(
 );
 
 select is(
-  (select count(*) from public.room_messages where room_name=(select name from e2e_room) and sender='e2e_alice' and body='hello from Alice'),
+  (select count(*) from public.room_messages where room_name=(select name from e2e_room) and sender='E2e_alice' and body='hello from Alice'),
   1::bigint,
   'Alice can read her room message as an active member'
 );
