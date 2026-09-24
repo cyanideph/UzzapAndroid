@@ -1,64 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/uzzap_black">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingStart="14dp"
-        android:paddingTop="18dp"
-        android:paddingEnd="14dp">
-
-        <ImageView android:id="@+id/icon_u" style="@style/GridIcon" android:src="@drawable/d_n000_smart_large" android:contentDescription="Uzzap"/>
-        <ImageView android:id="@+id/icon_matching" style="@style/GridIcon" android:src="@drawable/d_n001_abm_large" android:contentDescription="Buddy Matching"/>
-        <ImageView android:id="@+id/icon_addbuddy" style="@style/GridIcon" android:src="@drawable/d_n002_buddies_large" android:contentDescription="Add Buddies"/>
-        <ImageView android:id="@+id/icon_settings" style="@style/GridIcon" android:src="@drawable/d_n003_settings_large" android:contentDescription="Settings"/>
-        <ImageView android:id="@+id/icon_ringtone" style="@style/GridIcon" android:src="@drawable/d_n008_ringtone_large" android:contentDescription="Sound"/>
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingStart="14dp"
-        android:paddingTop="14dp"
-        android:paddingEnd="14dp">
-
-        <ImageView android:id="@+id/icon_themes" style="@style/GridIcon" android:src="@drawable/d_n005_themes_large" android:contentDescription="Themes"/>
-        <ImageView android:id="@+id/icon_help" style="@style/GridIcon" android:src="@drawable/d_n006_help_large" android:contentDescription="Help"/>
-        <ImageView android:id="@+id/icon_battery" style="@style/GridIcon" android:src="@drawable/d_n007_batteryinfo_large" android:contentDescription="Battery Info"/>
-    </LinearLayout>
-
-    <View android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"/>
-
-    <TextView
-        android:id="@+id/tv_footer_feature_name"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#DFDFDF"
-        android:gravity="center"
-        android:padding="8dp"
-        android:textColor="#000000"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        android:text="@string/extended_messaging"/>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/uzzap_white"
-        android:orientation="horizontal"
-        android:gravity="center_horizontal"
-        android:paddingTop="10dp"
-        android:paddingBottom="10dp">
-
-        <ImageView android:id="@+id/icon_em" style="@style/GridIconSmall" android:src="@drawable/d_d000_em_small" android:contentDescription="Extended Messaging (Buddies)"/>
-        <ImageView android:id="@+id/icon_im" style="@style/GridIconSmall" android:src="@drawable/d_d001_im_small" android:contentDescription="Instant Messaging"/>
-        <ImageView android:id="@+id/icon_chat" style="@style/GridIconSmall" android:src="@drawable/d_d002_chat_small" android:contentDescription="Chat Rooms"/>
-        <ImageView android:id="@+id/icon_profile" style="@style/GridIconSmall" android:src="@drawable/d_d003_status_small" android:contentDescription="Profile"/>
-    </LinearLayout>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/uzzap_clay_bg" android:fillViewport="true">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Uzzap" android:textColor="@color/uzzap_clay_header" android:textSize="28sp" android:textStyle="bold"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Your social space, redesigned from the surface up." android:textColor="@color/uzzap_clay_muted" android:textSize="13sp" android:layout_marginTop="2dp"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="16dp">
+<LinearLayout android:layout_width="0dp" android:layout_height="112dp" android:layout_weight="1" android:gravity="center" android:orientation="vertical" android:background="@drawable/bg_clay_card" android:elevation="3dp"><ImageView android:id="@+id/icon_u" style="@style/GridIcon" android:src="@drawable/ic_clay_home" android:contentDescription="Home"/><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Home" android:textStyle="bold" android:textColor="@color/uzzap_clay_text"/></LinearLayout>
+<LinearLayout android:layout_width="0dp" android:layout_height="112dp" android:layout_weight="1" android:layout_marginStart="10dp" android:gravity="center" android:orientation="vertical" android:background="@drawable/bg_clay_card" android:elevation="3dp"><ImageView android:id="@+id/icon_matching" style="@style/GridIcon" android:src="@drawable/ic_clay_match" android:contentDescription="Match"/><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Match" android:textStyle="bold" android:textColor="@color/uzzap_clay_text"/></LinearLayout>
+<LinearLayout android:layout_width="0dp" android:layout_height="112dp" android:layout_weight="1" android:layout_marginStart="10dp" android:gravity="center" android:orientation="vertical" android:background="@drawable/bg_clay_card" android:elevation="3dp"><ImageView android:id="@+id/icon_addbuddy" style="@style/GridIcon" android:src="@drawable/ic_clay_add_person" android:contentDescription="Buddies"/><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Buddies" android:textStyle="bold" android:textColor="@color/uzzap_clay_text"/></LinearLayout>
 </LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="10dp">
+<LinearLayout android:layout_width="0dp" android:layout_height="112dp" android:layout_weight="1" android:gravity="center" android:orientation="vertical" android:background="@drawable/bg_clay_card" android:elevation="3dp"><ImageView android:id="@+id/icon_settings" style="@style/GridIcon" android:src="@drawable/ic_clay_settings" android:contentDescription="Settings"/><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Settings" android:textStyle="bold" android:textColor="@color/uzzap_clay_text"/></LinearLayout>
+<LinearLayout android:layout_width="0dp" android:layout_height="112dp" android:layout_weight="1" android:layout_marginStart="10dp" android:gravity="center" android:orientation="vertical" android:background="@drawable/bg_clay_card" android:elevation="3dp"><ImageView android:id="@+id/icon_themes" style="@style/GridIcon" android:src="@drawable/ic_clay_u" android:contentDescription="Themes"/><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Themes" android:textStyle="bold" android:textColor="@color/uzzap_clay_text"/></LinearLayout>
+<LinearLayout android:layout_width="0dp" android:layout_height="112dp" android:layout_weight="1" android:layout_marginStart="10dp" android:gravity="center" android:orientation="vertical" android:background="@drawable/bg_clay_card" android:elevation="3dp"><ImageView android:id="@+id/icon_help" style="@style/GridIcon" android:src="@drawable/ic_clay_menu" android:contentDescription="Help"/><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Help" android:textStyle="bold" android:textColor="@color/uzzap_clay_text"/></LinearLayout>
+</LinearLayout>
+<TextView android:id="@+id/tv_footer_feature_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:background="@drawable/bg_clay_card" android:gravity="center" android:padding="14dp" android:textColor="@color/uzzap_clay_text" android:textSize="14sp" android:textStyle="bold" android:text="@string/extended_messaging"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="74dp" android:layout_marginTop="10dp" android:background="@drawable/bg_clay_card" android:orientation="horizontal" android:gravity="center">
+<ImageView android:id="@+id/icon_em" style="@style/GridIconSmall" android:src="@drawable/ic_clay_people" android:contentDescription="Buddies"/>
+<ImageView android:id="@+id/icon_im" style="@style/GridIconSmall" android:src="@drawable/ic_clay_chat" android:contentDescription="Messages"/>
+<ImageView android:id="@+id/icon_chat" style="@style/GridIconSmall" android:src="@drawable/ic_clay_home" android:contentDescription="Rooms"/>
+<ImageView android:id="@+id/icon_profile" style="@style/GridIconSmall" android:src="@drawable/ic_clay_add_person" android:contentDescription="Profile"/>
+</LinearLayout>
+</LinearLayout></ScrollView>
