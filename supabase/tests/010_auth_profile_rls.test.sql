@@ -32,17 +32,13 @@ select set_config(
 
 select is(auth.uid(), (select uid from e2e_users where label='alice'), 'auth.uid resolves to Alice');
 
-select is(
-  (with upd as (
-     update public.profiles
-     set status_message = 'E2E updated'
-     where owner_id = auth.uid()
-     returning id
-   )
-   select count(*) from upd),
-  1::bigint,
-  'Alice can update her own profile'
-);
+with upd as (
+  update public.profiles
+  set status_message = 'E2E updated'
+  where owner_id = auth.uid()
+  returning id
+)
+select is((select count(*) from upd),1::bigint,'Alice can update her own profile');
 
 select isnt(
   (select status_message from public.profiles where username='e2e_bob'),
