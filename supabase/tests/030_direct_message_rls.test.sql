@@ -41,17 +41,13 @@ select is(
   'Alice can read her DM'
 );
 
-select is(
-  (with ins as (
-     insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
-     values ('e2e_alice','e2e_bob','hello',auth.uid(),
-             (select uid from e2e_users where label='bob'))
-     returning id
-   )
-   select count(*) from ins),
-  1::bigint,
-  'Alice can send Bob a DM'
-);
+with ins as (
+  insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
+  values ('e2e_alice','e2e_bob','hello',auth.uid(),
+          (select uid from e2e_users where label='bob'))
+  returning id
+)
+select is((select count(*) from ins),1::bigint,'Alice can send Bob a DM');
 
 select throws_ok(
   $$ insert into public.direct_messages(sender,recipient,body,sender_id,recipient_id)
@@ -81,17 +77,13 @@ select is(
   'Bob can read the Alice-to-Bob conversation'
 );
 
-select is(
-  (with upd as (
-     update public.direct_messages
-     set is_read=true
-     where sender='e2e_alice' and recipient='e2e_bob'
-     returning id
-   )
-   select count(*) from upd),
-  2::bigint,
-  'Bob can mark received DMs read'
-);
+with upd as (
+  update public.direct_messages
+  set is_read=true
+  where sender='e2e_alice' and recipient='e2e_bob'
+  returning id
+)
+select is((select count(*) from upd),2::bigint,'Bob can mark received DMs read');
 
 select set_config(
   'request.jwt.claims',
