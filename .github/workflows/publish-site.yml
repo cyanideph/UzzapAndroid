@@ -1,110 +1,38 @@
-name: Publish APK to Website
+name: Publish Uzzap Pages
 
 on:
-  workflow_run:
-    workflows: ["Build Android APK"]
-    types: [completed]
+  push:
     branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/publish-site.yml'
+  workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
-  publish:
-    name: Publish latest main APK
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+  deploy:
+    name: Deploy documentation and APK landing page
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download APK artifact from successful Android build
-        uses: actions/download-artifact@v5
-        with:
-          name: Uzzap-debug-apk
-          path: dist
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          run-id: ${{ github.event.workflow_run.id }}
-
-      - name: Checkout Android source
+      - name: Checkout
         uses: actions/checkout@v6
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages content
+        uses: actions/upload-pages-artifact@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          path: android
-
-      - name: Prepare publication metadata
-        id: meta
-        shell: bash
-        run: |
-          set -euo pipefail
-          apk="$(find dist -type f -name '*.apk' | head -n 1)"
-          test -n "$apk"
-          cp "$apk" dist/uzzap-debug.apk
-          size_bytes="$(stat -c '%s' dist/uzzap-debug.apk)"
-          size_mb="$(awk "BEGIN {printf \"%.2f\", $size_bytes/1000000}")"
-          sha256="$(sha256sum dist/uzzap-debug.apk | awk '{print $1}')"
-          version_name="$(sed -n 's/.*versionName[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' android/app/build.gradle.kts | head -n 1)"
-          version_code="$(sed -n 's/.*versionCode[[:space:]]*=[[:space:]]*\([0-9][0-9]*\).*/\1/p' android/app/build.gradle.kts | head -n 1)"
-          test -n "$version_name"
-          test -n "$version_code"
-          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
-          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
-          echo "apk=$PWD/dist/uzzap-debug.apk" >> "$GITHUB_OUTPUT"
-          echo "size_bytes=$size_bytes" >> "$GITHUB_OUTPUT"
-          echo "size_mb=$size_mb" >> "$GITHUB_OUTPUT"
-          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout website
-        uses: actions/checkout@v6
-        with:
-          repository: cyanideph/uzzap-site
-          token: ${{ secrets.UZZAP_SITE_TOKEN }}
-          path: site
-
-      - name: Update APK and website metadata
-        shell: bash
-        env:
-          APK_PATH: ${{ steps.meta.outputs.apk }}
-          SIZE_MB: ${{ steps.meta.outputs.size_mb }}
-          SHA256: ${{ steps.meta.outputs.sha256 }}
-          VERSION_NAME: ${{ steps.meta.outputs.version_name }}
-          VERSION_CODE: ${{ steps.meta.outputs.version_code }}
-          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          cp "$APK_PATH" site/uzzap-debug.apk
-          COMMIT_MESSAGE="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/commits/$BUILD_SHA" | python3 -c 'import json,sys; print(json.load(sys.stdin)["commit"]["message"].splitlines()[0])')"
-          BUILD_DATE="$(date -u +%Y-%m-%d)"
-          export SIZE_MB SHA256 VERSION_NAME VERSION_CODE BUILD_SHA COMMIT_MESSAGE BUILD_DATE
-          python3 - <<'PY'
-          from pathlib import Path
-          import html, os, re
-          p = Path("site/index.html")
-          s = p.read_text()
-          size = os.environ["SIZE_MB"]
-          version = os.environ["VERSION_NAME"]
-          sha = os.environ["BUILD_SHA"]
-          message = html.escape(os.environ["COMMIT_MESSAGE"].strip())
-          date = os.environ["BUILD_DATE"]
-          s = re.sub(r'<div class="badge">v[^<]+</div>', f'<div class="badge">v{html.escape(version)}</div>', s, count=1)
-          s = re.sub(r'· <b>[0-9.]+ MB</b> · Debug build', f'· <b>{size} MB</b> · Debug build', s, count=1)
-          s = re.sub(r'APK ·\s*[0-9.]+ MB', f'APK · {size} MB', s, count=1)
-          marker = '<div class="b-head"><span>Version</span><span>Changelog</span><span>Date</span><span></span></div>'
-          row = f'<div class="b-row"><span class="b-ver">{html.escape(version)}</span><span class="b-log">AUTOMATED BUILD — {message} · commit {sha[:7]} · APK {size} MB</span><span class="b-date">{date}</span><a class="b-dl" href="uzzap-debug.apk" download>⬇ APK · {size} MB</a></div>'
-          if marker not in s: raise SystemExit("Download table header not found; refusing to modify website.")
-          s = s.replace(marker, marker + row, 1)
-          p.write_text(s)
-          PY
-          cd site
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add uzzap-debug.apk index.html
-          if git diff --cached --quiet; then echo "No website changes needed."; exit 0; fi
-          git commit -m "Publish Uzzap $VERSION_NAME APK ($SIZE_MB MB)"
-          git push
-
-      - name: Publication summary
-        run: |
-          echo "Published APK: ${{ steps.meta.outputs.size_bytes }} bytes"
-          echo "SHA-256: ${{ steps.meta.outputs.sha256 }}"
-          echo "Android commit: ${{ github.event.workflow_run.head_sha }}"
+          path: ./docs
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
