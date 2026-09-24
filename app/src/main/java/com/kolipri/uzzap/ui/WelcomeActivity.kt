@@ -9,7 +9,6 @@ import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.data.verifySession
 
 class WelcomeActivity : BaseChromeActivity() {
-
     override fun contentLayoutRes() = R.layout.content_welcome
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -17,11 +16,8 @@ class WelcomeActivity : BaseChromeActivity() {
         setScreenTitle("Welcome & Help")
         showConnectedBall(true)
         setSoftkeys(null, getString(R.string.softkey_close), onRight = { finish() })
-
         updateWelcomeTitle()
 
-        // Refresh identity from the authenticated Supabase profile so an old locally
-        // cached nickname can never replace the canonical account username.
         val token = SupabaseClient.userAccessToken
         if (!token.isNullOrBlank()) {
             SupabaseClient.verifySession(token) { ok, _, _ ->
@@ -29,37 +25,24 @@ class WelcomeActivity : BaseChromeActivity() {
             }
         }
 
-        bindTip(
-            R.id.tip_im,
-            R.drawable.d_d001_im_large,
-            "Chat privately with your buddies. Send messages, follow delivery and read status, and keep track of unread conversations."
-        )
-        bindTip(
-            R.id.tip_add,
-            R.drawable.d_n002_buddies_large,
-            "Build your Buddy List. Add or remove buddies, check presence, start private chats, block users, and report problems when needed."
-        )
-        bindTip(
-            R.id.tip_chat,
-            R.drawable.d_d002_chat_large,
-            "Explore Philippine chatrooms by region and province. Join a room, meet other users, send messages, invite buddies, and leave anytime."
-        )
-        bindTip(
-            R.id.tip_matching,
-            R.drawable.d_n001_abm_large,
-            "Stay safe and connected. Use Report and Block when necessary. Authorized moderators can review reports and manage room safety."
-        )
+        bindTip(R.id.tip_im, R.drawable.d_d001_im_large,
+            "Chat privately with your buddies. Send messages, follow delivery and read status, and keep track of unread conversations.")
+        bindTip(R.id.tip_add, R.drawable.d_n002_buddies_large,
+            "Build your Buddy List. Add or remove buddies, check presence, start private chats, block users, and report problems when needed.")
+        bindTip(R.id.tip_chat, R.drawable.d_d002_chat_large,
+            "Explore Philippine chatrooms by region and province. Join a room, meet other users, send messages, invite buddies, and leave anytime.")
+        bindTip(R.id.tip_matching, R.drawable.d_n001_abm_large,
+            "Stay safe and connected. Use Report and Block when necessary. Authorized moderators can review reports and manage room safety.")
     }
 
     private fun updateWelcomeTitle() {
         val accountName = AppState.username.ifBlank { AppState.nickname }.ifBlank { "Uzzap user" }
-        findViewById<TextView>(R.id.tv_welcome_title).text =
-            "Welcome to Uzzap, $accountName!"
+        findViewById<TextView>(R.id.tv_welcome_title).text = "Welcome to Uzzap, $accountName!"
     }
 
     private fun bindTip(containerId: Int, iconRes: Int, text: String) {
         val container = findViewById<android.view.View>(containerId)
         container.findViewById<ImageView>(R.id.iv_tip_icon).setImageResource(iconRes)
-        container.findViewById<TextView>(R.id.tv_tip_text).text = text
+        container.findViewById<TextView>(R.id.tv_tip_body).text = text
     }
 }
