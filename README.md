@@ -269,12 +269,20 @@ The checked-in project targets **Gradle 9.3.1**, Android Gradle Plugin **9.1.1**
 
 ## GitHub Actions
 
-The repository includes Android CI workflows for debug and release builds. The debug workflow builds on pushes to `main` and manual dispatch and uploads the APK as an artifact named **`Uzzap-debug-apk`**.
+The repository is configured as a Free-tier-friendly CI/CD system:
+
+- **Android CI** runs unit tests and builds the debug APK on `main` pushes and manual dispatch.
+- Successful debug builds replace the **`debug-latest` GitHub Release** with the newest APK; APK distribution does not depend on Actions artifact retention.
+- **Signed release AABs** are published as assets on versioned GitHub Releases when a `v*` tag is pushed.
+- **Security checks** scan tracked files for high-risk credential patterns and validate the Gradle wrapper.
+- **Dependabot** checks Gradle and GitHub Actions dependencies weekly.
+- **Nightly health check** runs unit tests without rebuilding the APK, conserving Free-tier Actions usage.
+- **GitHub Pages** publishes the `docs/` directory as the Uzzap documentation/download site from this same repository.
 
 Required Actions configuration:
 
 - `SUPABASE_URL`
-- `SUPABASE_PUBLISHABLE_KEY` (or legacy anon-key equivalent)
+- `SUPABASE_PUBLISHABLE_KEY`
 - Production signing variables only for signed release builds
 
 Workflows must never contain or print a Supabase service-role/secret key.
