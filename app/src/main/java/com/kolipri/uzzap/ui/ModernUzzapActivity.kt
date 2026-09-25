@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -25,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -132,17 +134,17 @@ private fun HomeContent() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                StatusPill("Cloud", "Ready")
-                StatusPill("UI", "Compose")
+                StatusPill("Cloud", "Ready", Modifier.weight(1f))
+                StatusPill("UI", "Compose", Modifier.weight(1f))
             }
         }
     }
 }
 
 @Composable
-private fun StatusPill(title: String, value: String) {
+private fun StatusPill(title: String, value: String, modifier: Modifier = Modifier) {
     Surface(
-        modifier = Modifier.weight(1f),
+        modifier = modifier,
         shape = RoundedCornerShape(18.dp),
         tonalElevation = 2.dp
     ) {
