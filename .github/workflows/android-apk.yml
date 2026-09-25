@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/jetpack-compose-modernization
   pull_request:
     branches:
       - main
