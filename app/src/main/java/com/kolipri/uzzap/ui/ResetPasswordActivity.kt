@@ -32,13 +32,11 @@ class ResetPasswordActivity : BaseChromeActivity() {
         showResetForm()
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent != null) {
-            setIntent(intent)
-            handleRecoveryIntent(intent)
-            showResetForm()
-        }
+        setIntent(intent)
+        handleRecoveryIntent(intent)
+        showResetForm()
     }
 
     private fun handleRecoveryIntent(intent: Intent) {
