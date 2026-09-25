@@ -11,6 +11,7 @@
         <meta-data
             android:name="firebase_analytics_collection_deactivated"
             android:value="true" />
+        <activity android:name=".ui.ModernUzzapActivity" android:exported="false" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
         <activity android:name=".ui.SplashMenuActivity" android:exported="true" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity>
         <activity android:name=".ui.ResetPasswordActivity" android:exported="true" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle"><intent-filter><action android:name="android.intent.action.VIEW" /><category android:name="android.intent.category.DEFAULT" /><category android:name="android.intent.category.BROWSABLE" /><data android:scheme="uzzap" android:host="auth" android:path="/reset" /></intent-filter></activity>
         <activity android:name=".ui.ConnectingActivity" android:screenOrientation="portrait" android:theme="@style/Theme.Uzzap.NoTitle" />
