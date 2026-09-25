@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.kolipri.uzzap"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.cy.uzzap"
