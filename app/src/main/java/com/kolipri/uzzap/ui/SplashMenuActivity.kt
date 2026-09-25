@@ -97,6 +97,7 @@ class SplashMenuActivity : BaseChromeActivity() {
             entries += Triple("Connect as ${AppState.nickname}", "anim-icons/menu_connect.gif") { startActivity(Intent(this, ConnectingActivity::class.java)) }
             entries += Triple("Switch Account / Sign Out", "anim-icons/menu_switch.gif") { signOut() }
         }
+        entries += Triple("✨ Modern Uzzap (Compose)", "anim-icons/menu_connect.gif") { startActivity(Intent(this, ModernUzzapActivity::class.java)) }
         entries += Triple(getString(R.string.menu_login), "anim-icons/menu_login.gif") { onLogin() }
         entries += Triple(getString(R.string.menu_register), "anim-icons/menu_register.gif") { onRegister() }
         entries += Triple(getString(R.string.menu_forgot), "anim-icons/menu_forgot.gif") { onForgotPassword() }
