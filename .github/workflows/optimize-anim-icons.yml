@@ -1,4 +1,5 @@
 name: Optimize animated assets
+# Temporary migration workflow: remove after PR #65 merges.
 
 on:
   push:
