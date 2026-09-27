@@ -136,12 +136,12 @@ fun SupabaseClient.verifySession(token: String, callback: (Boolean, String?, Str
                         val user = JSONObject(raw); val id = user.optString("id"); val email = user.optString("email")
                         loadProfileData(id, activeToken) { profile ->
                             if (profile.username.isNotBlank()) {
-                                AppState.username = profile.username; AppState.nickname = profile.nickname.ifBlank { profile.username }
+                                AppState.username = profile.username; AppState.nickname = profile.nickname.ifBlank { profile.username }; AppState.avatar = profile.avatar
                                 resolveApplicationRole(id, activeToken) { role -> AppState.role = role; SessionStore.save(activeToken, SessionStore.refreshToken(), SessionStore.expiresAtMs(), email, AppState.nickname, role, AppState.username); SupabaseAuthCompat.handler().post { callback(true, email, AppState.nickname) } }
                             } else {
                                 val saved = SessionStore.username()
                                 if (saved.isBlank()) SupabaseAuthCompat.handler().post { callback(false, null, null) }
-                                else { AppState.username = saved; AppState.nickname = SessionStore.nickname().ifBlank { AppState.username }; AppState.role = normalizeApplicationRole(SessionStore.role()); SupabaseAuthCompat.handler().post { callback(true, email, AppState.nickname) } }
+                                else { AppState.username = saved; AppState.nickname = SessionStore.nickname().ifBlank { AppState.username }; AppState.avatar = AvatarManager.encode("pixel-art", AppState.username); AppState.role = normalizeApplicationRole(SessionStore.role()); SupabaseAuthCompat.handler().post { callback(true, email, AppState.nickname) } }
                             }
                         }
                     }.onFailure { SupabaseAuthCompat.handler().post { callback(false, null, null) } }
