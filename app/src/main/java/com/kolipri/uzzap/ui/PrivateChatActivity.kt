@@ -134,7 +134,10 @@ class PrivateChatActivity : BaseChromeActivity() {
         contentFrame.addView(chatRoot, FrameLayout.LayoutParams(-1, -1))
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(8), dp(8)); background = GradientDrawable().apply { setColor(Color.WHITE); setStroke(dp(1), Color.rgb(232, 234, 238)) } }
         header.addView(actionButton("‹", 30).apply { setOnClickListener { finish() }; contentDescription = "Back" }, LinearLayout.LayoutParams(dp(44), dp(48)))
-        val avatar = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }; contentDescription = buddy + " avatar"; load(AvatarManager.url(null, buddy)) }\n        header.addView(avatar, LinearLayout.LayoutParams(dp(42), dp(42)))\n        UserProfileClient.fetch(buddy) { profile -> if (!isFinishing && !isDestroyed) avatar.load(AvatarManager.url(profile?.avatar, buddy)) }
+        val avatar = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }; contentDescription = buddy + " avatar"; load(AvatarManager.url(null, buddy)) }        header.addView(avatar, LinearLayout.LayoutParams(dp(42), dp(42)))
+        UserProfileClient.fetch(buddy) { profile ->
+            if (!isFinishing && !isDestroyed) avatar.load(AvatarManager.url(profile?.avatar, buddy))
+        }
         val identity = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, dp(6), 0) }
         identity.addView(TextView(this).apply { text = buddy; textSize = 17f; typeface = Typeface.DEFAULT_BOLD; setTextColor(Color.rgb(25, 27, 31)); maxLines = 1 })
         statusText = TextView(this).apply { text = "Checking status…"; textSize = 12f; setTextColor(Color.rgb(100, 105, 112)) }
