@@ -86,8 +86,8 @@ class ProfileActivity : BaseChromeActivity() {
                 append("About Me\n${public.statusMessage.ifBlank { "—" }}")
                 if (!public.isOnline && public.lastSeen.isNotBlank()) append("\n\nLast seen\n${public.lastSeen}")
             }
-            val index = root.indexOfLast { it.tag == "public_profile" }
-            if (index >= 0) (root.getChildAt(index) as? TextView)?.text = text
+            val publicProfileView = root.findViewWithTag<TextView>("public_profile")
+            publicProfileView?.text = text
         }
 
         contentFrame.addView(scroll, android.widget.FrameLayout.LayoutParams(-1, -1))
