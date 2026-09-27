@@ -83,7 +83,7 @@ class InstantMessagingActivity : BaseChromeActivity() {
             setOnClickListener { startActivity(PrivateChatActivity.intent(this@InstantMessagingActivity, buddy)) }
         }
         val avatar = ImageView(this).apply {
-            scaleType = ImageView.ScaleType.CENTER_CROP; background = rounded(Color.WHITE, 24f)
+            scaleType = ImageView.ScaleType.CENTER_CROP; background = rounded(Color.WHITE, 24)
             load(AvatarManager.url(null, buddy)); contentDescription = buddy + " avatar"
         }
         row.addView(avatar, LinearLayout.LayoutParams(dp(48), dp(48)))
