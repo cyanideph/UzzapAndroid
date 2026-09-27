@@ -42,16 +42,23 @@ class InstantMessagingActivity : BaseChromeActivity() {
         val buddies = AppState.buddyGroups.flatMap { it.buddies }.map { it.trim() }
             .filter { it.isNotBlank() && !it.equals(AppState.username, true) }
             .distinctBy { it.lowercase() }.sortedBy { it.lowercase() }
+        var unreadCounts: Map<String, Int>? = null
+        var recentPartners: List<String>? = null
+        fun renderWhenReady() {
+            if (isFinishing || isDestroyed || unreadCounts == null || recentPartners == null) return
+            val recent = recentPartners!!.distinctBy { it.lowercase() }
+            val recentKeys = recent.map { it.lowercase() }.toSet()
+            val ordered = recent + buddies.filterNot { recentKeys.contains(it.lowercase()) }
+            renderRows(root, ordered, unreadCounts!!)
+        }
         PrivateMessageStateClient.fetchUnread(AppState.username) { state ->
-            if (!isFinishing && !isDestroyed) renderRows(root, buddies, state?.countsBySender ?: emptyMap())
+            unreadCounts = state?.countsBySender ?: emptyMap()
+            renderWhenReady()
         }
         DirectMessageClient.fetchRecentConversationPartners { recent ->
-            if (isFinishing || isDestroyed) return@fetchRecentConversationPartners
-            val recentKeys = recent.map { it.lowercase() }.toSet()
-            val ordered = recent.distinctBy { it.lowercase() } + buddies.filterNot { recentKeys.contains(it.lowercase()) }
-            renderRows(root, ordered, emptyMap(), clearExisting = false)
+            recentPartners = recent
+            renderWhenReady()
         }
-        if (buddies.isEmpty()) root.addView(emptyRow())
         contentFrame.addView(scroll, android.widget.FrameLayout.LayoutParams(-1, -1))
     }
 
