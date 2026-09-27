@@ -176,9 +176,9 @@ private fun loadProfileData(userId: String, token: String = SupabaseClient.userA
         override fun onFailure(call: Call, e: IOException) { Log.w("SupabaseAuthCompat", "Profile identity lookup failed", e); SupabaseAuthCompat.handler().post { onResult(ProfileIdentity("", "", "")) } }
         override fun onResponse(call: Call, response: Response) {
             response.use {
-                if (!it.isSuccessful) { SupabaseAuthCompat.handler().post { onResult(ProfileIdentity("", "")) }; return }
+                if (!it.isSuccessful) { SupabaseAuthCompat.handler().post { onResult(ProfileIdentity("", "", "")) }; return }
                 val arr = JSONArray(it.body?.string().orEmpty()); val p = if (arr.length() == 0) null else arr.getJSONObject(0)
-                SupabaseAuthCompat.handler().post { onResult(if (p == null) ProfileIdentity("", "") else ProfileIdentity(p.optString("username").trim(), p.optString("nickname").trim(), p.optString("avatar").trim())) }
+                SupabaseAuthCompat.handler().post { onResult(if (p == null) ProfileIdentity("", "", "") else ProfileIdentity(p.optString("username").trim(), p.optString("nickname").trim(), p.optString("avatar").trim())) }
             }
         }
     })
