@@ -62,26 +62,26 @@ class AppGridActivity : BaseChromeActivity() {
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     private fun toggleSilentMode() { val prefs = getSharedPreferences("uzzap_prefs", MODE_PRIVATE); val enabled = !prefs.getBoolean("silent_mode", false); prefs.edit().putBoolean("silent_mode", enabled).apply(); toast("Silent Mode: ${if (enabled) "ON" else "OFF"}") }
     private fun showOptionsMenu() {
-        val isMod = AppState.isModerator
-        val isAdmin = AppState.role == "admin"
-        val items = mutableListOf<PopupItem>()
-        if (isMod) { items.add(PopupItem("Moderator Console")); items.add(PopupItem("Moderation Audit Log")) }
-        if (isAdmin) items.add(PopupItem("Moderator Management"))
-        if (isMod) items.add(PopupItem("App Diagnostics"))
-        items.addAll(listOf(PopupItem("Room Invitations"), PopupItem("Lock Keypad"), PopupItem("Log Off"), PopupItem("Intro Help Screen"), PopupItem("About Uzzap"), PopupItem("Exit Application")))
+        // Exact legacy Main Menu Options from com.kolipri.kalypte.an:
+        // Lock Keypad, Log Off, Intro Help Screen, About Uzzap, Exit Application.
+        val items = listOf(
+            PopupItem("Lock Keypad"),
+            PopupItem("Log Off"),
+            PopupItem("Intro Help Screen"),
+            PopupItem("About Uzzap"),
+            PopupItem("Exit Application")
+        )
         J2mePopup.show(this, items) { index ->
-            var i = index
-            if (isMod) {
-                if (i == 0) { startActivity(ModeratorActivity.intent(this)); return@show }
-                if (i == 1) { startActivity(ModerationAuditActivity.intent(this)); return@show }
-                i -= 2
-                if (i == 0) { startActivity(Intent(this, DiagnosticsActivity::class.java)); return@show }
-                i--
+            when (index) {
+                0 -> showLockKeypad()
+                1 -> confirmLogout()
+                2 -> openWelcome()
+                3 -> showAbout()
+                4 -> showExitMenu()
             }
-            if (isAdmin) { if (i == 0) { startActivity(ModeratorManagementActivity.intent(this)); return@show }; i-- }
-            when (i) { 0 -> startActivity(Intent(this, RoomInvitationsActivity::class.java)); 1 -> showLockKeypad(); 2 -> confirmLogout(); 3 -> openWelcome(); 4 -> showAbout(); 5 -> showExitMenu() }
         }
     }
+
     private fun showLockKeypad() { UzzapDialogs.show(this, iconAsset = "anim-icons/privacy_lock.gif", title = "Lock Keypad", message = "Keypad lock is active while this dialog is open.", positive = "Unlock") }
     private fun showAbout() { startActivity(Intent(this, AboutUzzapActivity::class.java)) }
     private fun showExitMenu() { AlertDialog.Builder(this).setTitle("Exit Application").setMessage("Log off and close Uzzap?").setPositiveButton("Exit") { _, _ -> finishAffinity() }.setNegativeButton("Cancel", null).show() }
