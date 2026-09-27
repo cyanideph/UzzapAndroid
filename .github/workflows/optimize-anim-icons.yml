@@ -6,6 +6,8 @@ on:
       - optimize/anim-icons-webp
     paths-ignore:
       - 'app/src/main/assets/anim-icons/**'
+  pull_request:
+    types: [opened, synchronize]
   workflow_dispatch:
 
 permissions:
