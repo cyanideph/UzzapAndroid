@@ -173,7 +173,7 @@ private fun loadProfileData(userId: String, token: String = SupabaseClient.userA
     if (userId.isBlank() || token.isBlank()) { SupabaseAuthCompat.handler().post { onResult(ProfileIdentity("", "", "")) }; return }
     val request = SupabaseAuthCompat.request("/rest/v1/profiles?select=username,nickname,avatar&owner_id=eq.$userId", true).header("Authorization", "Bearer $token").get().build()
     SupabaseAuthCompat.client().newCall(request).enqueue(object : Callback {
-        override fun onFailure(call: Call, e: IOException) { Log.w("SupabaseAuthCompat", "Profile identity lookup failed", e); SupabaseAuthCompat.handler().post { onResult(ProfileIdentity("", "")) } }
+        override fun onFailure(call: Call, e: IOException) { Log.w("SupabaseAuthCompat", "Profile identity lookup failed", e); SupabaseAuthCompat.handler().post { onResult(ProfileIdentity("", "", "")) } }
         override fun onResponse(call: Call, response: Response) {
             response.use {
                 if (!it.isSuccessful) { SupabaseAuthCompat.handler().post { onResult(ProfileIdentity("", "")) }; return }
