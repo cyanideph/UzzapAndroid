@@ -221,20 +221,48 @@ class UzzapParityActivity : BaseChromeActivity() {
 
     private fun chooseAvatar() {
         val options = AvatarManager.options
-        val labels = options.map { it.label }.toTypedArray()
-        val currentStyle = AvatarManager.style(AppState.avatar)
-        val currentIndex = options.indexOfFirst { it.style == currentStyle }.coerceAtLeast(0)
+        val chooser = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 8, 16, 8)
+        }
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Choose Avatar")
-            .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
-                val selected = options[which]
-                AppState.avatar = AvatarManager.encode(selected.style, AppState.username)
-                dialog.dismiss()
-                profile()
-            }
+            .setView(chooser)
             .setNegativeButton("Cancel", null)
-            .show()
+            .create()
+
+        options.forEach { option ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(8, 8, 8, 8)
+                setOnClickListener {
+                    AppState.avatar = AvatarManager.encode(option.style, AppState.username)
+                    dialog.dismiss()
+                    profile()
+                }
+            }
+
+            val preview = ImageView(this).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                background = rounded(Color.WHITE, 28f)
+                contentDescription = option.label
+                load(AvatarManager.url(AvatarManager.encode(option.style, AppState.username), AppState.username))
+            }
+            row.addView(preview, LinearLayout.LayoutParams(56, 56))
+
+            row.addView(TextView(this).apply {
+                text = option.label
+                textSize = 16f
+                setTextColor(Color.DKGRAY)
+                setPadding(16, 0, 0, 0)
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+
+            chooser.addView(row, LinearLayout.LayoutParams(-1, -2))
+        }
+
+        dialog.show()
     }
 
     private fun choosePresence() {
