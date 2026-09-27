@@ -3,8 +3,6 @@ name: Optimize animated assets
 on:
   push:
     branches: [main]
-    paths:
-      - '.github/workflows/optimize-anim-icons.yml'
   workflow_dispatch:
 
 permissions:
