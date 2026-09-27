@@ -20,6 +20,7 @@ object SessionStore {
     private const val USERNAME = "username"
     private const val NICKNAME = "nickname"
     private const val ROLE = "role"
+    private const val AVATAR = "avatar"
 
     private lateinit var prefs: android.content.SharedPreferences
 
@@ -71,7 +72,8 @@ object SessionStore {
         email: String,
         nickname: String,
         role: String = "user",
-        username: String = ""
+        username: String = "",
+        avatar: String = ""
     ) {
         ensureReady()
         val effectiveUsername = username.trim().ifBlank { this.username() }
@@ -84,16 +86,18 @@ object SessionStore {
             .putString(USERNAME, effectiveUsername)
             .putString(NICKNAME, nickname)
             .putString(ROLE, effectiveRole)
+            .putString(AVATAR, avatar)
             .apply()
     }
 
     /** Updates only profile display fields without replacing the current auth session. */
-    fun updateProfile(nickname: String, email: String) {
+    fun updateProfile(nickname: String, email: String, avatar: String? = null) {
         ensureReady()
         prefs.edit()
             .putString(EMAIL, email)
             .putString(NICKNAME, nickname)
             .apply()
+        if (avatar != null) prefs.edit().putString(AVATAR, avatar).apply()
     }
 
     fun accessToken(): String? = if (::prefs.isInitialized) prefs.getString(ACCESS, null)?.let(::decrypt) else null
@@ -103,6 +107,7 @@ object SessionStore {
     fun username(): String = if (::prefs.isInitialized) prefs.getString(USERNAME, "").orEmpty() else ""
     fun nickname(): String = if (::prefs.isInitialized) prefs.getString(NICKNAME, "").orEmpty() else ""
     fun role(): String = if (::prefs.isInitialized) prefs.getString(ROLE, "user").orEmpty() else "user"
+    fun avatar(): String = if (::prefs.isInitialized) prefs.getString(AVATAR, "").orEmpty() else ""
 
     fun clear() {
         if (::prefs.isInitialized) prefs.edit().clear().apply()
