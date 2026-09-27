@@ -184,15 +184,23 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
     }
 
     private fun showOptionsMenu() {
-        val items = if (selectedCategory == null) listOf("Join Room", "Select Region", "Refresh Room List", "Refresh Region List", "Search Rooms", "Backend Status")
-        else listOf("Join Room", "Room Actions", "Refresh Room List", "Refresh Region List", "Search Rooms", "Backend Status")
-        J2mePopup.show(requireContext(), items.map { PopupItem(it) }) { index ->
+        // Exact legacy Chat Rooms list options from com.kolipri.kalypte.bm.
+        val labels = if (selectedCategory == null) {
+            listOf("Select Category", "Refresh Category List", "Start Buddy Group Chat", "Close Tab")
+        } else {
+            listOf("Join Room", "Refresh Room List", "Start Buddy Group Chat", "Close Tab")
+        }
+        J2mePopup.show(requireContext(), labels.map { PopupItem(it) }) { index ->
             when (index) {
-                0 -> if (selectedCategory?.rooms?.isNotEmpty() == true) host.openRoom(selectedCategory!!.rooms.first().name) else Toast.makeText(requireContext(), "Select a room first.", Toast.LENGTH_SHORT).show()
-                1 -> if (selectedCategory == null) showCategories() else selectedCategory?.rooms?.firstOrNull()?.let { startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_ACTIONS, it.name)) }
-                2, 3 -> refreshFromSupabase(initial = false)
-                4 -> showSearch()
-                5 -> UzzapDialogs.show(requireContext(), iconAsset = "anim-icons/menu_backend.gif", title = "Supabase Status", message = "Status: ${SupabaseClient.connectionStatus}\nRegions: ${AppState.categories.size}\nProvince rooms: ${AppState.categories.sumOf { it.rooms.size }}", positive = "OK")
+                0 -> if (selectedCategory == null) showCategories()
+                    else selectedCategory?.rooms?.firstOrNull()?.let { host.openRoom(it.name) }
+                1 -> refreshFromSupabase(initial = false)
+                2 -> {
+                    val room = selectedCategory?.rooms?.firstOrNull()
+                    if (room != null) startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_ACTIONS, room.name))
+                    else Toast.makeText(requireContext(), "Select a room first.", Toast.LENGTH_SHORT).show()
+                }
+                3 -> host.goToBuddyList()
             }
         }
     }
