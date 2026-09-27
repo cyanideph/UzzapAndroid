@@ -112,7 +112,7 @@ class InstantMessagingActivity : BaseChromeActivity() {
         AlertDialog.Builder(this).setItems(arrayOf("Buddy List", "Extended Messaging", "Notification Settings", "Close")) { _, which ->
             when (which) {
                 0 -> startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM))
-                1 -> startActivity(CommunicationCenterActivity.intent(this))
+                1 -> startActivity(Intent(this, CommunicationCenterActivity::class.java))
                 2 -> startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_TONES))
             }
         }.show()
