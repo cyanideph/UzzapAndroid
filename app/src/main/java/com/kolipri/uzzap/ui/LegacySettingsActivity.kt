@@ -245,7 +245,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
     }
 
     private fun statusScreen() {
-        rows("Change Status", listOf("Status Message", "Available", "Not Available", "Invisible"), listOf(
+        rows("Change Status", listOf("Status Message..", "Available", "Not Available", "Invisible"), listOf(
             { statusMessageDialog() }, { setPresence(Presence.AVAILABLE) }, { setPresence(Presence.NOT_AVAILABLE) }, { setPresence(Presence.INVISIBLE) }
         ), listOf("Set your personal status message", "Show me as available", "Show me as not available", "Hide my online presence"))
     }
