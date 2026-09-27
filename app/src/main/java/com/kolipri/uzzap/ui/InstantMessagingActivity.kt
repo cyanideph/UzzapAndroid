@@ -99,7 +99,7 @@ class InstantMessagingActivity : BaseChromeActivity() {
         row.addView(textCol, LinearLayout.LayoutParams(0, -2, 1f))
         if (unread > 0) row.addView(TextView(this).apply {
             text = if (unread > 99) "99+" else unread.toString(); gravity = Gravity.CENTER; typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE); background = rounded(ThemeManager.resolve(this@InstantMessagingActivity, R.attr.uzzapColorHeader), 16f)
+            setTextColor(Color.WHITE); background = rounded(ThemeManager.resolve(this@InstantMessagingActivity, R.attr.uzzapColorHeader), 16)
             minWidth = dp(30); setPadding(dp(7), dp(4), dp(7), dp(4))
         })
         UserProfileClient.fetch(buddy) { profile ->
