@@ -27,18 +27,15 @@ jobs:
           python <<'PY'
           from pathlib import Path
           from PIL import Image, ImageSequence
-          import hashlib
-          import os
 
           root = Path("app/src/main/assets/anim-icons")
           gifs = sorted(root.glob("*.gif"))
           if not gifs:
-              print("No GIF assets found.")
+              print("No GIF assets found; conversion already complete.")
               raise SystemExit(0)
 
           total_before = 0
           total_after = 0
-          converted = 0
 
           for src in gifs:
               dst = src.with_suffix(".webp")
@@ -69,33 +66,22 @@ jobs:
               after = dst.stat().st_size
               total_before += before
               total_after += after
+              print(f"{src.name}: {before:,} -> {dst.name}: {after:,} bytes")
 
-              print(f"{src.name}: {before:,} -> {dst.name}: {after:,} bytes ({after/before:.1%})")
-              converted += 1
-
-          print(f"Converted: {converted} GIF assets")
-          print(f"Total GIF bytes:  {total_before:,}")
+          print(f"Converted: {len(gifs)} GIF assets")
+          print(f"Total GIF bytes: {total_before:,}")
           print(f"Total WebP bytes: {total_after:,}")
-          print(f"Raw asset reduction: {total_before-total_after:,} bytes ({(1-total_after/total_before):.1%})")
-
-          if total_after >= total_before:
-              print("WARNING: aggregate WebP output is not smaller; retaining conversion for format migration.")
+          print(f"Reduction: {total_before - total_after:,} bytes ({(1-total_after/total_before):.1%})")
           PY
 
-      - name: Update text references from .gif to .webp
+      - name: Update text references
         shell: bash
         run: |
           python <<'PY'
           from pathlib import Path
-
-          skip = {".git"}
           extensions = {".kt", ".java", ".xml", ".json", ".txt", ".md", ".gradle", ".kts", ".properties", ".html", ".js", ".ts", ".tsx", ".css", ".yml", ".yaml"}
-          changed = 0
-
           for path in Path(".").rglob("*"):
-              if not path.is_file() or any(part in skip for part in path.parts):
-                  continue
-              if path.suffix.lower() not in extensions:
+              if not path.is_file() or ".git" in path.parts or path.suffix.lower() not in extensions:
                   continue
               try:
                   text = path.read_text(encoding="utf-8")
@@ -104,10 +90,7 @@ jobs:
               updated = text.replace(".gif", ".webp")
               if updated != text:
                   path.write_text(updated, encoding="utf-8")
-                  print(f"Updated reference: {path}")
-                  changed += 1
-
-          print(f"Text files updated: {changed}")
+                  print(f"Updated: {path}")
           PY
 
       - name: Remove original GIF assets
@@ -119,21 +102,17 @@ jobs:
           python <<'PY'
           from pathlib import Path
           from PIL import Image
-
           root = Path("app/src/main/assets/anim-icons")
           webps = sorted(root.glob("*.webp"))
           if not webps:
-              raise SystemExit("No WebP assets were produced.")
-
+              raise SystemExit("No WebP assets found.")
           for path in webps:
               with Image.open(path) as im:
-                  frames = getattr(im, "n_frames", 1)
-                  print(f"{path.name}: {im.size[0]}x{im.size[1]}, frames={frames}, bytes={path.stat().st_size:,}")
-
+                  print(f"{path.name}: {im.width}x{im.height}, frames={getattr(im, 'n_frames', 1)}, bytes={path.stat().st_size:,}")
           print(f"Verified {len(webps)} WebP assets.")
           PY
 
-      - name: Commit optimized assets
+      - name: Commit and push optimized assets
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
@@ -144,4 +123,6 @@ jobs:
             exit 0
           fi
           git commit -m "perf: convert animated GIF assets to WebP"
+          git fetch origin optimize/anim-icons-webp
+          git rebase origin/optimize/anim-icons-webp
           git push origin HEAD:optimize/anim-icons-webp
