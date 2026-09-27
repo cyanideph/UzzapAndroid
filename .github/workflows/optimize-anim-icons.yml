@@ -1,8 +1,10 @@
 name: Optimize animated assets
 
 on:
-  pull_request:
-    types: [opened, synchronize]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/optimize-anim-icons.yml'
   workflow_dispatch:
 
 permissions:
@@ -16,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          ref: main
 
       - name: Install Pillow
         run: python -m pip install --upgrade pillow
@@ -144,4 +146,4 @@ jobs:
             exit 0
           fi
           git commit -m "perf: convert animated GIF assets to WebP"
-          git push origin HEAD:optimize/anim-icons-webp
+          git push origin HEAD:main
