@@ -1,6 +1,7 @@
 package com.kolipri.uzzap.ui
 
 import android.os.Bundle
+import android.content.Intent
 import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -9,7 +10,6 @@ import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.PrivateMessageStateClient
 import com.kolipri.uzzap.data.RoomInvitationClient
-import com.kolipri.uzzap.data.UzzapNotificationManager
 
 /** Unified notification inbox for private messages, room invitations and app alerts. */
 class NotificationCenterActivity : BaseChromeActivity() {
@@ -45,7 +45,7 @@ class NotificationCenterActivity : BaseChromeActivity() {
         view.text=title+"\n"+subtitle
     }
     private fun showOptions(){AlertDialog.Builder(this).setItems(arrayOf("Notification Settings","Room Invitations","Private Messages","Close")){_,which->
-        when(which){0->startActivity(LegacySettingsActivity.intent(this,LegacySettingsActivity.MODE_TONES));1->startActivity(RoomInvitationsActivity.intent(this));2->startActivity(InstantMessagingActivity.intent(this))}
+        when(which){0->startActivity(LegacySettingsActivity.intent(this,LegacySettingsActivity.MODE_TONES));1->startActivity(Intent(this, RoomInvitationsActivity::class.java));2->startActivity(InstantMessagingActivity.intent(this))}
     }.show()}
     private fun dp(v:Int)=(v*resources.displayMetrics.density+0.5f).toInt()
 }
