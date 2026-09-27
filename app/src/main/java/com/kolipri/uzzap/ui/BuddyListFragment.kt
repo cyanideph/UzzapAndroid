@@ -51,7 +51,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
     private val monitor = object : Runnable {
         override fun run() {
             if (!monitoring || !isAdded) return
-            PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE)
+            if (!com.kolipri.uzzap.data.AppPreferences.isBatterySavingEnabled(requireContext())) PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE)
             checkUnreadNotifications()
             checkBuddyRequests(showDialog = true)
             adapter.notifyDataSetChanged()
