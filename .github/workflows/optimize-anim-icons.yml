@@ -1,0 +1,147 @@
+name: Optimize animated assets
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  convert-gifs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+
+      - name: Install Pillow
+        run: python -m pip install --upgrade pillow
+
+      - name: Convert GIF assets to animated WebP
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageSequence
+          import hashlib
+          import os
+
+          root = Path("app/src/main/assets/anim-icons")
+          gifs = sorted(root.glob("*.gif"))
+          if not gifs:
+              print("No GIF assets found.")
+              raise SystemExit(0)
+
+          total_before = 0
+          total_after = 0
+          converted = 0
+
+          for src in gifs:
+              dst = src.with_suffix(".webp")
+              with Image.open(src) as im:
+                  frames = []
+                  durations = []
+                  for frame in ImageSequence.Iterator(im):
+                      frames.append(frame.convert("RGBA"))
+                      durations.append(max(10, int(frame.info.get("duration", im.info.get("duration", 100) or 100))))
+
+                  loop = int(im.info.get("loop", 0) or 0)
+                  first, rest = frames[0], frames[1:]
+
+                  first.save(
+                      dst,
+                      "WEBP",
+                      save_all=True,
+                      append_images=rest,
+                      duration=durations,
+                      loop=loop,
+                      quality=90,
+                      method=6,
+                      minimize_size=True,
+                      allow_mixed=True,
+                  )
+
+              before = src.stat().st_size
+              after = dst.stat().st_size
+              total_before += before
+              total_after += after
+
+              print(f"{src.name}: {before:,} -> {dst.name}: {after:,} bytes ({after/before:.1%})")
+              converted += 1
+
+          print(f"Converted: {converted} GIF assets")
+          print(f"Total GIF bytes:  {total_before:,}")
+          print(f"Total WebP bytes: {total_after:,}")
+          print(f"Raw asset reduction: {total_before-total_after:,} bytes ({(1-total_after/total_before):.1%})")
+
+          if total_after >= total_before:
+              print("WARNING: aggregate WebP output is not smaller; retaining conversion for format migration.")
+          PY
+
+      - name: Update text references from .gif to .webp
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          skip = {".git"}
+          extensions = {".kt", ".java", ".xml", ".json", ".txt", ".md", ".gradle", ".kts", ".properties", ".html", ".js", ".ts", ".tsx", ".css", ".yml", ".yaml"}
+          changed = 0
+
+          for path in Path(".").rglob("*"):
+              if not path.is_file() or any(part in skip for part in path.parts):
+                  continue
+              if path.suffix.lower() not in extensions:
+                  continue
+              try:
+                  text = path.read_text(encoding="utf-8")
+              except (UnicodeDecodeError, OSError):
+                  continue
+              updated = text.replace(".gif", ".webp")
+              if updated != text:
+                  path.write_text(updated, encoding="utf-8")
+                  print(f"Updated reference: {path}")
+                  changed += 1
+
+          print(f"Text files updated: {changed}")
+          PY
+
+      - name: Remove original GIF assets
+        run: find app/src/main/assets/anim-icons -type f -name '*.gif' -delete
+
+      - name: Verify WebP assets
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path("app/src/main/assets/anim-icons")
+          webps = sorted(root.glob("*.webp"))
+          if not webps:
+              raise SystemExit("No WebP assets were produced.")
+
+          for path in webps:
+              with Image.open(path) as im:
+                  frames = getattr(im, "n_frames", 1)
+                  print(f"{path.name}: {im.size[0]}x{im.size[1]}, frames={frames}, bytes={path.stat().st_size:,}")
+
+          print(f"Verified {len(webps)} WebP assets.")
+          PY
+
+      - name: Commit optimized assets
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "perf: convert animated GIF assets to WebP"
+          git push origin HEAD:optimize/anim-icons-webp
