@@ -80,7 +80,7 @@ class InstantMessagingActivity : BaseChromeActivity() {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(10), dp(9), dp(10), dp(9)); setBackgroundResource(R.drawable.bg_menu_row_selector)
             contentDescription = "Message " + buddy; isClickable = true
-            setOnClickListener { startActivity(PrivateChatActivity.intent(this@InstantMessagingActivity, buddy)) }
+            setOnClickListener { startActivity(android.content.Intent(this@InstantMessagingActivity, PrivateChatActivity::class.java).apply { putExtra("buddy", buddy); addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP) }) }
         }
         val avatar = ImageView(this).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP; background = rounded(Color.WHITE, 24)
