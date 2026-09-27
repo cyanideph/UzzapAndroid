@@ -11,13 +11,16 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import coil.load
 import com.kolipri.uzzap.data.AppState
+import com.kolipri.uzzap.data.AvatarManager
 import com.kolipri.uzzap.data.RoomInvitationClient
 import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.model.Presence
@@ -91,15 +94,24 @@ class UzzapParityActivity : BaseChromeActivity() {
         showConnectedBall(true)
 
         val currentNickname = AppState.nickname.trim().ifBlank { AppState.username }
-        val avatar = TextView(this).apply {
-            text = currentNickname.firstOrNull()?.uppercase() ?: "U"
-            textSize = 30f
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = rounded(Color.rgb(13, 12, 175), 40f)
+        val avatar = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            background = rounded(Color.WHITE, 40f)
             contentDescription = "Profile avatar"
+            load(AvatarManager.url(AppState.avatar, AppState.username))
         }
-        root.addView(avatar, LinearLayout.LayoutParams(76, 76).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = 10 })
+        root.addView(avatar, LinearLayout.LayoutParams(76, 76).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = 6 })
+
+        val changeAvatar = TextView(this).apply {
+            text = "Change Avatar"
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(13, 12, 175))
+            setPadding(12, 8, 12, 10)
+            setOnClickListener { chooseAvatar() }
+            contentDescription = "Change avatar"
+        }
+        root.addView(changeAvatar, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10 })
 
         val name = TextView(this).apply {
             text = currentNickname
@@ -168,7 +180,7 @@ class UzzapParityActivity : BaseChromeActivity() {
     private data class ProfileFields(
         val nickname: EditText,
         val status: EditText,
-        val avatar: TextView,
+        val avatar: ImageView,
         val name: TextView,
         val account: TextView
     )
@@ -199,12 +211,58 @@ class UzzapParityActivity : BaseChromeActivity() {
                 AppState.nickname = visibleNickname
                 AppState.statusMessage = fields.status.text.toString().trim()
                 fields.account.text = "Username\n${AppState.username}\n\nNickname\n${visibleNickname}"
-                fields.avatar.text = visibleNickname.firstOrNull()?.uppercase() ?: "U"
+                fields.avatar.load(AvatarManager.url(AppState.avatar, AppState.username))
                 fields.name.text = visibleNickname
                 AppState.syncProfileToSupabase()
                 Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun chooseAvatar() {
+        val options = AvatarManager.options
+        val chooser = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 8, 16, 8)
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Choose Avatar")
+            .setView(chooser)
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        options.forEach { option ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(8, 8, 8, 8)
+                setOnClickListener {
+                    AppState.avatar = AvatarManager.encode(option.style, AppState.username)
+                    dialog.dismiss()
+                    profile()
+                }
+            }
+
+            val preview = ImageView(this).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                background = rounded(Color.WHITE, 28f)
+                contentDescription = option.label
+                load(AvatarManager.url(AvatarManager.encode(option.style, AppState.username), AppState.username))
+            }
+            row.addView(preview, LinearLayout.LayoutParams(56, 56))
+
+            row.addView(TextView(this).apply {
+                text = option.label
+                textSize = 16f
+                setTextColor(Color.DKGRAY)
+                setPadding(16, 0, 0, 0)
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+
+            chooser.addView(row, LinearLayout.LayoutParams(-1, -2))
+        }
+
+        dialog.show()
     }
 
     private fun choosePresence() {
