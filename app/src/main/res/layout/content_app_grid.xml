@@ -59,6 +59,6 @@
         <ImageView android:id="@+id/icon_em" style="@style/GridIconSmall" android:src="@drawable/d_d000_em_small" android:contentDescription="Extended Messaging (Buddies)"/>
         <ImageView android:id="@+id/icon_im" style="@style/GridIconSmall" android:src="@drawable/d_d001_im_small" android:contentDescription="Instant Messaging"/>
         <ImageView android:id="@+id/icon_chat" style="@style/GridIconSmall" android:src="@drawable/d_d002_chat_small" android:contentDescription="Chat Rooms"/>
-        <ImageView android:id="@+id/icon_profile" style="@style/GridIconSmall" android:src="@drawable/d_d003_status_small" android:contentDescription="Profile"/>
+        <ImageView android:id="@+id/icon_profile" style="@style/GridIconSmall" android:src="@drawable/d_d003_status_small" android:contentDescription="Change Status"/>
     </LinearLayout>
 </LinearLayout>
