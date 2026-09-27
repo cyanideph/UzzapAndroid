@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import coil.load
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -28,6 +29,8 @@ import com.kolipri.uzzap.data.PresenceClient
 import com.kolipri.uzzap.data.SafetyClient
 import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.data.UzzapNotificationManager
+import com.kolipri.uzzap.data.AvatarManager
+import com.kolipri.uzzap.data.UserProfileClient
 import com.kolipri.uzzap.model.BuddyGroup
 import com.kolipri.uzzap.model.Presence
 import com.kolipri.uzzap.ui.dialogs.J2mePopup
@@ -322,7 +325,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
                     val statusName = row.findViewById<TextView>(R.id.tv_status_username)
                     val unread = row.findViewById<TextView>(R.id.tv_unread_count)
                     statusName.text = if (group.key == "pending") "$buddy • Request" else buddy
-                    statusIcon.setImageResource(if (group.key == "pending") R.drawable.d_buddylist_icon else R.drawable.d_offline)
+                    statusIcon.setImageResource(if (group.key == "pending") R.drawable.d_buddylist_icon else R.drawable.d_offline)\n                    if (group.key != "pending") {\n                        statusIcon.scaleType = ImageView.ScaleType.CENTER_CROP\n                        UserProfileClient.fetch(buddy) { profile -> if (isAdded) statusIcon.load(AvatarManager.url(profile?.avatar, buddy)) }\n                    }
                     val cachedCount = cachedUnreadCounts[buddy.lowercase()] ?: 0
                     unread.text = if (group.key == "pending") "!" else if (cachedCount > 99) "99+" else cachedCount.toString()
                     unread.visibility = if (group.key == "pending" || cachedCount > 0) View.VISIBLE else View.GONE
