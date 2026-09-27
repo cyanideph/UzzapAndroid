@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Branch containing the GIF assets to optimize"
+        required: true
+        default: "optimize/anim-icons-webp"
+        type: string
 
 permissions:
   contents: write
@@ -12,11 +18,11 @@ jobs:
   convert-gifs:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout target branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: main
+          ref: ${{ github.event.inputs.target_branch || 'optimize/anim-icons-webp' }}
 
       - name: Install Pillow
         run: python -m pip install --upgrade pillow
@@ -27,18 +33,14 @@ jobs:
           python <<'PY'
           from pathlib import Path
           from PIL import Image, ImageSequence
-          import hashlib
-          import os
 
           root = Path("app/src/main/assets/anim-icons")
           gifs = sorted(root.glob("*.gif"))
-          if not gifs:
-              print("No GIF assets found.")
-              raise SystemExit(0)
+          if len(gifs) != 39:
+              raise SystemExit(f"Expected 39 GIF assets, found {len(gifs)}")
 
           total_before = 0
           total_after = 0
-          converted = 0
 
           for src in gifs:
               dst = src.with_suffix(".webp")
@@ -49,16 +51,14 @@ jobs:
                       frames.append(frame.convert("RGBA"))
                       durations.append(max(10, int(frame.info.get("duration", im.info.get("duration", 100) or 100))))
 
-                  loop = int(im.info.get("loop", 0) or 0)
                   first, rest = frames[0], frames[1:]
-
                   first.save(
                       dst,
                       "WEBP",
                       save_all=True,
                       append_images=rest,
                       duration=durations,
-                      loop=loop,
+                      loop=int(im.info.get("loop", 0) or 0),
                       quality=90,
                       method=6,
                       minimize_size=True,
@@ -69,31 +69,27 @@ jobs:
               after = dst.stat().st_size
               total_before += before
               total_after += after
+              print(f"{src.name}: {before:,} -> {dst.name}: {after:,} bytes")
 
-              print(f"{src.name}: {before:,} -> {dst.name}: {after:,} bytes ({after/before:.1%})")
-              converted += 1
+          print(f"GIF total:  {total_before:,} bytes")
+          print(f"WebP total: {total_after:,} bytes")
+          print(f"Reduction: {(1 - total_after / total_before):.1%}")
 
-          print(f"Converted: {converted} GIF assets")
-          print(f"Total GIF bytes:  {total_before:,}")
-          print(f"Total WebP bytes: {total_after:,}")
-          print(f"Raw asset reduction: {total_before-total_after:,} bytes ({(1-total_after/total_before):.1%})")
-
-          if total_after >= total_before:
-              print("WARNING: aggregate WebP output is not smaller; retaining conversion for format migration.")
-          PY
-
-      - name: Update text references from .gif to .webp
+      - name: Update text references
         shell: bash
         run: |
           python <<'PY'
           from pathlib import Path
 
-          skip = {".git"}
-          extensions = {".kt", ".java", ".xml", ".json", ".txt", ".md", ".gradle", ".kts", ".properties", ".html", ".js", ".ts", ".tsx", ".css", ".yml", ".yaml"}
-          changed = 0
+          extensions = {
+              ".kt", ".java", ".xml", ".json", ".txt", ".md", ".gradle",
+              ".kts", ".properties", ".html", ".js", ".ts", ".tsx", ".css",
+              ".yml", ".yaml"
+          }
 
+          changed = 0
           for path in Path(".").rglob("*"):
-              if not path.is_file() or any(part in skip for part in path.parts):
+              if not path.is_file() or ".git" in path.parts:
                   continue
               if path.suffix.lower() not in extensions:
                   continue
@@ -104,7 +100,7 @@ jobs:
               updated = text.replace(".gif", ".webp")
               if updated != text:
                   path.write_text(updated, encoding="utf-8")
-                  print(f"Updated reference: {path}")
+                  print(f"Updated: {path}")
                   changed += 1
 
           print(f"Text files updated: {changed}")
@@ -113,7 +109,7 @@ jobs:
       - name: Remove original GIF assets
         run: find app/src/main/assets/anim-icons -type f -name '*.gif' -delete
 
-      - name: Verify WebP assets
+      - name: Verify converted assets
         shell: bash
         run: |
           python <<'PY'
@@ -122,26 +118,34 @@ jobs:
 
           root = Path("app/src/main/assets/anim-icons")
           webps = sorted(root.glob("*.webp"))
-          if not webps:
-              raise SystemExit("No WebP assets were produced.")
+          if len(webps) != 39:
+              raise SystemExit(f"Expected 39 WebP assets, found {len(webps)}")
 
           for path in webps:
               with Image.open(path) as im:
                   frames = getattr(im, "n_frames", 1)
+                  if frames < 1:
+                      raise SystemExit(f"Invalid WebP: {path}")
                   print(f"{path.name}: {im.size[0]}x{im.size[1]}, frames={frames}, bytes={path.stat().st_size:,}")
 
-          print(f"Verified {len(webps)} WebP assets.")
+          leftovers = list(root.glob("*.gif"))
+          if leftovers:
+              raise SystemExit(f"GIF leftovers remain: {leftovers}")
+
+          print("All 39 animated assets verified.")
           PY
 
-      - name: Commit optimized assets
+      - name: Commit optimized assets to target branch
         shell: bash
         run: |
+          target="${{ github.event.inputs.target_branch || 'optimize/anim-icons-webp' }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add -A app/src/main/assets/anim-icons
+          git add -A -- '*.kt' '*.java' '*.xml' '*.json' '*.txt' '*.md' '*.gradle' '*.kts' '*.properties' '*.html' '*.js' '*.ts' '*.tsx' '*.css' '*.yml' '*.yaml'
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
           git commit -m "perf: convert animated GIF assets to WebP"
-          git push origin HEAD:main
+          git push origin "HEAD:$target"
