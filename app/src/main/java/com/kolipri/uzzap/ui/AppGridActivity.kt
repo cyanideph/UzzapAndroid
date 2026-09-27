@@ -36,7 +36,17 @@ class AppGridActivity : BaseChromeActivity() {
         val settingsIcon = findViewById<ImageView>(R.id.icon_settings)
         findViewById<ImageView>(R.id.icon_u).setOnClickListener { footer.text = "Subscription"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SUBSCRIPTION)) }
         findViewById<ImageView>(R.id.icon_matching).setOnClickListener { footer.text = "Buddy Matching"; toast("Automatic Buddy Matching is not supported on this device.") }
-        findViewById<ImageView>(R.id.icon_addbuddy).setOnClickListener { footer.text = "Add or Invite Buddies"; startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }
+        findViewById<ImageView>(R.id.icon_addbuddy).setOnClickListener {
+            footer.text = "Add or Invite Buddies"
+            J2mePopup.show(this, listOf(
+                PopupItem("Invite Friends to Uzzap"),
+                PopupItem("Add Buddy by Mobile"),
+                PopupItem("Add Buddy by User ID"),
+                PopupItem("Add Other Contact")
+            )) { _ ->
+                startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM))
+            }
+        }
         settingsIcon.setOnClickListener { footer.text = "Settings"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SETTINGS)) }
         settingsIcon.setOnLongClickListener { if (AppState.role == "admin") { footer.text = "Moderator Management"; startActivity(ModeratorManagementActivity.intent(this)); true } else if (AppState.isModerator) { footer.text = "Moderator Console"; startActivity(ModeratorActivity.intent(this)); true } else false }
         findViewById<ImageView>(R.id.icon_ringtone).setOnClickListener { footer.text = "Silent Mode"; toggleSilentMode() }
