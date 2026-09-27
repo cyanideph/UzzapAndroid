@@ -53,7 +53,7 @@ object AppState {
         if (SupabaseClient.userAccessToken.isNullOrBlank()) return
         // Keep the edited nickname in the encrypted local session too, otherwise a
         // later session restore can silently replace the markup with the old value.
-        SessionStore.updateProfile(nickname, email)
+        SessionStore.updateProfile(nickname, email, avatar.ifBlank { AvatarManager.encode("pixel-art", username) })
         SupabaseClient.upsertProfile(
             username = username,
             nickname = nickname,
@@ -77,6 +77,7 @@ object AppState {
         email = ""
         authToken = ""
         role = "user"
+        avatar = ""
         SupabaseClient.signOut()
     }
 }

@@ -117,4 +117,35 @@ object DirectMessageClient {
             }
         }
     }
+
+    /** Returns recent conversation partners from the authenticated user's own messages. */
+    fun fetchRecentConversationPartners(onResult: (List<String>) -> Unit) {
+        val myId = currentUserId()
+        if (myId.isNullOrBlank()) { main.post { onResult(emptyList()) }; return }
+        val encoded = URLEncoder.encode(myId, "UTF-8")
+        val or = URLEncoder.encode("(sender_id.eq.$myId,recipient_id.eq.$myId)", "UTF-8")
+        val path = "/rest/v1/direct_messages?or=$or&select=sender,recipient,created_at&order=created_at.desc&limit=100"
+        http.newCall(req(path).get().build()).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) { main.post { onResult(emptyList()) } }
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    if (!it.isSuccessful) { main.post { onResult(emptyList()) }; return }
+                    val partners = runCatching {
+                        val array = JSONArray(it.body?.string().orEmpty())
+                        buildList {
+                            for (i in 0 until array.length()) {
+                                val o = array.optJSONObject(i) ?: continue
+                                val sender = o.optString("sender").trim()
+                                val recipient = o.optString("recipient").trim()
+                                val partner = if (sender.equals(AppState.username, true)) recipient else sender
+                                if (partner.isNotBlank() && !partner.equals(AppState.username, true) && none<String> { existing -> existing.equals(partner, true) }) add(partner)
+                            }
+                        }
+                    }.getOrDefault(emptyList())
+                    main.post { onResult(partners) }
+                }
+            }
+        })
+    }
+
 }

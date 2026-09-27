@@ -80,7 +80,7 @@ fun SupabaseClient.signInWithEmail(email: String, password: String, callback: (B
                         runCatching {
                             val username = profile.username.ifBlank { error("No profile username found for this account") }; val nickname = profile.nickname.ifBlank { username }
                             AppState.username = username; AppState.nickname = nickname; AppState.avatar = profile.avatar
-                            resolveApplicationRole(userId, access) { role -> AppState.role = role; SessionStore.save(access, refresh, expires, AppState.email, nickname, role, username); SupabaseClient.restorePersistedSession(); SupabaseAuthCompat.handler().post { callback(true, nickname, access, null) } }
+                            resolveApplicationRole(userId, access) { role -> AppState.role = role; SessionStore.save(access, refresh, expires, AppState.email, nickname, role, username, AppState.avatar); SupabaseClient.restorePersistedSession(); SupabaseAuthCompat.handler().post { callback(true, nickname, access, null) } }
                         }.onFailure { e -> Log.e("SupabaseAuthCompat", "Login identity resolution failed", e); SupabaseClient.setAccessTokenForLegacy(null); SupabaseAuthCompat.handler().post { callback(false, null, null, e.message ?: "Unable to load account profile") } }
                     }
                 }.onFailure { e -> Log.e("SupabaseAuthCompat", "Login identity resolution failed", e); SupabaseClient.setAccessTokenForLegacy(null); SupabaseAuthCompat.handler().post { callback(false, null, null, e.message ?: "Unable to load account profile") } }
@@ -107,7 +107,7 @@ fun SupabaseClient.signUpWithEmail(email: String, password: String, nickname: St
                         val refresh = obj.optString("refresh_token").ifBlank { null }; val expires = System.currentTimeMillis() + obj.optLong("expires_in", 3600L) * 1000L
                         val userId = user?.optString("id").orEmpty(); if (userId.isBlank()) error("No authenticated user id returned")
                         SupabaseClient.setAccessTokenForLegacy(access); AppState.authToken = access; AppState.email = returnedEmail; AppState.nickname = cleanNickname; AppState.username = cleanNickname; AppState.role = "user"
-                        SessionStore.save(access, refresh, expires, returnedEmail, cleanNickname, "user", cleanNickname); SupabaseClient.restorePersistedSession()
+                        SessionStore.save(access, refresh, expires, returnedEmail, cleanNickname, "user", cleanNickname, AppState.avatar); SupabaseClient.restorePersistedSession()
                         loadProfileData(userId, access) { profile ->
                             if (profile.username.isBlank()) SupabaseAuthCompat.handler().post { callback(false, null, "Account created but profile provisioning was not completed") }
                             else SupabaseAuthCompat.handler().post { callback(true, access, null) }
@@ -137,7 +137,7 @@ fun SupabaseClient.verifySession(token: String, callback: (Boolean, String?, Str
                         loadProfileData(id, activeToken) { profile ->
                             if (profile.username.isNotBlank()) {
                                 AppState.username = profile.username; AppState.nickname = profile.nickname.ifBlank { profile.username }; AppState.avatar = profile.avatar
-                                resolveApplicationRole(id, activeToken) { role -> AppState.role = role; SessionStore.save(activeToken, SessionStore.refreshToken(), SessionStore.expiresAtMs(), email, AppState.nickname, role, AppState.username); SupabaseAuthCompat.handler().post { callback(true, email, AppState.nickname) } }
+                                resolveApplicationRole(id, activeToken) { role -> AppState.role = role; SessionStore.save(activeToken, SessionStore.refreshToken(), SessionStore.expiresAtMs(), email, AppState.nickname, role, AppState.username, AppState.avatar); SupabaseAuthCompat.handler().post { callback(true, email, AppState.nickname) } }
                             } else {
                                 val saved = SessionStore.username()
                                 if (saved.isBlank()) SupabaseAuthCompat.handler().post { callback(false, null, null) }

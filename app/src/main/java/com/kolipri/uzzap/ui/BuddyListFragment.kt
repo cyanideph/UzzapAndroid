@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import coil.load
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -28,6 +29,8 @@ import com.kolipri.uzzap.data.PresenceClient
 import com.kolipri.uzzap.data.SafetyClient
 import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.data.UzzapNotificationManager
+import com.kolipri.uzzap.data.AvatarManager
+import com.kolipri.uzzap.data.UserProfileClient
 import com.kolipri.uzzap.model.BuddyGroup
 import com.kolipri.uzzap.model.Presence
 import com.kolipri.uzzap.ui.dialogs.J2mePopup
@@ -48,7 +51,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
     private val monitor = object : Runnable {
         override fun run() {
             if (!monitoring || !isAdded) return
-            PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE)
+            if (!com.kolipri.uzzap.data.AppPreferences.isBatterySavingEnabled(requireContext())) PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE)
             checkUnreadNotifications()
             checkBuddyRequests(showDialog = true)
             adapter.notifyDataSetChanged()
@@ -318,11 +321,18 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
                 container.visibility = View.VISIBLE; empty.visibility = View.GONE
                 for (buddy in buddies) {
                     val row = LayoutInflater.from(context).inflate(R.layout.item_buddy_status_row, container, false)
+                    val avatar = row.findViewById<ImageView>(R.id.iv_buddy_avatar)
                     val statusIcon = row.findViewById<ImageView>(R.id.iv_status_icon)
                     val statusName = row.findViewById<TextView>(R.id.tv_status_username)
                     val unread = row.findViewById<TextView>(R.id.tv_unread_count)
                     statusName.text = if (group.key == "pending") "$buddy • Request" else buddy
                     statusIcon.setImageResource(if (group.key == "pending") R.drawable.d_buddylist_icon else R.drawable.d_offline)
+                    if (group.key != "pending") {
+                        avatar.load(AvatarManager.url(null, buddy))
+                        UserProfileClient.fetch(buddy) { profile ->
+                            if (isAdded) avatar.load(AvatarManager.url(profile?.avatar, buddy))
+                        }
+                    }
                     val cachedCount = cachedUnreadCounts[buddy.lowercase()] ?: 0
                     unread.text = if (group.key == "pending") "!" else if (cachedCount > 99) "99+" else cachedCount.toString()
                     unread.visibility = if (group.key == "pending" || cachedCount > 0) View.VISIBLE else View.GONE
@@ -342,7 +352,10 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
                     PresenceClient.fetchMultiple(buddies) { presenceMap ->
                         if (!isAdded || !container.isAttachedToWindow) return@fetchMultiple
                         for (i in 0 until container.childCount) {
-                            val r = container.getChildAt(i); val n = r.findViewById<TextView>(R.id.tv_status_username).text.toString(); val p = presenceMap[n.lowercase()]; r.findViewById<ImageView>(R.id.iv_status_icon).setImageResource(if (p?.isOnline == true) R.drawable.d_online else R.drawable.d_offline)
+                            val r = container.getChildAt(i)
+                            val n = r.findViewById<TextView>(R.id.tv_status_username).text.toString().removeSuffix(" • Request")
+                            val p = presenceMap[n.lowercase()]
+                            r.findViewById<ImageView>(R.id.iv_status_icon).setImageResource(if (p?.isOnline == true) R.drawable.d_online else R.drawable.d_offline)
                         }
                     }
                 }

@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -23,6 +24,9 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import coil.load
+import com.kolipri.uzzap.data.AvatarManager
+import com.kolipri.uzzap.data.UserProfileClient
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.DirectMessageClient
 import com.kolipri.uzzap.data.PrivateMessageStateClient
@@ -131,7 +135,16 @@ class PrivateChatActivity : BaseChromeActivity() {
         contentFrame.addView(chatRoot, FrameLayout.LayoutParams(-1, -1))
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(8), dp(8)); background = GradientDrawable().apply { setColor(Color.WHITE); setStroke(dp(1), Color.rgb(232, 234, 238)) } }
         header.addView(actionButton("‹", 30).apply { setOnClickListener { finish() }; contentDescription = "Back" }, LinearLayout.LayoutParams(dp(44), dp(48)))
-        header.addView(TextView(this).apply { text = buddy.take(1).uppercase(Locale.getDefault()); textSize = 18f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; typeface = Typeface.DEFAULT_BOLD; background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.rgb(55, 112, 82)) } }, LinearLayout.LayoutParams(dp(42), dp(42)))
+        val avatar = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }
+            contentDescription = "$buddy avatar"
+            load(AvatarManager.url(null, buddy))
+        }
+        header.addView(avatar, LinearLayout.LayoutParams(dp(42), dp(42)))
+        UserProfileClient.fetch(buddy) { profile ->
+            if (!isFinishing && !isDestroyed) avatar.load(AvatarManager.url(profile?.avatar, buddy))
+        }
         val identity = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, dp(6), 0) }
         identity.addView(TextView(this).apply { text = buddy; textSize = 17f; typeface = Typeface.DEFAULT_BOLD; setTextColor(Color.rgb(25, 27, 31)); maxLines = 1 })
         statusText = TextView(this).apply { text = "Checking status…"; textSize = 12f; setTextColor(Color.rgb(100, 105, 112)) }
@@ -221,7 +234,24 @@ class PrivateChatActivity : BaseChromeActivity() {
 
     private fun loadPresence() { PresenceClient.fetch(buddy) { p -> if (p?.isOnline == true) { statusText.text = "● Online"; statusText.setTextColor(Color.rgb(38, 133, 75)) } else { statusText.text = if (p?.lastSeen != null) "Offline · Last seen recently" else "Offline" } } }
     private fun showOptions() { AlertDialog.Builder(this).setTitle("$buddy Options").setItems(arrayOf("Send Message", "Add Emoticon", "View Profile", "Block User", "Report User", "Cancel")) { _, which -> when (which) { 0 -> { input.requestFocus(); (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(input, InputMethodManager.SHOW_IMPLICIT) }; 1 -> EmoticonPickerDialog.show(this) { code -> input.append(if (input.text.isNotEmpty()) " $code " else "$code ") }; 2 -> viewProfile(); 3 -> blockUser(); 4 -> reportUser() } }.show() }
-    private fun viewProfile() { PresenceClient.fetch(buddy) { p -> UzzapDialogs.show(this, iconAsset = "anim-icons/im_profile.gif", title = buddy, message = "Nickname: $buddy\nStatus: ${p?.status ?: "Unknown"}\nPresence: ${if (p?.isOnline == true) "Online" else "Offline"}", positive = "Close") } }
+    private fun viewProfile() {
+        UserProfileClient.fetch(buddy) { profile ->
+            if (isFinishing || isDestroyed) return@fetch
+            val p = profile
+            val nickname = p?.nickname?.ifBlank { buddy } ?: buddy
+            val status = p?.status?.ifBlank { "Unknown" } ?: "Unknown"
+            val presence = if (p?.isOnline == true) "Online" else "Offline"
+            val about = p?.statusMessage?.ifBlank { "—" } ?: "—"
+            val lastSeen = if (p?.isOnline == false && !p.lastSeen.isNullOrBlank()) "\nLast seen: ${p.lastSeen}" else ""
+            UzzapDialogs.show(
+                this,
+                iconAsset = "anim-icons/im_profile.gif",
+                title = nickname,
+                message = "Username: ${p?.username ?: buddy}\nStatus: $status\nPresence: $presence\nAbout Me: $about$lastSeen",
+                positive = "Close"
+            )
+        }
+    }
     private fun blockUser() { UzzapDialogs.show(this, iconAsset = "anim-icons/privacy_lock.gif", title = "Block $buddy?", message = "Blocked users cannot send you private messages, and you cannot send them private messages.", positive = "Block", onPositive = { SafetyClient.block(buddy) { ok -> Toast.makeText(this, if (ok) "$buddy blocked" else "Could not block user", Toast.LENGTH_SHORT).show(); if (ok) finish() } }) }
     private fun reportUser() { UzzapDialogs.show(this, iconAsset = "anim-icons/privacy_lock.gif", title = "Report User", message = "Report \"$buddy\" for inappropriate behavior? Moderators will review this report.", inputHint = "Add details (optional)...", positive = "Report", onPositive = { details -> SafetyClient.report(buddy, "Other", details.ifBlank { "Reported from private chat" }) { ok -> Toast.makeText(this, if (ok) "Report submitted" else "Report failed", Toast.LENGTH_SHORT).show() } }) }
     private fun markReadAndRefreshNotification() {

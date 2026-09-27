@@ -39,6 +39,6 @@ object AvatarManager {
     fun url(value: String?, fallbackSeed: String): String {
         val style = style(value) ?: options.first().style
         val seed = seed(value, fallbackSeed)
-        return "https://api.dicebear.com/10.x/$style/png?seed=${Uri.encode(seed)}&size=256&radius=50"
+        return "https://api.dicebear.com/10.x/$style/png?seed=${Uri.encode(seed)}&size=256&borderRadius=50"
     }
 }

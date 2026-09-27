@@ -35,6 +35,12 @@ class CommunicationCenterActivity : BaseChromeActivity() {
         }
 
         val items = buildList {
+            add(EmItem(R.drawable.d_n002_buddies_small, "Notifications", "Unread messages and room invitations") {
+                startActivity(Intent(this@CommunicationCenterActivity, NotificationCenterActivity::class.java))
+            })
+            add(EmItem(R.drawable.d_d001_im_small, "Private Messages", "Open recent conversations and unread messages") {
+                startActivity(InstantMessagingActivity.intent(this@CommunicationCenterActivity))
+            })
             add(EmItem(R.drawable.d_n002_buddies_small, "Buddy Requests & Management", "Add, accept or manage buddies") {
                 startActivity(ChatHostActivity.intent(this@CommunicationCenterActivity, ChatHostActivity.MODE_EM))
             })
