@@ -13,6 +13,8 @@ object AppState {
     var authToken: String = ""
     var presence: Presence = Presence.INVISIBLE
     var statusMessage: String = ""
+    /** DiceBear avatar selection encoded as dicebear:style:seed. */
+    var avatar: String = ""
     var themeName: String = "default"
     var firstLoginShown: Boolean = false
     var activeChatBuddy: String? = null
@@ -58,7 +60,7 @@ object AppState {
             email = email.ifBlank { null },
             status = presence.label,
             statusMessage = statusMessage,
-            avatar = "kool",
+            avatar = avatar.ifBlank { AvatarManager.encode("pixel-art", username) },
             isOnline = presence != Presence.INVISIBLE
         )
     }
