@@ -4,8 +4,7 @@ import android.content.Context
 
 /** Device-level preferences shared by settings and background services. */
 object AppPreferences {
-    private var context: Context?
-        private set
+    private var context: Context? = null
 
     fun initialize(context: Context) {
         this.context = context.applicationContext
