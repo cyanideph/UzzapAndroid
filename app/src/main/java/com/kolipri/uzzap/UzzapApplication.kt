@@ -27,7 +27,7 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
             if (!foreground) return
             if (SupabaseClient.userAccessToken.isNullOrBlank()) { handler.postDelayed(this, 30_000L); return }
             val presenceOp = AppDiagnostics.begin("Presence.heartbeat")
-            runCatching { PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE); presenceOp.pass() }
+            runCatching { if (!com.kolipri.uzzap.data.AppPreferences.isBatterySavingEnabled(this)) PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE); presenceOp.pass() }
                 .onFailure { presenceOp.fail(it.message ?: it.javaClass.simpleName); AppDiagnostics.exception(this@UzzapApplication, "Presence", it) }
             val unreadOp = AppDiagnostics.begin("Notifications.fetchUnread", "user=${AppState.username}")
             runCatching {
