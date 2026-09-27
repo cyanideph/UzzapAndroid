@@ -1,8 +1,9 @@
 name: Optimize animated assets
 
 on:
-  pull_request:
-    types: [opened, synchronize]
+  push:
+    branches:
+      - 'optimize/anim-icons-webp'
   workflow_dispatch:
 
 permissions:
@@ -16,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          ref: optimize/anim-icons-webp
 
       - name: Install Pillow
         run: python -m pip install --upgrade pillow
@@ -27,102 +28,53 @@ jobs:
           python <<'PY'
           from pathlib import Path
           from PIL import Image, ImageSequence
-
           root = Path("app/src/main/assets/anim-icons")
           gifs = sorted(root.glob("*.gif"))
           if not gifs:
-              print("No GIF assets found; conversion already complete.")
+              print("No GIF assets found.")
               raise SystemExit(0)
-
-          total_before = 0
-          total_after = 0
-
           for src in gifs:
               dst = src.with_suffix(".webp")
               with Image.open(src) as im:
-                  frames = []
-                  durations = []
-                  for frame in ImageSequence.Iterator(im):
-                      frames.append(frame.convert("RGBA"))
-                      durations.append(max(10, int(frame.info.get("duration", im.info.get("duration", 100) or 100))))
-
-                  loop = int(im.info.get("loop", 0) or 0)
+                  frames = [frame.convert("RGBA") for frame in ImageSequence.Iterator(im)]
+                  durations = [max(10, int(frame.info.get("duration", im.info.get("duration", 100) or 100))) for frame in ImageSequence.Iterator(im)]
                   first, rest = frames[0], frames[1:]
-
-                  first.save(
-                      dst,
-                      "WEBP",
-                      save_all=True,
-                      append_images=rest,
-                      duration=durations,
-                      loop=loop,
-                      quality=90,
-                      method=6,
-                      minimize_size=True,
-                      allow_mixed=True,
-                  )
-
-              before = src.stat().st_size
-              after = dst.stat().st_size
-              total_before += before
-              total_after += after
-              print(f"{src.name}: {before:,} -> {dst.name}: {after:,} bytes")
-
-          print(f"Converted: {len(gifs)} GIF assets")
-          print(f"Total GIF bytes: {total_before:,}")
-          print(f"Total WebP bytes: {total_after:,}")
-          print(f"Reduction: {total_before - total_after:,} bytes ({(1-total_after/total_before):.1%})")
+                  first.save(dst, "WEBP", save_all=True, append_images=rest,
+                             duration=durations, loop=int(im.info.get("loop", 0) or 0),
+                             quality=90, method=6, minimize_size=True, allow_mixed=True)
           PY
 
-      - name: Update text references
-        shell: bash
+      - name: Update references and remove GIFs
         run: |
           python <<'PY'
           from pathlib import Path
-          extensions = {".kt", ".java", ".xml", ".json", ".txt", ".md", ".gradle", ".kts", ".properties", ".html", ".js", ".ts", ".tsx", ".css", ".yml", ".yaml"}
-          for path in Path(".").rglob("*"):
-              if not path.is_file() or ".git" in path.parts or path.suffix.lower() not in extensions:
-                  continue
-              try:
-                  text = path.read_text(encoding="utf-8")
-              except (UnicodeDecodeError, OSError):
-                  continue
-              updated = text.replace(".gif", ".webp")
-              if updated != text:
-                  path.write_text(updated, encoding="utf-8")
-                  print(f"Updated: {path}")
+          exts={".kt",".java",".xml",".json",".txt",".md",".gradle",".kts",".properties",".html",".js",".ts",".tsx",".css",".yml",".yaml"}
+          for p in Path(".").rglob("*"):
+              if p.is_file() and ".git" not in p.parts and p.suffix.lower() in exts:
+                  try: s=p.read_text(encoding="utf-8")
+                  except: continue
+                  u=s.replace(".gif",".webp")
+                  if u!=s: p.write_text(u,encoding="utf-8")
           PY
-
-      - name: Remove original GIF assets
-        run: find app/src/main/assets/anim-icons -type f -name '*.gif' -delete
+          find app/src/main/assets/anim-icons -type f -name '*.gif' -delete
 
       - name: Verify WebP assets
-        shell: bash
         run: |
           python <<'PY'
           from pathlib import Path
           from PIL import Image
-          root = Path("app/src/main/assets/anim-icons")
-          webps = sorted(root.glob("*.webp"))
-          if not webps:
-              raise SystemExit("No WebP assets found.")
-          for path in webps:
-              with Image.open(path) as im:
-                  print(f"{path.name}: {im.width}x{im.height}, frames={getattr(im, 'n_frames', 1)}, bytes={path.stat().st_size:,}")
-          print(f"Verified {len(webps)} WebP assets.")
+          ps=sorted(Path("app/src/main/assets/anim-icons").glob("*.webp"))
+          if len(ps) != 39: raise SystemExit(f"Expected 39 WebPs, found {len(ps)}")
+          for p in ps:
+              with Image.open(p) as im: im.verify()
+          print(f"Verified {len(ps)} WebP assets.")
           PY
 
-      - name: Commit and push optimized assets
-        shell: bash
+      - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-            exit 0
-          fi
+          if git diff --cached --quiet; then exit 0; fi
           git commit -m "perf: convert animated GIF assets to WebP"
-          git fetch origin optimize/anim-icons-webp
-          git rebase origin/optimize/anim-icons-webp
           git push origin HEAD:optimize/anim-icons-webp
