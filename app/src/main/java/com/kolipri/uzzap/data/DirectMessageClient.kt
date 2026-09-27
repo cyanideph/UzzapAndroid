@@ -138,7 +138,7 @@ object DirectMessageClient {
                                 val sender = o.optString("sender").trim()
                                 val recipient = o.optString("recipient").trim()
                                 val partner = if (sender.equals(AppState.username, true)) recipient else sender
-                                if (partner.isNotBlank() && !partner.equals(AppState.username, true) && none { it.equals(partner, true) }) add(partner)
+                                if (partner.isNotBlank() && !partner.equals(AppState.username, true) && none<String> { existing -> existing.equals(partner, true) }) add(partner)
                             }
                         }
                     }.getOrDefault(emptyList())
