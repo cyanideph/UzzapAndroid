@@ -36,7 +36,7 @@ class AppGridActivity : BaseChromeActivity() {
         val settingsIcon = findViewById<ImageView>(R.id.icon_settings)
         findViewById<ImageView>(R.id.icon_u).setOnClickListener { footer.text = "Subscription"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SUBSCRIPTION)) }
         findViewById<ImageView>(R.id.icon_matching).setOnClickListener { footer.text = "Buddy Matching"; toast("Automatic Buddy Matching is not supported on this device.") }
-        findViewById<ImageView>(R.id.icon_addbuddy).setOnClickListener { footer.text = "Add / Invite Buddies"; startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }
+        findViewById<ImageView>(R.id.icon_addbuddy).setOnClickListener { footer.text = "Add or Invite Buddies"; startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }
         settingsIcon.setOnClickListener { footer.text = "Settings"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SETTINGS)) }
         settingsIcon.setOnLongClickListener { if (AppState.role == "admin") { footer.text = "Moderator Management"; startActivity(ModeratorManagementActivity.intent(this)); true } else if (AppState.isModerator) { footer.text = "Moderator Console"; startActivity(ModeratorActivity.intent(this)); true } else false }
         findViewById<ImageView>(R.id.icon_ringtone).setOnClickListener { footer.text = "Silent Mode"; toggleSilentMode() }
@@ -48,8 +48,8 @@ class AppGridActivity : BaseChromeActivity() {
         findViewById<ImageView>(R.id.icon_im).setOnClickListener { footer.text = "Buddy Chat"; startActivity(InstantMessagingActivity.intent(this)) }
         findViewById<ImageView>(R.id.icon_im).setOnLongClickListener { footer.text = "Message Receipts"; startActivity(Intent(this, DeliveryReadReceiptsActivity::class.java)); true }
         findViewById<ImageView>(R.id.icon_chat).setOnClickListener { footer.text = "Chat Rooms"; startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_CHAT)) }
-        // Profile is the fourth primary destination; status remains inside Profile/Settings.
-        findViewById<ImageView>(R.id.icon_profile).setOnClickListener { footer.text = "Profile"; startActivity(Intent(this, ProfileActivity::class.java)) }
+        // The legacy fourth destination is Change Status; profile remains available from the modern profile flow.
+        findViewById<ImageView>(R.id.icon_profile).setOnClickListener { footer.text = "Change Status"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_STATUS)) }
         AppState.role = "user"
         ModeratorRoleClient.refresh { role -> if (role == "moderator" || role == "admin") footer.text = if (role == "admin") "Moderator Management" else "Moderator Console" }
         if (!AppState.firstLoginShown) { AppState.firstLoginShown = true; handler.postDelayed({ openWelcome() }, 300) }
@@ -65,10 +65,10 @@ class AppGridActivity : BaseChromeActivity() {
         val isMod = AppState.isModerator
         val isAdmin = AppState.role == "admin"
         val items = mutableListOf<PopupItem>()
-        if (isMod) { items.add(PopupItem("🛡️ Moderator Console")); items.add(PopupItem("📋 Moderation Audit Log")) }
-        if (isAdmin) items.add(PopupItem("👑 Moderator Management"))
-        if (isMod) items.add(PopupItem("🧪 App Diagnostics"))
-        items.addAll(listOf(PopupItem("✉️ Room Invitations"), PopupItem("Lock Keypad"), PopupItem("Log Off"), PopupItem("Intro Help Screen"), PopupItem("About Uzzap"), PopupItem("Exit Application")))
+        if (isMod) { items.add(PopupItem("Moderator Console")); items.add(PopupItem("Moderation Audit Log")) }
+        if (isAdmin) items.add(PopupItem("Moderator Management"))
+        if (isMod) items.add(PopupItem("App Diagnostics"))
+        items.addAll(listOf(PopupItem("Room Invitations"), PopupItem("Lock Keypad"), PopupItem("Log Off"), PopupItem("Intro Help Screen"), PopupItem("About Uzzap"), PopupItem("Exit Application")))
         J2mePopup.show(this, items) { index ->
             var i = index
             if (isMod) {
