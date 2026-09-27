@@ -343,7 +343,7 @@ class UzzapParityActivity : BaseChromeActivity() {
 
     private fun privateChat(buddy: String) { if (buddy.isBlank()) { finish(); return }; startActivity(PrivateChatActivity.intent(this, buddy)); finish() }
     private fun settings() = startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SETTINGS)).also { finish() }
-    private fun notifications() = startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_TONES)).also { finish() }
+    private fun notifications() = startActivity(Intent(this, NotificationCenterActivity::class.java)).also { finish() }
 
     private fun themes() {
         val themes = arrayOf("Classic Uzzap", "Dark", "Black", "Blue", "Green")
