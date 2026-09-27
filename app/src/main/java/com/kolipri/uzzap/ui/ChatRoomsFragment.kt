@@ -152,7 +152,7 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
                 val liveUserCount = c.rooms.sumOf { r -> if (AppState.isRoomJoined(r.name)) maxOf(r.userCount, 1) else r.userCount }
                 val cap = if (c.capacity > 0) c.capacity else c.rooms.sumOf { if (it.capacity > 0) it.capacity else 20 }
                 v.findViewById<ImageView>(R.id.iv_room_icon).setImageResource(R.drawable.d_chatroom_category)
-                v.findViewById<TextView>(R.id.tv_room_label).text = "${if (moderator) "🛡️ " else ""}${c.name} ($liveUserCount/$cap)"
+                v.findViewById<TextView>(R.id.tv_room_label).text = "${c.name} ($liveUserCount/$cap)"
                 return v
             }
         }
@@ -171,7 +171,7 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
                 val count = if (isJoined) maxOf(r.userCount, 1) else r.userCount
                 val cap = if (r.capacity > 0) r.capacity else 20
                 v.findViewById<ImageView>(R.id.iv_room_icon).setImageResource(R.drawable.d_chat_icon)
-                v.findViewById<TextView>(R.id.tv_room_label).text = "${if (category.name == "Moderation") "🛡️ " else ""}${r.name} ($count/$cap)"
+                v.findViewById<TextView>(R.id.tv_room_label).text = "${r.name} ($count/$cap)"
                 return v
             }
         }
@@ -200,7 +200,7 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
                     if (room != null) startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_ACTIONS, room.name))
                     else Toast.makeText(requireContext(), "Select a room first.", Toast.LENGTH_SHORT).show()
                 }
-                3 -> host.goToBuddyList()
+                3 -> requireActivity().finish()
             }
         }
     }
