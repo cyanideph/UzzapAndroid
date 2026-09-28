@@ -6,7 +6,7 @@ on:
       target_branch:
         description: "Branch to optimize"
         required: true
-        default: "optimize/anim-icons-webp"
+        default: "main"
         type: string
 
 permissions:
@@ -92,11 +92,11 @@ jobs:
           python <<'PY'
           from pathlib import Path
 
-          skip = {".git"}
+          skip = {".git", ".github"}
           extensions = {".kt", ".java", ".xml", ".json", ".txt", ".md", ".gradle", ".kts", ".properties", ".html", ".js", ".ts", ".tsx", ".css", ".yml", ".yaml"}
           changed = 0
 
-          for path in Path(".").rglob("*"):
+          for path in Path("app").rglob("*"):
               if not path.is_file() or any(part in skip for part in path.parts):
                   continue
               if path.suffix.lower() not in extensions:
