@@ -126,7 +126,7 @@ class PrivateChatActivity : BaseChromeActivity() {
         }
         messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                if (layoutManager.findFirstVisibleItemPosition() <= 2 && dy <= 0) loadOlderHistory()
+                if (layoutManager?.findFirstVisibleItemPosition()?.let { it <= 2 } == true && dy <= 0) loadOlderHistory()
             }
         })
         loadConversation()
