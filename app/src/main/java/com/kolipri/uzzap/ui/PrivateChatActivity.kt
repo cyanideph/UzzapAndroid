@@ -44,9 +44,8 @@ class PrivateChatActivity : BaseChromeActivity() {
     private lateinit var chatRoot: LinearLayout
     private lateinit var messageList: RecyclerView
     private lateinit var messageAdapter: DirectMessageAdapter
-    private val layoutManager: LinearLayoutManager
-        get() = messageList.layoutManager as? LinearLayoutManager
-            ?: error("PrivateChatActivity RecyclerView layout manager is unavailable")
+    private val layoutManager: LinearLayoutManager?
+        get() = if (::messageList.isInitialized) messageList.layoutManager as? LinearLayoutManager else null
     private lateinit var input: EditText
     private lateinit var sendButton: TextView
     private lateinit var statusText: TextView
@@ -71,9 +70,10 @@ class PrivateChatActivity : BaseChromeActivity() {
         }
     }
 
-    private val realtimeListener: (DirectMessage) -> Unit = { dm ->
+    private val realtimeListener: (DirectMessage) -> Unit = realtimeListener@{ dm ->
         val me = AppState.username
         val isForThisChat = (dm.sender.equals(buddy, true) && dm.recipient.equals(me, true)) || (dm.sender.equals(me, true) && dm.recipient.equals(buddy, true))
+        if (isFinishing || isDestroyed || !::messageList.isInitialized || !::messageAdapter.isInitialized) return@realtimeListener
         if (isForThisChat && dm.id > lastId && renderedIds.add(dm.id)) {
             lastId = dm.id
             appendMessage(dm, true)
@@ -95,8 +95,9 @@ class PrivateChatActivity : BaseChromeActivity() {
 
     private val poll = object : Runnable {
         override fun run() {
-            if (!polling || realtimeConnected || isFinishing) return
+            if (!polling || realtimeConnected || isFinishing || isDestroyed) return
             DirectMessageClient.fetchConversation(AppState.username, buddy, lastId) { messages ->
+                if (isFinishing || isDestroyed || !::messageList.isInitialized || !::messageAdapter.isInitialized) return@fetchConversation
                 if (messages != null) messages.forEach { if (it.id > lastId && renderedIds.add(it.id)) { lastId = it.id; appendMessage(it, true) } }
                 if (messages != null) markReadAndRefreshNotification()
                 if (polling && !realtimeConnected) handler.postDelayed(this, 2500L)
@@ -179,6 +180,7 @@ class PrivateChatActivity : BaseChromeActivity() {
 
     private fun loadConversation() {
         DirectMessageClient.fetchConversation(AppState.username, buddy, 0) { messages ->
+            if (isFinishing || isDestroyed || !::messageList.isInitialized || !::messageAdapter.isInitialized) return@fetchConversation
             if (messages == null) { emptyState.text = "Unable to load conversation.\nCheck your connection and try again."; emptyState.visibility = View.VISIBLE; return@fetchConversation }
             renderedIds.clear(); lastId = 0L
             messages.forEach { if (it.id > 0) renderedIds.add(it.id); lastId = maxOf(lastId, it.id) }
@@ -190,20 +192,21 @@ class PrivateChatActivity : BaseChromeActivity() {
     }
 
     private fun loadOlderHistory() {
-        if (historyLoading || !hasMoreHistory || oldestId <= 0L || isFinishing) return
+        if (historyLoading || !hasMoreHistory || oldestId <= 0L || isFinishing || isDestroyed) return
+        val lm = layoutManager ?: return
         historyLoading = true
-        val oldFirst = layoutManager.findFirstVisibleItemPosition()
-        val oldTop = layoutManager.findViewByPosition(oldFirst)?.top ?: 0
+        val oldFirst = lm.findFirstVisibleItemPosition()
+        val oldTop = lm.findViewByPosition(oldFirst)?.top ?: 0
         DirectMessageClient.fetchConversationBefore(AppState.username, buddy, oldestId, 50) { older ->
             historyLoading = false
-            if (isFinishing || older == null) return@fetchConversationBefore
+            if (isFinishing || isDestroyed || !::messageList.isInitialized || !::messageAdapter.isInitialized || older == null) return@fetchConversationBefore
             val unique = older.filter { it.id > 0 && renderedIds.add(it.id) }
             if (unique.isEmpty()) { hasMoreHistory = false; return@fetchConversationBefore }
             val current = messageAdapter.itemsSnapshot()
             messageAdapter.setItems(unique + current)
             oldestId = unique.first().id
             if (unique.size < 50) hasMoreHistory = false
-            messageList.post { layoutManager.scrollToPositionWithOffset(oldFirst + unique.size, oldTop) }
+            messageList.post { if (!isFinishing && !isDestroyed) layoutManager?.scrollToPositionWithOffset(oldFirst + unique.size, oldTop) }
         }
     }
 
@@ -219,7 +222,7 @@ class PrivateChatActivity : BaseChromeActivity() {
 
     private fun scrollToBottom() {
         val last = messageAdapter.itemCount - 1
-        if (last >= 0) layoutManager.scrollToPosition(last)
+        if (last >= 0 && !isFinishing && !isDestroyed) layoutManager?.scrollToPosition(last)
     }
 
     private fun sendCurrentMessage() {
@@ -234,7 +237,9 @@ class PrivateChatActivity : BaseChromeActivity() {
         })
     }
 
-    private fun loadPresence() { PresenceClient.fetch(buddy) { p -> if (p?.isOnline == true) { statusText.text = "● Online"; statusText.setTextColor(Color.rgb(38, 133, 75)) } else { statusText.text = if (p?.lastSeen != null) "Offline · Last seen recently" else "Offline" } } }
+    private fun loadPresence() { PresenceClient.fetch(buddy) { p ->
+            if (isFinishing || isDestroyed || !::statusText.isInitialized) return@fetch
+ if (p?.isOnline == true) { statusText.text = "● Online"; statusText.setTextColor(Color.rgb(38, 133, 75)) } else { statusText.text = if (p?.lastSeen != null) "Offline · Last seen recently" else "Offline" } } }
     private fun showOptions() { AlertDialog.Builder(this).setTitle("$buddy Options").setItems(arrayOf("Send Message", "Add Emoticon", "View Profile", "Block User", "Report User", "Cancel")) { _, which -> when (which) { 0 -> { input.requestFocus(); (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(input, InputMethodManager.SHOW_IMPLICIT) }; 1 -> EmoticonPickerDialog.show(this) { code -> input.append(if (input.text.isNotEmpty()) " $code " else "$code ") }; 2 -> viewProfile(); 3 -> blockUser(); 4 -> reportUser() } }.show() }
     private fun viewProfile() {
         UserProfileClient.fetch(buddy) { profile ->
@@ -270,7 +275,7 @@ class PrivateChatActivity : BaseChromeActivity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
     override fun onResume() { super.onResume(); AppState.activeChatBuddy = buddy; if (!realtimeConnected) { polling = true; handler.removeCallbacks(poll); handler.postDelayed(poll, 2500L) }; loadPresence() }
     override fun onPause() { if (AppState.activeChatBuddy.equals(buddy, ignoreCase = true)) AppState.activeChatBuddy = null; polling = false; handler.removeCallbacks(poll); super.onPause() }
-    override fun onDestroy() { polling = false; notificationRefreshScheduled = false; handler.removeCallbacksAndMessages(null); SupabaseRealtimeClient.removeDirectMessageListener(realtimeListener); SupabaseRealtimeClient.removeConnectionListener(connectionListener); super.onDestroy() }
+    override fun onDestroy() { polling = false; historyLoading = false; notificationRefreshScheduled = false; handler.removeCallbacksAndMessages(null); SupabaseRealtimeClient.removeDirectMessageListener(realtimeListener); SupabaseRealtimeClient.removeConnectionListener(connectionListener); super.onDestroy() }
     companion object { private const val EXTRA_BUDDY = "buddy"; fun intent(context: Context, buddy: String) = android.content.Intent(context, PrivateChatActivity::class.java).apply { putExtra(EXTRA_BUDDY, buddy); addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP) } }
     private class SimpleTextWatcher(private val action: () -> Unit) : android.text.TextWatcher { override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit; override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = action(); override fun afterTextChanged(s: android.text.Editable?) = Unit }
 }
