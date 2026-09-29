@@ -13,6 +13,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.content.Intent
 import androidx.annotation.LayoutRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -24,6 +25,7 @@ import androidx.fragment.app.FragmentManager
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.PresenceClient
+import com.kolipri.uzzap.data.SupabaseClient
 
 /** Shared phone chrome plus automatic diagnostics for screens and hosted fragments. */
 abstract class BaseChromeActivity : AppCompatActivity() {
@@ -40,6 +42,16 @@ abstract class BaseChromeActivity : AppCompatActivity() {
     @Volatile private var destroyed = false
     protected var isNetworkConnected: Boolean = true
         private set
+
+    private val sessionExpiredListener: () -> Unit = {
+        if (!destroyed && !isFinishing && !isDestroyed) {
+            AppDiagnostics.warn(this, "Auth.Session", "Session expired; returning to login")
+            startActivity(Intent(this, SplashMenuActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            })
+            finish()
+        }
+    }
 
     private val fragmentDiagnostics = object : FragmentManager.FragmentLifecycleCallbacks() {
         override fun onFragmentCreated(fm: FragmentManager, f: Fragment, savedInstanceState: Bundle?) {
@@ -69,6 +81,7 @@ abstract class BaseChromeActivity : AppCompatActivity() {
         appliedThemeName = ThemeManager.current(this)
         super.onCreate(savedInstanceState)
         AppDiagnostics.monitorActivity(this, "chrome_create")
+        SupabaseClient.addSessionExpiredListener(sessionExpiredListener)
         supportFragmentManager.registerFragmentLifecycleCallbacks(fragmentDiagnostics, true)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -164,6 +177,7 @@ abstract class BaseChromeActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         supportFragmentManager.unregisterFragmentLifecycleCallbacks(fragmentDiagnostics)
+        SupabaseClient.removeSessionExpiredListener(sessionExpiredListener)
         destroyed = true
         activeNetworks.clear()
         networkCallback?.let { runCatching { connectivityManager?.unregisterNetworkCallback(it) } }
