@@ -189,7 +189,7 @@ object SupabaseClient {
                 })
             }.onFailure { Log.w(TAG, "Unable to start auth sign-out request", it) }
         }
-        PresenceClient.stopHeartbeat()
+        PresenceClient.stopHeartbeat(markOffline = true)
         SupabaseRealtimeClient.shutdown()
         mainHandler.removeCallbacksAndMessages(null)
         synchronized(sessionRefreshLock) { sessionGeneration++ }

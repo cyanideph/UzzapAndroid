@@ -44,7 +44,9 @@ class PrivateChatActivity : BaseChromeActivity() {
     private lateinit var chatRoot: LinearLayout
     private lateinit var messageList: RecyclerView
     private lateinit var messageAdapter: DirectMessageAdapter
-    private lateinit var layoutManager: LinearLayoutManager
+    private val layoutManager: LinearLayoutManager
+        get() = messageList.layoutManager as? LinearLayoutManager
+            ?: error("PrivateChatActivity RecyclerView layout manager is unavailable")
     private lateinit var input: EditText
     private lateinit var sendButton: TextView
     private lateinit var statusText: TextView
@@ -158,7 +160,7 @@ class PrivateChatActivity : BaseChromeActivity() {
             setPadding(dp(8), dp(10), dp(8), dp(10))
             clipToPadding = false
             overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
-            layoutManager = LinearLayoutManager(this@PrivateChatActivity).also { layoutManager = it }
+            layoutManager = LinearLayoutManager(this@PrivateChatActivity)
             itemAnimator = null
         }
         messageAdapter = DirectMessageAdapter(this)
