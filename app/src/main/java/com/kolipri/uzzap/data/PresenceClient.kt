@@ -32,6 +32,9 @@ object PresenceClient {
     }
 
     fun startHeartbeat() {
+        // Activity transitions can pause one screen immediately before another resumes.
+        // Do not write "offline" here: an in-flight offline request can race the new
+        // online heartbeat and leave an active user marked offline.
         stopHeartbeat()
         heartbeat(AppState.presence != com.kolipri.uzzap.model.Presence.INVISIBLE)
         val runnable = object : Runnable {
@@ -45,10 +48,10 @@ object PresenceClient {
         main.postDelayed(runnable, 30_000L)
     }
 
-    fun stopHeartbeat() {
+    fun stopHeartbeat(markOffline: Boolean = false) {
         heartbeatRunnable?.let(main::removeCallbacks)
         heartbeatRunnable = null
-        if (!SupabaseClient.userAccessToken.isNullOrBlank()) heartbeat(false)
+        if (markOffline && !SupabaseClient.userAccessToken.isNullOrBlank()) heartbeat(false)
     }
 
     fun fetch(username: String, onResult: (BuddyPresence?) -> Unit) {
