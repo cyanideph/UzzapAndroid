@@ -67,10 +67,16 @@ object SupabaseRealtimeClient {
     fun stop() {
         if (connectionUsers > 0) connectionUsers--
         if (connectionUsers > 0) return
+        shutdown()
+    }
+
+    /** Forcefully tears down all session-scoped realtime state, including leaked consumers. */
+    fun shutdown() {
+        connectionUsers = 0
         shouldConnect = false
         main.removeCallbacks(heartbeat)
         main.removeCallbacks(reconnect)
-        ws?.close(1000, "Client stop")
+        ws?.close(1000, "Client shutdown")
         ws = null
         connected = false
         connecting = false
