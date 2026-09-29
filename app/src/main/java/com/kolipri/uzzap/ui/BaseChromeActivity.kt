@@ -93,6 +93,7 @@ abstract class BaseChromeActivity : AppCompatActivity() {
 
         connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         val activeNetwork = connectivityManager?.activeNetworkInfo
+        if (activeNetwork?.isConnectedOrConnecting == true) activeNetworks.add(activeNetwork)
         setConnectionStatus(activeNetwork?.isConnectedOrConnecting == true)
         networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = runOnUiThread {
