@@ -33,11 +33,11 @@ object PresenceClient {
 
     fun startHeartbeat() {
         stopHeartbeat()
-        heartbeat(true)
+        heartbeat(AppState.presence != com.kolipri.uzzap.model.Presence.INVISIBLE)
         val runnable = object : Runnable {
             override fun run() {
                 if (SupabaseClient.userAccessToken.isNullOrBlank()) { heartbeatRunnable = null; return }
-                heartbeat(true)
+                heartbeat(AppState.presence != com.kolipri.uzzap.model.Presence.INVISIBLE)
                 main.postDelayed(this, 30_000L)
             }
         }
