@@ -132,7 +132,7 @@ object SupabaseClient {
                     val body = it.body?.string().orEmpty()
                     if (!it.isSuccessful) {
                         Log.w(TAG, "Session refresh rejected: ${errorTextFromBody(body, "HTTP ${it.code}")}")
-                        finishSessionRefresh(false)
+                        finishSessionRefresh(false, generation)
                         return
                     }
 
