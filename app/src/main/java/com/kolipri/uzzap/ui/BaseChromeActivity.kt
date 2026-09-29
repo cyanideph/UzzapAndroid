@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkRequest
+import java.util.Collections
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -35,6 +36,8 @@ abstract class BaseChromeActivity : AppCompatActivity() {
 
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private val activeNetworks = Collections.synchronizedSet(mutableSetOf<Network>())
+    @Volatile private var destroyed = false
     protected var isNetworkConnected: Boolean = true
         private set
 
@@ -93,14 +96,20 @@ abstract class BaseChromeActivity : AppCompatActivity() {
         setConnectionStatus(activeNetwork?.isConnectedOrConnecting == true)
         networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = runOnUiThread {
+                if (destroyed || isFinishing || isDestroyed) return@runOnUiThread
+                val wasDisconnected = activeNetworks.isEmpty()
+                activeNetworks.add(network)
                 setConnectionStatus(true)
                 AppDiagnostics.event("Network", AppDiagnostics.Status.PASS, "AVAILABLE")
-                onNetworkRestored()
+                if (wasDisconnected) onNetworkRestored()
             }
             override fun onLost(network: Network) = runOnUiThread {
-                setConnectionStatus(false)
+                if (destroyed || isFinishing || isDestroyed) return@runOnUiThread
+                activeNetworks.remove(network)
+                val stillConnected = activeNetworks.isNotEmpty()
+                setConnectionStatus(stillConnected)
                 AppDiagnostics.event("Network", AppDiagnostics.Status.WARN, "LOST")
-                onNetworkLost()
+                if (!stillConnected) onNetworkLost()
             }
         }
         runCatching { connectivityManager?.registerNetworkCallback(NetworkRequest.Builder().build(), networkCallback!!) }
@@ -150,6 +159,8 @@ abstract class BaseChromeActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         supportFragmentManager.unregisterFragmentLifecycleCallbacks(fragmentDiagnostics)
+        destroyed = true
+        activeNetworks.clear()
         networkCallback?.let { runCatching { connectivityManager?.unregisterNetworkCallback(it) } }
         AppDiagnostics.monitorActivity(this, "chrome_destroy")
         super.onDestroy()
