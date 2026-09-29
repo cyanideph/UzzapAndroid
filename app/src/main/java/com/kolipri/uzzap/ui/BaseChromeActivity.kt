@@ -26,6 +26,7 @@ import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.PresenceClient
 import com.kolipri.uzzap.data.SupabaseClient
+import com.kolipri.uzzap.data.UzzapNotificationManager
 
 /** Shared phone chrome plus automatic diagnostics for screens and hosted fragments. */
 abstract class BaseChromeActivity : AppCompatActivity() {
@@ -45,6 +46,7 @@ abstract class BaseChromeActivity : AppCompatActivity() {
 
     private val sessionExpiredListener: () -> Unit = {
         if (!destroyed && !isFinishing && !isDestroyed) {
+            UzzapNotificationManager.clearAllNotifications(this)
             AppDiagnostics.warn(this, "Auth.Session", "Session expired; returning to login")
             startActivity(Intent(this, SplashMenuActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
