@@ -1,8 +1,6 @@
 name: Nightly Uzzap Health Check
 
 on:
-  schedule:
-    - cron: '0 20 * * *'
   workflow_dispatch:
 
 permissions:
