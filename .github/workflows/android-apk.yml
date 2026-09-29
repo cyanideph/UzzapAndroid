@@ -1,9 +1,6 @@
 name: Android CI
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
@@ -14,7 +11,7 @@ permissions:
 
 concurrency:
   group: android-ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
@@ -56,15 +53,14 @@ jobs:
         run: ./gradlew :app:testDebugUnitTest -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
 
       - name: Build debug APK
+        if: github.event_name == 'workflow_dispatch'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ github.actor == 'dependabot[bot]' && 'sb_publishable_ci_placeholder' || secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: ./gradlew :app:assembleDebug -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
 
       - name: Publish debug APK to GitHub Release
-        if: >-
-          github.event_name == 'workflow_dispatch' ||
-          (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -77,7 +73,4 @@ jobs:
             gh release delete "$TAG" --yes --cleanup-tag
           fi
 
-          gh release create "$TAG" "$APK" \
-            --title "Uzzap Debug APK (latest)" \
-            --prerelease \
-            --notes "Automated Uzzap debug APK from commit $GITHUB_SHA. This release is replaced by the next successful debug build."
+          gh release create "$TAG" "$APK"             --title "Uzzap Debug APK (latest)"             --prerelease             --notes "Automated Uzzap debug APK from commit $GITHUB_SHA. This release is replaced by the next successful debug build."
