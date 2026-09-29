@@ -30,6 +30,8 @@ object SupabaseRealtimeClient {
     @Volatile private var connected = false
     private var connecting = false
     private var shouldConnect = false
+    /** Number of active UI/session consumers holding the realtime connection. */
+    private var connectionUsers = 0
 
     private val roomListeners = CopyOnWriteArrayList<(ChatMessage, String) -> Unit>()
     private val roomDeleteListeners = CopyOnWriteArrayList<(Long, String) -> Unit>()
@@ -57,15 +59,24 @@ object SupabaseRealtimeClient {
     }
 
     fun start() {
+        connectionUsers++
         shouldConnect = true
         if (!connected && !connecting) connect()
     }
 
     fun stop() {
+        if (connectionUsers > 0) connectionUsers--
+        if (connectionUsers > 0) return
+        shutdown()
+    }
+
+    /** Forcefully tears down all session-scoped realtime state, including leaked consumers. */
+    fun shutdown() {
+        connectionUsers = 0
         shouldConnect = false
         main.removeCallbacks(heartbeat)
         main.removeCallbacks(reconnect)
-        ws?.close(1000, "Client stop")
+        ws?.close(1000, "Client shutdown")
         ws = null
         connected = false
         connecting = false
@@ -156,53 +167,55 @@ object SupabaseRealtimeClient {
 
     private fun joinRealtimeTables(s: WebSocket) {
         val accessToken = SupabaseClient.userAccessToken.orEmpty()
-        val authPayload = JSONObject().apply {
-            if (accessToken.isNotBlank()) put("access_token", accessToken)
-        }
         val joinedRooms = AppState.joinedRooms.distinct().filter { it.isNotBlank() }
-        val roomFilter = if (joinedRooms.isNotEmpty() && joinedRooms.size <= 100) {
-            joinedRooms.joinToString(prefix = "room_name=in.(", postfix = ")", separator = ",") { quoteRealtimeFilterValue(it) }
-        } else null
-        val roomChanges = JSONArray()
-            .put(JSONObject().apply {
-                put("event", "INSERT"); put("schema", "public"); put("table", "room_messages")
-                roomFilter?.let { put("filter", it) }
-                put("select", JSONArray().put("id").put("sender").put("body").put("is_system").put("created_at").put("room_name"))
-            })
-            .put(JSONObject().apply {
-                put("event", "UPDATE"); put("schema", "public"); put("table", "room_messages")
-                roomFilter?.let { put("filter", it) }
-                put("select", JSONArray().put("id").put("sender").put("body").put("is_system").put("created_at").put("room_name"))
-            })
-            .put(JSONObject().apply {
-                put("event", "DELETE"); put("schema", "public"); put("table", "room_messages")
-                roomFilter?.let { put("filter", it) }
-                put("select", JSONArray().put("id").put("sender").put("body").put("is_system").put("created_at").put("room_name"))
-            })
-        s.send(
-            JSONObject()
-                .put("topic", "realtime:public:room_messages")
-                .put("event", "phx_join")
-                .put("payload", JSONObject().put("config", JSONObject().put("postgres_changes", roomChanges)).put("access_token", accessToken))
-                .put("ref", refs.incrementAndGet())
-                .toString()
-        )
+
+        // Never subscribe to the entire room_messages table. Split large room sets into
+        // independently named Realtime topics so the filter remains bounded and hidden/
+        // unjoined rooms are never pulled into this client.
+        joinedRooms.chunked(100).forEachIndexed { chunkIndex, chunk ->
+            val roomFilter = chunk.joinToString(prefix = "room_name=in.(", postfix = ")", separator = ",") { quoteRealtimeFilterValue(it) }
+            val roomChanges = JSONArray()
+                .put(JSONObject().apply {
+                    put("event", "INSERT"); put("schema", "public"); put("table", "room_messages")
+                    put("filter", roomFilter)
+                    put("select", JSONArray().put("id").put("sender").put("body").put("is_system").put("created_at").put("room_name"))
+                })
+                .put(JSONObject().apply {
+                    put("event", "UPDATE"); put("schema", "public"); put("table", "room_messages")
+                    put("filter", roomFilter)
+                    put("select", JSONArray().put("id").put("sender").put("body").put("is_system").put("created_at").put("room_name"))
+                })
+                .put(JSONObject().apply {
+                    put("event", "DELETE"); put("schema", "public"); put("table", "room_messages")
+                    put("filter", roomFilter)
+                    put("select", JSONArray().put("id").put("sender").put("body").put("is_system").put("created_at").put("room_name"))
+                })
+            s.send(
+                JSONObject()
+                    .put("topic", "realtime:public:room_messages_$chunkIndex")
+                    .put("event", "phx_join")
+                    .put("payload", JSONObject().put("config", JSONObject().put("postgres_changes", roomChanges)).put("access_token", accessToken))
+                    .put("ref", refs.incrementAndGet())
+                    .toString()
+            )
+        }
 
         val currentUser = AppState.username.trim()
+        if (currentUser.isBlank()) return
         val dmChanges = JSONArray()
             .put(JSONObject().apply {
                 put("event", "INSERT"); put("schema", "public"); put("table", "direct_messages")
-                if (currentUser.isNotBlank()) put("filter", "sender=eq." + quoteRealtimeFilterValue(currentUser))
+                put("filter", "sender=eq." + quoteRealtimeFilterValue(currentUser))
                 put("select", JSONArray().put("id").put("sender").put("recipient").put("body").put("created_at").put("is_read"))
             })
             .put(JSONObject().apply {
                 put("event", "INSERT"); put("schema", "public"); put("table", "direct_messages")
-                if (currentUser.isNotBlank()) put("filter", "recipient=eq." + quoteRealtimeFilterValue(currentUser))
+                put("filter", "recipient=eq." + quoteRealtimeFilterValue(currentUser))
                 put("select", JSONArray().put("id").put("sender").put("recipient").put("body").put("created_at").put("is_read"))
             })
             .put(JSONObject().apply {
                 put("event", "UPDATE"); put("schema", "public"); put("table", "direct_messages")
-                if (currentUser.isNotBlank()) put("filter", "recipient=eq." + quoteRealtimeFilterValue(currentUser))
+                put("filter", "recipient=eq." + quoteRealtimeFilterValue(currentUser))
                 put("select", JSONArray().put("id").put("sender").put("recipient").put("body").put("created_at").put("is_read"))
             })
         s.send(

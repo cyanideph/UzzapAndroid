@@ -38,6 +38,7 @@ object SupabaseClient {
     private var sessionMonitorStarted = false
     private val sessionRefreshLock = Any()
     private var sessionRefreshInFlight = false
+    private var sessionGeneration = 0L
     private val sessionRefreshWaiters = mutableListOf<(Boolean) -> Unit>()
     private fun authenticated(): Boolean = !userAccessToken.isNullOrBlank()
 
@@ -46,7 +47,10 @@ object SupabaseClient {
         userAccessToken = token; userRefreshToken = SessionStore.refreshToken(); sessionExpiresAtMs = SessionStore.expiresAtMs()
         AppState.authToken = token; AppState.email = SessionStore.email(); AppState.nickname = SessionStore.nickname().ifBlank { AppState.nickname }
         AppState.role = SessionStore.role()
-        AppState.username = AppState.nickname.lowercase().replace(" ", "_"); startSessionMonitor()
+        AppState.username = SessionStore.username().trim().ifBlank {
+            AppState.nickname.lowercase().replace(" ", "_")
+        }
+        startSessionMonitor()
         if (sessionExpiresAtMs > 0L && sessionExpiresAtMs <= System.currentTimeMillis() + 60_000L) {
             ensureValidSession { refreshed ->
                 if (!refreshed) Log.w(TAG, "Persisted session could not be refreshed")
@@ -101,7 +105,8 @@ object SupabaseClient {
         refreshSession()
     }
 
-    private fun finishSessionRefresh(success: Boolean) {
+    private fun finishSessionRefresh(success: Boolean, generation: Long) {
+        synchronized(sessionRefreshLock) { if (generation != sessionGeneration || !sessionRefreshInFlight) return }
         val waiters = synchronized(sessionRefreshLock) {
             sessionRefreshInFlight = false
             val pending = sessionRefreshWaiters.toList()
@@ -112,8 +117,9 @@ object SupabaseClient {
     }
 
     private fun refreshSession(refreshToken: String? = userRefreshToken) {
+        val generation = synchronized(sessionRefreshLock) { sessionGeneration }
         if (refreshToken.isNullOrBlank()) {
-            finishSessionRefresh(false)
+            finishSessionRefresh(false, generation)
             return
         }
 
@@ -121,7 +127,7 @@ object SupabaseClient {
         httpClient.newCall(postJson("/auth/v1/token?grant_type=refresh_token", json, false)).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.w(TAG, "Session refresh failed", e)
-                finishSessionRefresh(false)
+                finishSessionRefresh(false, generation)
             }
 
             override fun onResponse(call: Call, response: Response) {
@@ -129,7 +135,7 @@ object SupabaseClient {
                     val body = it.body?.string().orEmpty()
                     if (!it.isSuccessful) {
                         Log.w(TAG, "Session refresh rejected: ${errorTextFromBody(body, "HTTP ${it.code}")}")
-                        finishSessionRefresh(false)
+                        finishSessionRefresh(false, generation)
                         return
                     }
 
@@ -140,6 +146,9 @@ object SupabaseClient {
                         val nextRefresh = obj.optString("refresh_token").ifBlank { refreshToken }
                         val expiresIn = obj.optLong("expires_in", 3600L)
 
+                        synchronized(sessionRefreshLock) {
+                            if (generation != sessionGeneration || userRefreshToken != refreshToken) return@runCatching false
+                        }
                         userAccessToken = access
                         userRefreshToken = nextRefresh
                         sessionExpiresAtMs = System.currentTimeMillis() + expiresIn * 1000L
@@ -150,7 +159,9 @@ object SupabaseClient {
                             sessionExpiresAtMs,
                             AppState.email,
                             AppState.nickname,
-                            AppState.role
+                            AppState.role,
+                            AppState.username,
+                            SessionStore.avatar()
                         )
                         SupabaseRealtimeClient.refreshAuth()
                         true
@@ -158,13 +169,39 @@ object SupabaseClient {
                         Log.w(TAG, "Invalid refresh response", e)
                         false
                     }
-                    finishSessionRefresh(success)
+                    finishSessionRefresh(success, generation)
                 }
             }
         })
     }
 
     /** Runs an authenticated operation after silently refreshing the session when needed. */
+    /** Clears the local auth session and tears down session-scoped realtime/presence state. */
+    fun signOut() {
+        val token = userAccessToken
+        if (!token.isNullOrBlank()) {
+            runCatching {
+                httpClient.newCall(
+                    request("/auth/v1/logout", true).post("".toRequestBody(jsonMediaType)).build()
+                ).enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "Auth sign-out request failed", e) }
+                    override fun onResponse(call: Call, response: Response) { response.close() }
+                })
+            }.onFailure { Log.w(TAG, "Unable to start auth sign-out request", it) }
+        }
+        PresenceClient.stopHeartbeat()
+        SupabaseRealtimeClient.shutdown()
+        mainHandler.removeCallbacksAndMessages(null)
+        synchronized(sessionRefreshLock) { sessionGeneration++ }
+        userAccessToken = null
+        userRefreshToken = null
+        sessionExpiresAtMs = 0L
+        sessionMonitorStarted = false
+        sessionRefreshInFlight = false
+        synchronized(sessionRefreshLock) { sessionRefreshWaiters.clear() }
+        SessionStore.clear()
+    }
+
     fun withValidSession(onReady: (Boolean) -> Unit) {
         ensureValidSession(onResult = onReady)
     }

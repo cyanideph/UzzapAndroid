@@ -45,12 +45,13 @@ class InstantMessagingActivity : BaseChromeActivity() {
             .distinctBy { it.lowercase() }.sortedBy { it.lowercase() }
         var unreadCounts: Map<String, Int>? = null
         var recentPartners: List<String>? = null
+        var profiles: Map<String, com.kolipri.uzzap.data.PublicProfile>? = null
         fun renderWhenReady() {
-            if (isFinishing || isDestroyed || unreadCounts == null || recentPartners == null) return
+            if (isFinishing || isDestroyed || unreadCounts == null || recentPartners == null || profiles == null) return
             val recent = recentPartners!!.distinctBy { it.lowercase() }
             val recentKeys = recent.map { it.lowercase() }.toSet()
             val ordered = recent + buddies.filterNot { recentKeys.contains(it.lowercase()) }
-            renderRows(root, ordered, unreadCounts!!)
+            renderRows(root, ordered, unreadCounts!!, profiles!!)
         }
         PrivateMessageStateClient.fetchUnread(AppState.username) { state ->
             unreadCounts = state?.countsBySender ?: emptyMap()
@@ -58,15 +59,19 @@ class InstantMessagingActivity : BaseChromeActivity() {
         }
         DirectMessageClient.fetchRecentConversationPartners { recent ->
             recentPartners = recent
-            renderWhenReady()
+            val allNames = (recent + buddies).distinctBy { it.lowercase() }
+            UserProfileClient.fetchMultiple(allNames) { loaded ->
+                profiles = loaded
+                renderWhenReady()
+            }
         }
         contentFrame.addView(scroll, android.widget.FrameLayout.LayoutParams(-1, -1))
     }
 
-    private fun renderRows(root: LinearLayout, names: List<String>, unreadCounts: Map<String, Int>, clearExisting: Boolean = true) {
+    private fun renderRows(root: LinearLayout, names: List<String>, unreadCounts: Map<String, Int>, profiles: Map<String, com.kolipri.uzzap.data.PublicProfile>, clearExisting: Boolean = true) {
         if (clearExisting) while (root.childCount > 2) root.removeViewAt(2)
         if (names.isEmpty()) { if (root.childCount <= 2) root.addView(emptyRow()); return }
-        names.distinctBy { it.lowercase() }.forEach { buddy -> root.addView(buddyRow(buddy, unreadCounts[buddy.lowercase()] ?: 0)) }
+        names.distinctBy { it.lowercase() }.forEach { buddy -> root.addView(buddyRow(buddy, unreadCounts[buddy.lowercase()] ?: 0, profiles[buddy.lowercase()])) }
     }
 
     private fun emptyRow(): View = TextView(this).apply {
@@ -76,7 +81,7 @@ class InstantMessagingActivity : BaseChromeActivity() {
         setPadding(dp(20), dp(40), dp(20), dp(40))
     }
 
-    private fun buddyRow(buddy: String, unread: Int): View {
+    private fun buddyRow(buddy: String, unread: Int, profile: com.kolipri.uzzap.data.PublicProfile?): View {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(10), dp(9), dp(10), dp(9)); setBackgroundResource(R.drawable.bg_menu_row_selector)
@@ -85,7 +90,7 @@ class InstantMessagingActivity : BaseChromeActivity() {
         }
         val avatar = ImageView(this).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP; background = rounded(Color.WHITE, 24)
-            load(AvatarManager.url(null, buddy)); contentDescription = buddy + " avatar"
+            load(AvatarManager.url(profile?.avatar, buddy)); contentDescription = buddy + " avatar"
         }
         row.addView(avatar, LinearLayout.LayoutParams(dp(48), dp(48)))
         val textCol = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, dp(6), 0) }
@@ -103,9 +108,6 @@ class InstantMessagingActivity : BaseChromeActivity() {
             setTextColor(Color.WHITE); background = rounded(ThemeManager.resolve(this@InstantMessagingActivity, R.attr.uzzapColorHeader), 16)
             minWidth = dp(30); setPadding(dp(7), dp(4), dp(7), dp(4))
         })
-        UserProfileClient.fetch(buddy) { profile ->
-            if (!isFinishing && !isDestroyed) avatar.load(AvatarManager.url(profile?.avatar, buddy))
-        }
         return row
     }
 

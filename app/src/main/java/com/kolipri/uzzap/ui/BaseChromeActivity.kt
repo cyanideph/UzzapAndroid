@@ -22,6 +22,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppDiagnostics
+import com.kolipri.uzzap.data.PresenceClient
 
 /** Shared phone chrome plus automatic diagnostics for screens and hosted fragments. */
 abstract class BaseChromeActivity : AppCompatActivity() {
@@ -136,6 +137,16 @@ abstract class BaseChromeActivity : AppCompatActivity() {
 
     protected open fun onNetworkRestored() {}
     protected open fun onNetworkLost() {}
+
+    override fun onResume() {
+        super.onResume()
+        if (!com.kolipri.uzzap.data.SupabaseClient.userAccessToken.isNullOrBlank()) PresenceClient.startHeartbeat()
+    }
+
+    override fun onPause() {
+        PresenceClient.stopHeartbeat()
+        super.onPause()
+    }
 
     override fun onDestroy() {
         supportFragmentManager.unregisterFragmentLifecycleCallbacks(fragmentDiagnostics)
