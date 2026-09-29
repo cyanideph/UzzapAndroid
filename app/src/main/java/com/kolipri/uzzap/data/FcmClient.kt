@@ -13,6 +13,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.nio.charset.StandardCharsets
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
 object FcmClient {
@@ -126,7 +130,7 @@ object FcmClient {
             put("user_id", userId)
             put("username", username)
             put("fcm_token", fcmToken)
-            put("updated_at", java.time.Instant.now().toString())
+            put("updated_at", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date()))
         }
 
         val request = Request.Builder()
