@@ -29,7 +29,7 @@ object SupabaseRealtimeClient {
     private var ws: WebSocket? = null
     @Volatile private var connected = false
     private var connecting = false
-    private var shouldConnect = false
+    private var shouldConnect = false\n    /** Number of active UI/session consumers holding the realtime connection. */\n    private var connectionUsers = 0
 
     private val roomListeners = CopyOnWriteArrayList<(ChatMessage, String) -> Unit>()
     private val roomDeleteListeners = CopyOnWriteArrayList<(Long, String) -> Unit>()
