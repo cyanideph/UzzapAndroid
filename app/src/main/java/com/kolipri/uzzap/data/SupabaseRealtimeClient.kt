@@ -57,11 +57,14 @@ object SupabaseRealtimeClient {
     }
 
     fun start() {
+        connectionUsers++
         shouldConnect = true
         if (!connected && !connecting) connect()
     }
 
     fun stop() {
+        if (connectionUsers > 0) connectionUsers--
+        if (connectionUsers > 0) return
         shouldConnect = false
         main.removeCallbacks(heartbeat)
         main.removeCallbacks(reconnect)
