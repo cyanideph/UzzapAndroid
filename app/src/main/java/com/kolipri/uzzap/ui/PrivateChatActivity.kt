@@ -21,9 +21,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
 import coil.load
 import com.kolipri.uzzap.data.AvatarManager
 import com.kolipri.uzzap.data.UserProfileClient
@@ -58,7 +55,6 @@ class PrivateChatActivity : BaseChromeActivity() {
     private var oldestId = 0L
     private var hasMoreHistory = true
     private var historyLoading = false
-    private var keyboardVisible = false
     private val renderedIds = LinkedHashSet<Long>()
     private var failedBody: String? = null
     private var notificationRefreshScheduled = false
@@ -117,13 +113,6 @@ class PrivateChatActivity : BaseChromeActivity() {
         setSoftkeys(null, null)
         SupabaseRealtimeClient.addDirectMessageListener(realtimeListener)
         SupabaseRealtimeClient.addConnectionListener(connectionListener)
-        ViewCompat.setOnApplyWindowInsetsListener(chatRoot) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-            keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            view.updatePadding(bottom = if (keyboardVisible) ime.bottom else bars.bottom)
-            insets
-        }
         messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 if (layoutManager?.findFirstVisibleItemPosition()?.let { it <= 2 } == true && dy <= 0) loadOlderHistory()
