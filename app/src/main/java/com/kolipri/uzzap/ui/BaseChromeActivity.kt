@@ -92,9 +92,13 @@ abstract class BaseChromeActivity : AppCompatActivity() {
         tabStripContainer = findViewById(R.id.tab_strip_container)
 
         connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-        val activeNetwork = connectivityManager?.activeNetworkInfo
-        if (activeNetwork?.isConnectedOrConnecting == true) activeNetworks.add(activeNetwork)
-        setConnectionStatus(activeNetwork?.isConnectedOrConnecting == true)
+        val activeNetwork = connectivityManager?.activeNetwork
+        if (activeNetwork != null) {
+            activeNetworks.add(activeNetwork)
+            setConnectionStatus(true)
+        } else {
+            setConnectionStatus(false)
+        }
         networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = runOnUiThread {
                 if (destroyed || isFinishing || isDestroyed) return@runOnUiThread
