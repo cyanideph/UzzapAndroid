@@ -38,6 +38,7 @@ object SupabaseClient {
     private var sessionMonitorStarted = false
     private val sessionRefreshLock = Any()
     private var sessionRefreshInFlight = false
+    private var sessionGeneration = 0L
     private val sessionRefreshWaiters = mutableListOf<(Boolean) -> Unit>()
     private fun authenticated(): Boolean = !userAccessToken.isNullOrBlank()
 
@@ -101,7 +102,8 @@ object SupabaseClient {
         refreshSession()
     }
 
-    private fun finishSessionRefresh(success: Boolean) {
+    private fun finishSessionRefresh(success: Boolean, generation: Long) {
+        synchronized(sessionRefreshLock) { if (generation != sessionGeneration || !sessionRefreshInFlight) return }
         val waiters = synchronized(sessionRefreshLock) {
             sessionRefreshInFlight = false
             val pending = sessionRefreshWaiters.toList()
@@ -112,8 +114,9 @@ object SupabaseClient {
     }
 
     private fun refreshSession(refreshToken: String? = userRefreshToken) {
+        val generation = synchronized(sessionRefreshLock) { sessionGeneration }
         if (refreshToken.isNullOrBlank()) {
-            finishSessionRefresh(false)
+            finishSessionRefresh(false, generation)
             return
         }
 
@@ -121,7 +124,7 @@ object SupabaseClient {
         httpClient.newCall(postJson("/auth/v1/token?grant_type=refresh_token", json, false)).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.w(TAG, "Session refresh failed", e)
-                finishSessionRefresh(false)
+                finishSessionRefresh(false, generation)
             }
 
             override fun onResponse(call: Call, response: Response) {
@@ -140,6 +143,9 @@ object SupabaseClient {
                         val nextRefresh = obj.optString("refresh_token").ifBlank { refreshToken }
                         val expiresIn = obj.optLong("expires_in", 3600L)
 
+                        synchronized(sessionRefreshLock) {
+                            if (generation != sessionGeneration || userRefreshToken != refreshToken) return@runCatching false
+                        }
                         userAccessToken = access
                         userRefreshToken = nextRefresh
                         sessionExpiresAtMs = System.currentTimeMillis() + expiresIn * 1000L
@@ -158,7 +164,7 @@ object SupabaseClient {
                         Log.w(TAG, "Invalid refresh response", e)
                         false
                     }
-                    finishSessionRefresh(success)
+                    finishSessionRefresh(success, generation)
                 }
             }
         })
@@ -181,6 +187,7 @@ object SupabaseClient {
         PresenceClient.stopHeartbeat()
         SupabaseRealtimeClient.stop()
         mainHandler.removeCallbacksAndMessages(null)
+        synchronized(sessionRefreshLock) { sessionGeneration++ }
         userAccessToken = null
         userRefreshToken = null
         sessionExpiresAtMs = 0L
