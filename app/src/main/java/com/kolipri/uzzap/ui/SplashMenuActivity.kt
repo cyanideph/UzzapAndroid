@@ -32,6 +32,8 @@ import coil.load
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.CrashDiagnostics
+import com.kolipri.uzzap.data.FcmClient
+import com.kolipri.uzzap.data.UzzapNotificationManager
 import com.kolipri.uzzap.data.NicknameResolver
 import com.kolipri.uzzap.data.PasswordRecoveryClient
 import com.kolipri.uzzap.data.SessionStore
@@ -130,7 +132,14 @@ class SplashMenuActivity : BaseChromeActivity() {
         }
         load("file:///android_asset/$asset")
     }
-    private fun signOut() { UzzapDialogs.show(this, iconAsset = "anim-icons/menu_switch.gif", title = "Sign Out", message = "Are you sure you want to sign out of '${AppState.nickname}'?", positive = "Sign Out", onPositive = { getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit().putBoolean("session_active", false).remove("auth_token").apply(); SupabaseClient.signOut(); AppState.resetSession(); renderMenu() }) }
+    private fun signOut() {
+        UzzapDialogs.show(this, iconAsset = "anim-icons/menu_switch.gif", title = "Sign Out", message = "Are you sure you want to sign out of '${AppState.nickname}'?", positive = "Sign Out", onPositive = {
+            getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit().putBoolean("session_active", false).remove("auth_token").apply()
+            UzzapNotificationManager.clearAllNotifications(this)
+            AppState.resetSession()
+            renderMenu()
+        })
+    }
     private fun showLoading(message: String) { loading?.dismiss(); val text = ThemeManager.resolve(this, R.attr.uzzapColorText); val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }; val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = GradientDrawable().apply { setColor(0x2B8EEF04); cornerRadius = dp(14).toFloat() } }; tile.addView(ImageView(this).apply { loadAnimIcon("anim-icons/dialog_default.gif") }, LinearLayout.LayoutParams(dp(30), dp(30))); row.addView(tile, LinearLayout.LayoutParams(dp(48), dp(48))); row.addView(TextView(this).apply { this.text = message; textSize = 14f; setTextColor(text); setPadding(dp(12), 0, 0, 0) }); val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(18), dp(26), dp(18)); background = GradientDrawable().apply { setColor(ThemeManager.resolve(this@SplashMenuActivity, R.attr.uzzapColorSurface)); cornerRadius = dp(24).toFloat() } }; card.addView(row); val root = FrameLayout(this).apply { setPadding(dp(36), dp(36), dp(36), dp(36)); addView(card, FrameLayout.LayoutParams(-1, -2)) }; loading = AlertDialog.Builder(this).setView(root).setCancelable(false).create(); loading?.setOnShowListener { loading?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT)) }; loading?.show() }
     private fun hideLoading() { loading?.dismiss(); loading = null }
     private fun validEmail(value: String) = value.isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(value).matches()
@@ -146,7 +155,7 @@ class SplashMenuActivity : BaseChromeActivity() {
             if (identifier.isBlank()) { id.error = "Email or nickname is required"; return@form false }
             if (pass.length < 6) { password.error = "Password must be at least 6 characters"; return@form false }
             showLoading("Authenticating...")
-            fun finishLogin(email: String) { SupabaseClient.signInWithEmail(email, pass) { success, nick, token, error -> hideLoading(); if (success && !token.isNullOrBlank()) { saveSession(email, nick?.ifBlank { identifier } ?: identifier, token); Toast.makeText(this, "Welcome back, ${AppState.nickname}!", Toast.LENGTH_SHORT).show(); startActivity(Intent(this, ConnectingActivity::class.java)) } else UzzapDialogs.show(this, iconAsset = "anim-icons/menu_login.gif", title = "Login Failed", message = error ?: "Invalid nickname or password.", positive = "Try Again", onPositive = { onLogin() }, negative = "Forgot Password?", onNegative = { onForgotPassword() }) } }
+            fun finishLogin(email: String) { SupabaseClient.signInWithEmail(email, pass) { success, nick, token, error -> hideLoading(); if (success && !token.isNullOrBlank()) { saveSession(email, nick?.ifBlank { identifier } ?: identifier, token); FcmClient.initializeAndSync(this); Toast.makeText(this, "Welcome back, ${AppState.nickname}!", Toast.LENGTH_SHORT).show(); startActivity(Intent(this, ConnectingActivity::class.java)) } else UzzapDialogs.show(this, iconAsset = "anim-icons/menu_login.gif", title = "Login Failed", message = error ?: "Invalid nickname or password.", positive = "Try Again", onPositive = { onLogin() }, negative = "Forgot Password?", onNegative = { onForgotPassword() }) } }
             if (identifier.contains("@")) { if (!validEmail(identifier)) { hideLoading(); id.error = "Please enter a valid email address"; return@form false }; finishLogin(identifier) } else { NicknameResolver.resolve(identifier) { email, error -> runOnUiThread { if (email.isNullOrBlank()) { hideLoading(); UzzapDialogs.show(this, iconAsset = "anim-icons/menu_login.gif", title = "Login Failed", message = error ?: "Nickname not found", positive = "Try Again", onPositive = { onLogin() }) } else finishLogin(email) } } }
             true
         })
@@ -166,7 +175,7 @@ class SplashMenuActivity : BaseChromeActivity() {
             if (p.length < 6) { pass.error = "Password must be at least 6 characters"; return@form false }
             if (p != c) { confirm.error = "Passwords do not match"; return@form false }
             showLoading("Creating account...")
-            SupabaseClient.signUpWithEmail(e, p, n) { success, token, error -> runOnUiThread { hideLoading(); if (success && !token.isNullOrBlank()) { saveSession(e, n, token); startActivity(Intent(this, ConnectingActivity::class.java)) } else UzzapDialogs.show(this, iconAsset = "anim-icons/menu_register.gif", title = "Registration Failed", message = error ?: "Unable to create account", positive = "OK") } }
+            SupabaseClient.signUpWithEmail(e, p, n) { success, token, error -> runOnUiThread { hideLoading(); if (success && !token.isNullOrBlank()) { saveSession(e, n, token); FcmClient.initializeAndSync(this); startActivity(Intent(this, ConnectingActivity::class.java)) } else UzzapDialogs.show(this, iconAsset = "anim-icons/menu_register.gif", title = "Registration Failed", message = error ?: "Unable to create account", positive = "OK") } }
             true
         })
     }
