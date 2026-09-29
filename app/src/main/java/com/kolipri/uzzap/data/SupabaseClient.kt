@@ -47,7 +47,10 @@ object SupabaseClient {
         userAccessToken = token; userRefreshToken = SessionStore.refreshToken(); sessionExpiresAtMs = SessionStore.expiresAtMs()
         AppState.authToken = token; AppState.email = SessionStore.email(); AppState.nickname = SessionStore.nickname().ifBlank { AppState.nickname }
         AppState.role = SessionStore.role()
-        AppState.username = AppState.nickname.lowercase().replace(" ", "_"); startSessionMonitor()
+        AppState.username = SessionStore.username().trim().ifBlank {
+            AppState.nickname.lowercase().replace(" ", "_")
+        }
+        startSessionMonitor()
         if (sessionExpiresAtMs > 0L && sessionExpiresAtMs <= System.currentTimeMillis() + 60_000L) {
             ensureValidSession { refreshed ->
                 if (!refreshed) Log.w(TAG, "Persisted session could not be refreshed")
@@ -156,7 +159,9 @@ object SupabaseClient {
                             sessionExpiresAtMs,
                             AppState.email,
                             AppState.nickname,
-                            AppState.role
+                            AppState.role,
+                            AppState.username,
+                            SessionStore.avatar()
                         )
                         SupabaseRealtimeClient.refreshAuth()
                         true
@@ -185,7 +190,7 @@ object SupabaseClient {
             }.onFailure { Log.w(TAG, "Unable to start auth sign-out request", it) }
         }
         PresenceClient.stopHeartbeat()
-        SupabaseRealtimeClient.stop()
+        SupabaseRealtimeClient.shutdown()
         mainHandler.removeCallbacksAndMessages(null)
         synchronized(sessionRefreshLock) { sessionGeneration++ }
         userAccessToken = null
