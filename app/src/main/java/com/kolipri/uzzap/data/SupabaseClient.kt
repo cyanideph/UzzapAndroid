@@ -165,6 +165,31 @@ object SupabaseClient {
     }
 
     /** Runs an authenticated operation after silently refreshing the session when needed. */
+    /** Clears the local auth session and tears down session-scoped realtime/presence state. */
+    fun signOut() {
+        val token = userAccessToken
+        if (!token.isNullOrBlank()) {
+            runCatching {
+                httpClient.newCall(
+                    request("/auth/v1/logout", true).post("".toRequestBody(jsonMediaType)).build()
+                ).enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "Auth sign-out request failed", e) }
+                    override fun onResponse(call: Call, response: Response) { response.close() }
+                })
+            }.onFailure { Log.w(TAG, "Unable to start auth sign-out request", it) }
+        }
+        PresenceClient.stopHeartbeat()
+        SupabaseRealtimeClient.stop()
+        mainHandler.removeCallbacksAndMessages(null)
+        userAccessToken = null
+        userRefreshToken = null
+        sessionExpiresAtMs = 0L
+        sessionMonitorStarted = false
+        sessionRefreshInFlight = false
+        synchronized(sessionRefreshLock) { sessionRefreshWaiters.clear() }
+        SessionStore.clear()
+    }
+
     fun withValidSession(onReady: (Boolean) -> Unit) {
         ensureValidSession(onResult = onReady)
     }
