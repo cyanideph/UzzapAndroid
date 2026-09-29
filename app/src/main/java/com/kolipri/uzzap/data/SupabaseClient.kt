@@ -98,7 +98,6 @@ object SupabaseClient {
         AppState.roomMessages.clear()
         AppState.joinedRooms.clear()
         SessionStore.clear()
-        UzzapNotificationManager.clearAllNotifications(this)
         sessionExpiredListeners.forEach { listener ->
             mainHandler.post { runCatching { listener() } }
         }
