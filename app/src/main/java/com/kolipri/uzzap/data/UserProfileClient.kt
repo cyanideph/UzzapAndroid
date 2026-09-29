@@ -64,7 +64,7 @@ object UserProfileClient {
     fun fetchMultiple(usernames: List<String>, onResult: (Map<String, PublicProfile>) -> Unit) {
         val normalized = usernames.map(::normalize).filter { it.isNotBlank() }.distinct()
         if (normalized.isEmpty()) { main.post { onResult(emptyMap()) }; return }
-        val values = normalized.joinToString(",") { "\"\${it.replace("\\", "\\\\").replace("\"", "\\\"")}\"" }
+        val values = normalized.joinToString(",") { "\"${it.replace("\\", "\\\\").replace("\"", "\\\"")}\"" }
         val encoded = URLEncoder.encode("($values)", "UTF-8")
         val path = "/rest/v1/profiles?username=in.$encoded&select=username,nickname,avatar,status,status_message,is_online,last_seen"
         val request = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", SupabaseClient.authHeader()).get().build()
