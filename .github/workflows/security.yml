@@ -25,7 +25,7 @@ jobs:
         run: |
           set -euo pipefail
           patterns=(
-            'sb_secret_[A-Za-z0-9_\-]+'
+            'sb_secret_[A-Za-z0-9_\-]+'\n            'sb_publishable_[A-Za-z0-9_\-]+'
             'service_role[_-][A-Za-z0-9_\-]+'
             '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'
             'ghp_[A-Za-z0-9]{20,}'

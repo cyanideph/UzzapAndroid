@@ -19,6 +19,7 @@ import org.json.JSONObject
 import java.io.IOException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CopyOnWriteArrayList
 
 /** REST/Auth client for the Uzzap Supabase backend. */
 object SupabaseClient {
@@ -36,7 +37,14 @@ object SupabaseClient {
     private var userRefreshToken: String? = null
     private var sessionExpiresAtMs: Long = 0L
     private var sessionMonitorStarted = false
+    private val sessionMonitor = object : Runnable {
+        override fun run() {
+            if (authenticated()) refreshSessionIfNeeded()
+            if (sessionMonitorStarted) mainHandler.postDelayed(this, 60_000L)
+        }
+    }
     private val sessionRefreshLock = Any()
+    private val sessionExpiredListeners = CopyOnWriteArrayList<() -> Unit>()
     private var sessionRefreshInFlight = false
     private var sessionGeneration = 0L
     private val sessionRefreshWaiters = mutableListOf<(Boolean) -> Unit>()
@@ -60,13 +68,39 @@ object SupabaseClient {
     private fun startSessionMonitor() {
         if (sessionMonitorStarted) return
         sessionMonitorStarted = true
-        val tick = object : Runnable {
-            override fun run() {
-                if (authenticated()) refreshSessionIfNeeded()
-                mainHandler.postDelayed(this, 60_000L)
-            }
+        mainHandler.removeCallbacks(sessionMonitor)
+        mainHandler.post(sessionMonitor)
+    }
+
+    fun addSessionExpiredListener(listener: () -> Unit) {
+        sessionExpiredListeners.add(listener)
+    }
+
+    fun removeSessionExpiredListener(listener: () -> Unit) {
+        sessionExpiredListeners.remove(listener)
+    }
+
+    private fun invalidateExpiredSession() {
+        sessionMonitorStarted = false
+        mainHandler.removeCallbacks(sessionMonitor)
+        PresenceClient.stopHeartbeat(markOffline = true)
+        SupabaseRealtimeClient.shutdown()
+        userAccessToken = null
+        userRefreshToken = null
+        sessionExpiresAtMs = 0L
+        AppState.authToken = ""
+        AppState.username = "unknown-user"
+        AppState.nickname = ""
+        AppState.email = ""
+        AppState.role = "user"
+        AppState.avatar = ""
+        AppState.activeChatBuddy = null
+        AppState.roomMessages.clear()
+        AppState.joinedRooms.clear()
+        SessionStore.clear()
+        sessionExpiredListeners.forEach { listener ->
+            mainHandler.post { runCatching { listener() } }
         }
-        mainHandler.post(tick)
     }
 
     private fun refreshSessionIfNeeded() {
@@ -136,6 +170,9 @@ object SupabaseClient {
                     if (!it.isSuccessful) {
                         Log.w(TAG, "Session refresh rejected: ${errorTextFromBody(body, "HTTP ${it.code}")}")
                         finishSessionRefresh(false, generation)
+                        if (it.code == 400 || it.code == 401 || it.code == 403) {
+                            invalidateExpiredSession()
+                        }
                         return
                     }
 
@@ -191,7 +228,7 @@ object SupabaseClient {
         }
         PresenceClient.stopHeartbeat(markOffline = true)
         SupabaseRealtimeClient.shutdown()
-        mainHandler.removeCallbacksAndMessages(null)
+        mainHandler.removeCallbacks(sessionMonitor)
         synchronized(sessionRefreshLock) { sessionGeneration++ }
         userAccessToken = null
         userRefreshToken = null

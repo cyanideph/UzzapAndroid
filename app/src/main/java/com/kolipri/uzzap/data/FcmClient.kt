@@ -13,6 +13,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.nio.charset.StandardCharsets
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
 object FcmClient {
@@ -116,13 +120,25 @@ object FcmClient {
             return
         }
 
-        val bodyJson = JSONObject().apply { put("p_token", fcmToken) }
+        val userId = extractUserId()
+        if (userId.isNullOrBlank()) {
+            Log.w(TAG, "Cannot sync FCM token: authenticated user id unavailable")
+            return
+        }
+
+        val bodyJson = JSONObject().apply {
+            put("user_id", userId)
+            put("username", username)
+            put("fcm_token", fcmToken)
+            put("updated_at", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date()))
+        }
 
         val request = Request.Builder()
-            .url("$url/rest/v1/rpc/upsert_fcm_token")
+            .url("$url/rest/v1/user_fcm_tokens?on_conflict=fcm_token")
             .header("apikey", key)
             .header("Authorization", "Bearer $userToken")
             .header("Content-Type", "application/json")
+            .header("Prefer", "resolution=merge-duplicates,return=minimal")
             .post(bodyJson.toString().toRequestBody(jsonMediaType))
             .build()
 

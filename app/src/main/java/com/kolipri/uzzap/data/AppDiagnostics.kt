@@ -19,6 +19,7 @@ object AppDiagnostics {
     private const val MAX_LINES = 1600
     private const val MAX_MESSAGE = 600
     private const val MAX_LIVE_EVENTS = 300
+    private const val MAX_DISK_BYTES = 256 * 1024L
     private val lock = Any()
     private val diskExecutor = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "UzzapDiagnosticsDisk").apply { isDaemon = true }
@@ -81,8 +82,11 @@ object AppDiagnostics {
             diskExecutor.execute {
                 runCatching {
                     val file = File(context.filesDir, FILE_NAME)
-                    val lines = if (file.isFile) file.readLines(Charsets.UTF_8).takeLast(MAX_LINES - 1) else emptyList()
-                    file.writeText((lines + line).joinToString("\n"), Charsets.UTF_8)
+                    file.appendText(line + "\n", Charsets.UTF_8)
+                    if (file.length() > MAX_DISK_BYTES) {
+                        val lines = file.readLines(Charsets.UTF_8).takeLast(MAX_LINES)
+                        file.writeText(lines.joinToString("\n") + if (lines.isNotEmpty()) "\n" else "", Charsets.UTF_8)
+                    }
                 }
             }
         }
