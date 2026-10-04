@@ -3,85 +3,63 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?attr/uzzapColorBg"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:scrollbars="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingStart="16dp"
-        android:paddingTop="14dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="18dp">
+        android:paddingStart="20dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="20dp">
 
         <ImageView
             android:id="@+id/iv_welcome_logo"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
             android:layout_gravity="center_horizontal"
-            android:src="@drawable/d_logo_large"
+            android:contentDescription="@string/app_name"
             android:scaleType="fitCenter"
-            android:contentDescription="@string/app_name" />
+            android:src="@drawable/d_logo_large" />
 
         <TextView
             android:id="@+id/tv_welcome_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="12dp"
             android:gravity="center"
-            android:text="Welcome to Uzzap!"
+            android:text="Welcome to Uzzap"
             android:textColor="?attr/uzzapColorAccent"
             android:textSize="22sp"
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/tv_welcome_subtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:gravity="center"
-            android:text="Your quick introduction and help guide"
-            android:textColor="?attr/uzzapColorText"
-            android:textSize="15sp" />
-
-        <TextView
-            android:id="@+id/tv_welcome_intro"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:layout_marginBottom="12dp"
-            android:padding="12dp"
-            android:background="@drawable/bg_welcome_card"
-            android:text="@string/welcome_intro"
-            android:textColor="?attr/uzzapColorText"
-            android:textSize="15sp"
-            android:lineSpacingExtra="3dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="6dp"
-            android:text="WHAT YOU CAN DO ON UZZAP"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="10dp"
+            android:text="What you can do"
             android:textColor="?attr/uzzapColorAccent"
-            android:textSize="13sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
-        <!-- Existing feature icons are intentionally preserved. -->
-        <include layout="@layout/item_welcome_tip" android:id="@+id/tip_im" />
-        <include layout="@layout/item_welcome_tip" android:id="@+id/tip_add" />
-        <include layout="@layout/item_welcome_tip" android:id="@+id/tip_chat" />
-        <include layout="@layout/item_welcome_tip" android:id="@+id/tip_matching" />
+        <include
+            android:id="@+id/tip_im"
+            layout="@layout/item_welcome_tip" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:padding="12dp"
-            android:background="@drawable/bg_welcome_card"
-            android:gravity="center"
-            android:text="Tip: Open Help anytime from the Uzzap menu for the complete guide to chatrooms, private messages, invitations, reports and moderation."
-            android:textColor="?attr/uzzapColorText"
-            android:textSize="14sp" />
+        <include
+            android:id="@+id/tip_add"
+            layout="@layout/item_welcome_tip" />
+
+        <include
+            android:id="@+id/tip_chat"
+            layout="@layout/item_welcome_tip" />
+
+        <include
+            android:id="@+id/tip_matching"
+            layout="@layout/item_welcome_tip" />
 
     </LinearLayout>
 </ScrollView>
