@@ -91,7 +91,7 @@
             android:gravity="center"
             android:lineSpacingExtra="2dp"
             android:padding="14dp"
-            android:text="Open Help anytime from the Uzzap menu for the complete guide to chatrooms, private messages, invitations, reports and moderation."
+            android:text="Need more detail? Open Help from the Uzzap menu."
             android:textColor="?attr/uzzapColorText"
             android:textSize="14sp" />
 
