@@ -32,25 +32,25 @@ class WelcomeActivity : BaseChromeActivity() {
             R.id.tip_im,
             R.drawable.d_d001_im_large,
             "Private chats",
-            "Message buddies and see delivery, read, and unread status."
+            "Message buddies and see read status."
         )
         bindTip(
             R.id.tip_add,
             R.drawable.d_n002_buddies_large,
             "Your buddies",
-            "Build your Buddy List, check presence, and manage people you know."
+            "Build your Buddy List and manage contacts."
         )
         bindTip(
             R.id.tip_chat,
             R.drawable.d_d002_chat_large,
             "Chat rooms",
-            "Explore Philippine rooms, join conversations, and invite buddies."
+            "Explore Philippine rooms and join conversations."
         )
         bindTip(
             R.id.tip_matching,
             R.drawable.d_n001_abm_large,
             "Stay safe",
-            "Report or block when needed; moderators can help keep rooms safe."
+            "Report or block when needed."
         )
     }
 
