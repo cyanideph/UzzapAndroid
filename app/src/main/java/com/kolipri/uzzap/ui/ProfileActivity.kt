@@ -7,15 +7,12 @@ import android.graphics.drawable.StateListDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
-import coil.load
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
-import com.kolipri.uzzap.data.AvatarManager
 import com.kolipri.uzzap.data.UserProfileClient
 
 /** Public profile hub with the same identity data used by room/DM surfaces. */
@@ -61,19 +58,6 @@ class ProfileActivity : BaseChromeActivity() {
             setPadding(dp(18), dp(20), dp(18), dp(18))
             background = rounded(surface, 20f)
         }
-
-        val avatarWrap = FrameLayoutCompat(this).apply {
-            background = rounded(accent, 50f)
-            setPadding(dp(3), dp(3), dp(3), dp(3))
-        }
-        val avatar = ImageView(this).apply {
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            background = rounded(surface, 47f)
-            contentDescription = "Profile avatar"
-            load(AvatarManager.url(AppState.avatar, AppState.username))
-        }
-        avatarWrap.addView(avatar, android.widget.FrameLayout.LayoutParams(dp(96), dp(96)))
-        identityCard.addView(avatarWrap, LinearLayout.LayoutParams(dp(102), dp(102)))
 
         identityCard.addView(TextView(this).apply {
             text = AppState.nickname.ifBlank { AppState.username }
@@ -122,7 +106,7 @@ class ProfileActivity : BaseChromeActivity() {
         root.addView(sectionTitle("Your profile", header))
         root.addView(actionRow(
             title = "Edit profile",
-            subtitle = "Avatar, nickname, presence and bio",
+            subtitle = "Nickname, presence and bio",
             surface = surface,
             textColor = textColor,
             muted = muted,
@@ -284,6 +268,4 @@ class ProfileActivity : BaseChromeActivity() {
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density + 0.5f).toInt()
 
-    private class FrameLayoutCompat(context: android.content.Context) :
-        android.widget.FrameLayout(context)
 }
