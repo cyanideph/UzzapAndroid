@@ -2,6 +2,8 @@ package com.kolipri.uzzap.ui
 
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.StateListDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -35,102 +37,207 @@ class ProfileActivity : BaseChromeActivity() {
 
     private fun render() {
         contentFrame.removeAllViews()
-        val scroll = ScrollView(this)
+
+        val bg = ThemeManager.resolve(this, R.attr.uzzapColorBg, Color.WHITE)
+        val surface = ThemeManager.resolve(this, R.attr.uzzapColorSurface, Color.WHITE)
+        val textColor = ThemeManager.resolve(this, R.attr.uzzapColorText)
+        val muted = ThemeManager.resolve(this, R.attr.uzzapColorMuted)
+        val accent = ThemeManager.resolve(this, R.attr.uzzapColorAccent)
+        val header = ThemeManager.resolve(this, R.attr.uzzapColorHeader)
+
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(bg)
+            clipToPadding = false
+        }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(10), dp(14), dp(24))
+            setPadding(dp(16), dp(12), dp(16), dp(28))
         }
         scroll.addView(root, LinearLayout.LayoutParams(-1, -2))
 
+        val identityCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(18), dp(20), dp(18), dp(18))
+            background = rounded(surface, 20f)
+        }
+
+        val avatarWrap = FrameLayoutCompat(this).apply {
+            background = rounded(accent, 50f)
+            setPadding(dp(3), dp(3), dp(3), dp(3))
+        }
         val avatar = ImageView(this).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
-            background = rounded(Color.WHITE, 48f)
+            background = rounded(surface, 47f)
             contentDescription = "Profile avatar"
             load(AvatarManager.url(AppState.avatar, AppState.username))
         }
-        root.addView(avatar, LinearLayout.LayoutParams(dp(92), dp(92)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        avatarWrap.addView(avatar, android.widget.FrameLayout.LayoutParams(dp(96), dp(96)))
+        identityCard.addView(avatarWrap, LinearLayout.LayoutParams(dp(102), dp(102)))
 
-        root.addView(TextView(this).apply {
+        identityCard.addView(TextView(this).apply {
             text = AppState.nickname.ifBlank { AppState.username }
-            textSize = 23f
+            textSize = 24f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setTextColor(ThemeManager.resolve(this@ProfileActivity, R.attr.uzzapColorText))
-            setPadding(0, dp(8), 0, 0)
-        })
-        root.addView(TextView(this).apply {
-            text = "@${AppState.username}"
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setTextColor(ThemeManager.resolve(this@ProfileActivity, R.attr.uzzapColorMuted))
-            setPadding(0, dp(2), 0, dp(12))
+            setTextColor(textColor)
+            setPadding(0, dp(12), 0, 0)
         })
 
-        addCard(root, "PRESENCE", "${AppState.presence.label}\n${AppState.statusMessage.ifBlank { "No status message" }}")
-        root.addView(actionRow("Edit My Profile", "Nickname, avatar, presence and About Me") {
+        identityCard.addView(TextView(this).apply {
+            text = "@" + AppState.username
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setTextColor(muted)
+            setPadding(0, dp(2), 0, dp(8))
+        })
+
+        val presenceRow = LinearLayout(this).apply {
+            gravity = Gravity.CENTER
+            background = rounded(blend(accent, surface, 0.18f), 18f)
+            setPadding(dp(12), dp(7), dp(12), dp(7))
+        }
+        presenceRow.addView(TextView(this).apply {
+            text = "●"
+            textSize = 12f
+            setTextColor(accent)
+        }, LinearLayout.LayoutParams(dp(18), -2))
+        presenceRow.addView(TextView(this).apply {
+            text = AppState.presence.label
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(textColor)
+        })
+        identityCard.addView(presenceRow, LinearLayout.LayoutParams(-2, -2))
+
+        root.addView(identityCard, LinearLayout.LayoutParams(-1, -2))
+
+        root.addView(sectionTitle("About", header))
+        root.addView(infoCard(
+            body = AppState.statusMessage.ifBlank { "No status message yet." },
+            surface = surface,
+            textColor = textColor
+        ))
+
+        root.addView(sectionTitle("Your profile", header))
+        root.addView(actionRow(
+            title = "Edit profile",
+            subtitle = "Avatar, nickname, presence and bio",
+            surface = surface,
+            textColor = textColor,
+            muted = muted,
+            accent = accent
+        ) {
             startActivity(UzzapParityActivity.intent(this, UzzapParityActivity.MODE_PROFILE))
         })
-        root.addView(actionRow("Account Settings", "Password, mobile, privacy and device settings") {
+        root.addView(actionRow(
+            title = "Account settings",
+            subtitle = "Password, mobile, privacy and device",
+            surface = surface,
+            textColor = textColor,
+            muted = muted,
+            accent = accent
+        ) {
             startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SETTINGS))
         })
 
-        addCard(root, "PUBLIC PROFILE", "Loading profile information…")
+        root.addView(sectionTitle("Public profile", header))
+        val publicProfile = infoCard(
+            body = "Loading profile information…",
+            surface = surface,
+            textColor = textColor
+        )
+        publicProfile.tag = "public_profile"
+        root.addView(publicProfile)
+
         UserProfileClient.fetch(AppState.username) { profile ->
             if (isFinishing || isDestroyed) return@fetch
-            val public = profile ?: return@fetch
-            val text = buildString {
-                append("Username\n${public.username}\n\n")
-                append("Nickname\n${public.nickname}\n\n")
-                append("Presence\n${if (public.isOnline) "Online" else "Offline"}\n\n")
-                append("Status\n${public.status}\n\n")
-                append("About Me\n${public.statusMessage.ifBlank { "—" }}")
-                if (!public.isOnline && public.lastSeen.isNotBlank()) append("\n\nLast seen\n${public.lastSeen}")
+            val result = profile ?: return@fetch
+            val details = buildString {
+                append("Username\n")
+                append(result.username)
+                append("\n\nNickname\n")
+                append(result.nickname.ifBlank { "—" })
+                append("\n\nPresence\n")
+                append(if (result.isOnline) "Online" else "Offline")
+                append("\n\nStatus\n")
+                append(result.status.ifBlank { "—" })
+                append("\n\nAbout Me\n")
+                append(result.statusMessage.ifBlank { "—" })
+                if (!result.isOnline && result.lastSeen.isNotBlank()) {
+                    append("\n\nLast seen\n")
+                    append(result.lastSeen)
+                }
             }
-            val publicProfileView = root.findViewWithTag<TextView>("public_profile")
-            publicProfileView?.text = text
+            publicProfile.text = details
         }
 
         contentFrame.addView(scroll, android.widget.FrameLayout.LayoutParams(-1, -1))
     }
 
-    private fun addCard(root: LinearLayout, title: String, body: String) {
-        root.addView(TextView(this).apply {
-            text = title
-            textSize = 12f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(ThemeManager.resolve(this@ProfileActivity, R.attr.uzzapColorHeader))
-            setPadding(dp(4), dp(12), dp(4), dp(6))
-        })
-        root.addView(TextView(this).apply {
-            text = body
-            textSize = 15f
-            setTextColor(ThemeManager.resolve(this@ProfileActivity, R.attr.uzzapColorText))
-            setPadding(dp(14), dp(14), dp(14), dp(14))
-            background = rounded(Color.WHITE, 14f)
-            tag = if (title == "PUBLIC PROFILE") "public_profile" else null
-        })
+    private fun sectionTitle(title: String, color: Int): TextView = TextView(this).apply {
+        text = title
+        textSize = 12f
+        typeface = Typeface.DEFAULT_BOLD
+        setTextColor(color)
+        setPadding(dp(4), dp(20), dp(4), dp(8))
     }
 
-    private fun actionRow(title: String, subtitle: String, action: () -> Unit): View =
-        LinearLayout(this).apply {
+    private fun infoCard(
+        body: String,
+        surface: Int,
+        textColor: Int
+    ): TextView = TextView(this).apply {
+        text = body
+        textSize = 15f
+        setTextColor(textColor)
+        setPadding(dp(16), dp(15), dp(16), dp(15))
+        background = rounded(surface, 16f)
+    }
+
+    private fun actionRow(
+        title: String,
+        subtitle: String,
+        surface: Int,
+        textColor: Int,
+        muted: Int,
+        accent: Int,
+        action: () -> Unit
+    ): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(16), dp(13), dp(14), dp(13))
+        background = actionBackground(surface, accent)
+        isClickable = true
+        isFocusable = true
+        contentDescription = title + ". " + subtitle
+        setOnClickListener { action() }
+
+        val copy = LinearLayout(this@ProfileActivity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            setBackgroundResource(R.drawable.bg_menu_row_selector)
-            isClickable = true
-            setOnClickListener { action() }
-            addView(TextView(this@ProfileActivity).apply {
-                text = title
-                textSize = 17f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(ThemeManager.resolve(this@ProfileActivity, R.attr.uzzapColorText))
-            })
-            addView(TextView(this@ProfileActivity).apply {
-                text = subtitle
-                textSize = 12f
-                setTextColor(ThemeManager.resolve(this@ProfileActivity, R.attr.uzzapColorMuted))
-                setPadding(0, dp(2), 0, 0)
-            })
         }
+        copy.addView(TextView(this@ProfileActivity).apply {
+            text = title
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(textColor)
+        })
+        copy.addView(TextView(this@ProfileActivity).apply {
+            text = subtitle
+            textSize = 12f
+            setTextColor(muted)
+            setPadding(0, dp(3), 0, 0)
+        })
+        addView(copy, LinearLayout.LayoutParams(0, -2, 1f))
+
+        addView(TextView(this@ProfileActivity).apply {
+            text = "›"
+            textSize = 28f
+            setTextColor(accent)
+            gravity = Gravity.CENTER
+            contentDescription = "Open " + title
+        }, LinearLayout.LayoutParams(dp(32), dp(48)))
+    }
 
     private fun showOptions() {
         AlertDialog.Builder(this)
@@ -140,11 +247,43 @@ class ProfileActivity : BaseChromeActivity() {
                     1 -> startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SETTINGS))
                     2 -> startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_STATUS))
                 }
-            }.show()
+            }
+            .show()
     }
 
-    private fun rounded(color: Int, radius: Float) =
-        android.graphics.drawable.GradientDrawable().apply { setColor(color); cornerRadius = radius }
+    private fun rounded(color: Int, radius: Float) = GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = dp(radius.toInt()).toFloat()
+    }
 
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
+    private fun actionBackground(surface: Int, accent: Int): StateListDrawable =
+        StateListDrawable().apply {
+            addState(
+                intArrayOf(android.R.attr.state_pressed),
+                rounded(blend(accent, surface, 0.14f), 16f)
+            )
+            addState(
+                intArrayOf(android.R.attr.state_focused),
+                rounded(blend(accent, surface, 0.10f), 16f)
+            )
+            addState(
+                intArrayOf(),
+                rounded(surface, 16f)
+            )
+        }
+
+    private fun blend(foreground: Int, background: Int, foregroundWeight: Float): Int {
+        val w = foregroundWeight.coerceIn(0f, 1f)
+        val iw = 1f - w
+        val r = (Color.red(foreground) * w + Color.red(background) * iw).toInt()
+        val g = (Color.green(foreground) * w + Color.green(background) * iw).toInt()
+        val b = (Color.blue(foreground) * w + Color.blue(background) * iw).toInt()
+        return Color.rgb(r, g, b)
+    }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density + 0.5f).toInt()
+
+    private class FrameLayoutCompat(context: android.content.Context) :
+        android.widget.FrameLayout(context)
 }
