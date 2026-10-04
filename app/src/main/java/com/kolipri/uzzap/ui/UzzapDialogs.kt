@@ -23,7 +23,7 @@ import com.kolipri.uzzap.R
 /** Shared modern dialog: rounded card, animated icon tile, themed text,
  *  optional input fields, pill buttons. Theme-aware (light/dark/green/blue/black). */
 object UzzapDialogs {
-    val GREEN: Int = 0xFF8EEF04.toInt()
+    val GREEN: Int = 0xFFAF0C0D.toInt()
     private val GREEN_DARK_TEXT: Int = 0xFF16210A.toInt()
 
     class FieldSpec(val hint: String, val prefilled: String = "", val password: Boolean = false, val email: Boolean = false)
