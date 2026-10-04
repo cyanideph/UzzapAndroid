@@ -46,22 +46,10 @@
             android:textSize="14sp" />
 
         <TextView
-            android:id="@+id/tv_welcome_intro"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="16dp"
-            android:background="@drawable/bg_welcome_card"
-            android:lineSpacingExtra="2dp"
-            android:padding="14dp"
-            android:text="@string/welcome_intro"
-            android:textColor="?attr/uzzapColorText"
-            android:textSize="15sp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="10dp"
             android:text="What you can do"
             android:textColor="?attr/uzzapColorAccent"
             android:textSize="16sp"
@@ -82,18 +70,6 @@
         <include
             android:id="@+id/tip_matching"
             layout="@layout/item_welcome_tip" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/bg_welcome_card"
-            android:gravity="center"
-            android:lineSpacingExtra="2dp"
-            android:padding="14dp"
-            android:text="Need more detail? Open Help from the Uzzap menu."
-            android:textColor="?attr/uzzapColorText"
-            android:textSize="14sp" />
 
     </LinearLayout>
 </ScrollView>
