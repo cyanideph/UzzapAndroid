@@ -10,17 +10,32 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
+  pages-unavailable:
+    name: Explain Pages requirement for private repositories
+    if: github.event.repository.private == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Report why deployment is skipped
+        run: |
+          echo "::notice::GitHub Pages deployment skipped because this repository is private. Enable Pages for this repository/plan or make the repository public to publish the docs site."
+          echo "No deployment was attempted; this avoids failing every documentation push while Pages is unavailable."
+
   deploy:
     name: Deploy documentation and APK landing page
+    if: github.event.repository.private == false
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -29,6 +44,8 @@ jobs:
         uses: actions/checkout@v6
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6
+        with:
+          enablement: true
       - name: Upload Pages content
         uses: actions/upload-pages-artifact@v4
         with:
