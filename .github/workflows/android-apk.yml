@@ -2,26 +2,27 @@ name: Android CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-ci-${{ github.event.pull_request.number || github.ref }}
+  group: android-ci-${ github.event.pull_request.number || github.ref }
   cancel-in-progress: true
 
 jobs:
   build-and-test:
-    name: Build and Test Android
+    name: Build, test, and package debug APK
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      SUPABASE_URL: ${ secrets.SUPABASE_URL || 'https://hrjgblvxhtbopuyzyasu.supabase.co' }
+      SUPABASE_PUBLISHABLE_KEY: ${ secrets.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_ci_placeholder' }
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -38,34 +39,38 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Validate Supabase client key
-        env:
-          SUPABASE_PUBLISHABLE_KEY: ${{ github.actor == 'dependabot[bot]' && 'sb_publishable_ci_placeholder' || secrets.SUPABASE_PUBLISHABLE_KEY }}
+      - name: Validate Supabase configuration
+        shell: bash
         run: |
-          if [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
-            echo "SUPABASE_PUBLISHABLE_KEY GitHub Actions secret is missing."
-            exit 1
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" != "pull_request" && "$GITHUB_ACTOR" != "dependabot[bot]" ]]; then
+            test -n "$SUPABASE_URL" || { echo "SUPABASE_URL secret is missing."; exit 1; }
+            test -n "$SUPABASE_PUBLISHABLE_KEY" || { echo "SUPABASE_PUBLISHABLE_KEY secret is missing."; exit 1; }
           fi
           case "$SUPABASE_PUBLISHABLE_KEY" in
-            sb_publishable_*) echo "Supabase publishable key is configured." ;;
+            sb_publishable_*) echo "Supabase publishable key format is valid." ;;
             *) echo "Invalid Supabase publishable key format."; exit 1 ;;
+          esac
+          case "$SUPABASE_URL" in
+            https://*.supabase.co) ;;
+            *) echo "SUPABASE_URL must be an HTTPS Supabase project URL."; exit 1 ;;
           esac
 
       - name: Run unit tests
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ github.actor == 'dependabot[bot]' && 'sb_publishable_ci_placeholder' || secrets.SUPABASE_PUBLISHABLE_KEY }}
-        run: ./gradlew :app:testDebugUnitTest -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
+        run: |
+          ./gradlew :app:testDebugUnitTest \
+            -PSUPABASE_URL="$SUPABASE_URL" \
+            -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
+            --stacktrace
 
       - name: Build debug APK
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ github.actor == 'dependabot[bot]' && 'sb_publishable_ci_placeholder' || secrets.SUPABASE_PUBLISHABLE_KEY }}
-        run: ./gradlew :app:assembleDebug -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
+        run: |
+          ./gradlew :app:assembleDebug \
+            -PSUPABASE_URL="$SUPABASE_URL" \
+            -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
+            --stacktrace
 
-      - name: Upload debug APK
-        if: github.event_name == 'workflow_dispatch'
+      - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: uzzap-debug-apk
@@ -74,7 +79,7 @@ jobs:
           retention-days: 7
 
   publish-debug-apk:
-    name: Publish Debug APK
+    name: Publish debug APK to GitHub Release
     if: github.event_name == 'workflow_dispatch'
     needs: build-and-test
     runs-on: ubuntu-latest
@@ -90,9 +95,12 @@ jobs:
 
       - name: Publish debug APK to GitHub Release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${ github.token }
+          GITHUB_SHA: ${ github.sha }
+        shell: bash
         run: |
-          APK=$(find dist -maxdepth 2 -type f -name '*.apk' | head -n 1)
+          set -euo pipefail
+          APK="$(find dist -maxdepth 2 -type f -name '*.apk' -print -quit)"
           test -n "$APK" || { echo "Debug APK artifact not found."; exit 1; }
 
           TAG="debug-latest"
