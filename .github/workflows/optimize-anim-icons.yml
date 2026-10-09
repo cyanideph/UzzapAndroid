@@ -4,45 +4,74 @@ on:
   workflow_dispatch:
     inputs:
       target_branch:
-        description: "Branch to optimize"
+        description: "Existing branch to optimize"
         required: true
         default: "main"
         type: string
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: optimize-anim-icons-${{ inputs.target_branch }}
+  cancel-in-progress: false
 
 jobs:
   convert-gifs:
+    name: Convert GIF assets safely
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TARGET_BRANCH: ${{ inputs.target_branch }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout target branch
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ inputs.target_branch }}
 
+      - name: Validate target branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git check-ref-format --branch "$TARGET_BRANCH" >/dev/null
+          git ls-remote --exit-code --heads origin "refs/heads/$TARGET_BRANCH" >/dev/null
+          echo "Target branch validated."
+
+      - name: Detect GIF assets
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="app/src/main/assets/anim-icons"
+          if [[ -d "$root" ]] && find "$root" -maxdepth 1 -type f -name '*.gif' -print -quit | grep -q .; then
+            echo "has_gifs=true" >> "$GITHUB_OUTPUT"
+            echo "GIF assets found."
+          else
+            echo "has_gifs=false" >> "$GITHUB_OUTPUT"
+            echo "No GIF assets found; this run will finish as a no-op."
+          fi
+
       - name: Install Pillow
+        if: steps.detect.outputs.has_gifs == 'true'
         run: python -m pip install --upgrade pillow
 
       - name: Convert GIF assets to animated WebP
+        if: steps.detect.outputs.has_gifs == 'true'
         shell: bash
         run: |
           python <<'PY'
           from pathlib import Path
           from PIL import Image, ImageSequence
-          import hashlib
-          import os
 
           root = Path("app/src/main/assets/anim-icons")
           gifs = sorted(root.glob("*.gif"))
           if not gifs:
-              print("No GIF assets found.")
-              raise SystemExit(0)
+              raise SystemExit("GIF assets disappeared after detection.")
 
           total_before = 0
           total_after = 0
-          converted = 0
 
           for src in gifs:
               dst = src.with_suffix(".webp")
@@ -52,15 +81,14 @@ jobs:
                   for frame in ImageSequence.Iterator(im):
                       frames.append(frame.convert("RGBA"))
                       durations.append(max(10, int(frame.info.get("duration", im.info.get("duration", 100) or 100))))
-
+                  if not frames:
+                      raise SystemExit(f"No frames found in {src.name}")
                   loop = int(im.info.get("loop", 0) or 0)
-                  first, rest = frames[0], frames[1:]
-
-                  first.save(
+                  frames[0].save(
                       dst,
                       "WEBP",
                       save_all=True,
-                      append_images=rest,
+                      append_images=frames[1:],
                       duration=durations,
                       loop=loop,
                       quality=90,
@@ -68,56 +96,48 @@ jobs:
                       minimize_size=True,
                       allow_mixed=True,
                   )
-
               before = src.stat().st_size
               after = dst.stat().st_size
               total_before += before
               total_after += after
+              print(f"{src.name}: {before:,} -> {dst.name}: {after:,} bytes ({after / before:.1%})")
 
-              print(f"{src.name}: {before:,} -> {dst.name}: {after:,} bytes ({after/before:.1%})")
-              converted += 1
-
-          print(f"Converted: {converted} GIF assets")
-          print(f"Total GIF bytes:  {total_before:,}")
-          print(f"Total WebP bytes: {total_after:,}")
-          print(f"Raw asset reduction: {total_before-total_after:,} bytes ({(1-total_after/total_before):.1%})")
-
+          print(f"Converted {len(gifs)} GIF assets.")
+          print(f"GIF bytes: {total_before:,}; WebP bytes: {total_after:,}")
           if total_after >= total_before:
-              print("WARNING: aggregate WebP output is not smaller; retaining conversion for format migration.")
+              print("WARNING: aggregate WebP output is not smaller; conversion retained for format migration.")
           PY
 
       - name: Update text references from .gif to .webp
+        if: steps.detect.outputs.has_gifs == 'true'
         shell: bash
         run: |
           python <<'PY'
           from pathlib import Path
 
-          skip = {".git", ".github"}
           extensions = {".kt", ".java", ".xml", ".json", ".txt", ".md", ".gradle", ".kts", ".properties", ".html", ".js", ".ts", ".tsx", ".css", ".yml", ".yaml"}
           changed = 0
-
           for path in Path("app").rglob("*"):
-              if not path.is_file() or any(part in skip for part in path.parts):
-                  continue
-              if path.suffix.lower() not in extensions:
+              if not path.is_file() or path.suffix.lower() not in extensions:
                   continue
               try:
-                  text = path.read_text(encoding="utf-8")
+                  original = path.read_text(encoding="utf-8")
               except (UnicodeDecodeError, OSError):
                   continue
-              updated = text.replace(".gif", ".webp")
-              if updated != text:
+              updated = original.replace(".gif", ".webp")
+              if updated != original:
                   path.write_text(updated, encoding="utf-8")
                   print(f"Updated reference: {path}")
                   changed += 1
-
           print(f"Text files updated: {changed}")
           PY
 
       - name: Remove original GIF assets
-        run: find app/src/main/assets/anim-icons -type f -name '*.gif' -delete
+        if: steps.detect.outputs.has_gifs == 'true'
+        run: find app/src/main/assets/anim-icons -maxdepth 1 -type f -name '*.gif' -delete
 
       - name: Verify WebP assets
+        if: steps.detect.outputs.has_gifs == 'true'
         shell: bash
         run: |
           python <<'PY'
@@ -128,24 +148,23 @@ jobs:
           webps = sorted(root.glob("*.webp"))
           if not webps:
               raise SystemExit("No WebP assets were produced.")
-
           for path in webps:
               with Image.open(path) as im:
-                  frames = getattr(im, "n_frames", 1)
-                  print(f"{path.name}: {im.size[0]}x{im.size[1]}, frames={frames}, bytes={path.stat().st_size:,}")
-
+                  print(f"{path.name}: {im.width}x{im.height}, frames={getattr(im, 'n_frames', 1)}, bytes={path.stat().st_size:,}")
           print(f"Verified {len(webps)} WebP assets.")
           PY
 
       - name: Commit optimized assets
+        if: steps.detect.outputs.has_gifs == 'true'
         shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add -A app
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
           git commit -m "perf: convert animated GIF assets to WebP"
-          git push origin HEAD:${{ inputs.target_branch }}
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
