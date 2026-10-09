@@ -1,20 +1,25 @@
 name: Security Checks
 
 on:
+  push:
+    branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: security-${{ github.ref }}
+  group: security-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   secret-scan:
     name: Tracked-file secret scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -25,21 +30,24 @@ jobs:
         run: |
           set -euo pipefail
           patterns=(
-            'sb_secret_[A-Za-z0-9_\-]+'
-            'service_role[_-][A-Za-z0-9_\-]+'
+            'sb_secret_[A-Za-z0-9_-]+'
+            'service_role[_-][A-Za-z0-9_-]+'
             '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'
             'ghp_[A-Za-z0-9]{20,}'
             'github_pat_[A-Za-z0-9_]{20,}'
             'AKIA[0-9A-Z]{16}'
+            'sk_live_[A-Za-z0-9]{16,}'
+            'sk-proj-[A-Za-z0-9_-]{20,}'
+            'xox[baprs]-[A-Za-z0-9-]{10,}'
           )
           found=0
           for pattern in "${patterns[@]}"; do
-            if git grep -nI -E "$pattern" -- . ':!docs/UZAPBOT.md' ':!.github/workflows/security.yml'; then
+            if git grep -nI -E "$pattern" -- . ':!.github/workflows/security.yml'; then
               found=1
             fi
           done
           if [ "$found" -ne 0 ]; then
-            echo "High-risk credential pattern detected in tracked files."
+            echo "High-risk credential pattern detected in tracked files. Review the matching paths and rotate any confirmed exposed credential."
             exit 1
           fi
-          echo "No high-risk credential patterns detected."
+          echo "No configured high-risk credential patterns detected in tracked files."
