@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-ci-${ github.event.pull_request.number || github.ref }
+  group: android-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -21,24 +21,20 @@ jobs:
     permissions:
       contents: read
     env:
-      SUPABASE_URL: ${ secrets.SUPABASE_URL || 'https://hrjgblvxhtbopuyzyasu.supabase.co' }
-      SUPABASE_PUBLISHABLE_KEY: ${ secrets.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_ci_placeholder' }
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://hrjgblvxhtbopuyzyasu.supabase.co' }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_ci_placeholder' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Set up JDK 17
         uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
-
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
-
       - name: Validate Supabase configuration
         shell: bash
         run: |
@@ -55,21 +51,18 @@ jobs:
             https://*.supabase.co) ;;
             *) echo "SUPABASE_URL must be an HTTPS Supabase project URL."; exit 1 ;;
           esac
-
       - name: Run unit tests
         run: |
           ./gradlew :app:testDebugUnitTest \
             -PSUPABASE_URL="$SUPABASE_URL" \
             -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
             --stacktrace
-
       - name: Build debug APK
         run: |
           ./gradlew :app:assembleDebug \
             -PSUPABASE_URL="$SUPABASE_URL" \
             -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
             --stacktrace
-
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -92,20 +85,16 @@ jobs:
         with:
           name: uzzap-debug-apk
           path: dist
-
       - name: Publish debug APK to GitHub Release
         env:
-          GH_TOKEN: ${ github.token }
-          GITHUB_SHA: ${ github.sha }
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           APK="$(find dist -maxdepth 2 -type f -name '*.apk' -print -quit)"
           test -n "$APK" || { echo "Debug APK artifact not found."; exit 1; }
-
           TAG="debug-latest"
           NOTES="Automated Uzzap debug APK from commit $GITHUB_SHA. This prerelease is updated by the next successful manual build."
-
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" --clobber
             gh release edit "$TAG" --title "Uzzap Debug APK (latest)" --notes "$NOTES" --prerelease
