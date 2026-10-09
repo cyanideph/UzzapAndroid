@@ -1,6 +1,8 @@
 name: Nightly Uzzap Health Check
 
 on:
+  schedule:
+    - cron: '0 18 * * *'
   workflow_dispatch:
 
 permissions:
@@ -8,12 +10,17 @@ permissions:
 
 concurrency:
   group: nightly-health
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   health:
-    name: Nightly unit tests
+    name: Nightly Android unit tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://hrjgblvxhtbopuyzyasu.supabase.co' }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -27,16 +34,16 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
       - name: Validate Supabase configuration
-        env:
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        shell: bash
         run: |
-          test -n "$SUPABASE_PUBLISHABLE_KEY"
-          case "$SUPABASE_PUBLISHABLE_KEY" in
-            sb_publishable_*) ;;
-            *) echo "Invalid Supabase publishable key format."; exit 1 ;;
-          esac
+          set -euo pipefail
+          test -n "$SUPABASE_URL" || { echo "SUPABASE_URL is missing."; exit 1; }
+          test -n "$SUPABASE_PUBLISHABLE_KEY" || { echo "SUPABASE_PUBLISHABLE_KEY secret is missing."; exit 1; }
+          case "$SUPABASE_URL" in https://*.supabase.co) ;; *) echo "Invalid SUPABASE_URL"; exit 1 ;; esac
+          case "$SUPABASE_PUBLISHABLE_KEY" in sb_publishable_*) ;; *) echo "Invalid Supabase publishable key format."; exit 1 ;; esac
       - name: Run unit tests
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-        run: ./gradlew :app:testDebugUnitTest -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
+        run: |
+          ./gradlew :app:testDebugUnitTest \
+            -PSUPABASE_URL="$SUPABASE_URL" \
+            -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
+            --stacktrace
