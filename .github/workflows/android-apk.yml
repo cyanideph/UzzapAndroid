@@ -64,37 +64,57 @@ jobs:
             -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
             --stacktrace
       - name: Upload debug APK artifact
+        id: upload_apk
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: uzzap-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
+      - name: Explain artifact upload failure
+        if: steps.upload_apk.outcome == 'failure'
+        run: |
+          echo "::warning::The debug APK built successfully, but GitHub artifact upload failed. Check Actions artifact storage quota. The manual release job rebuilds and publishes the APK without depending on artifacts."
 
   publish-debug-apk:
-    name: Publish debug APK to GitHub Release
+    name: Rebuild and publish debug APK to GitHub Release
     if: github.event_name == 'workflow_dispatch'
     needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      actions: read
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://hrjgblvxhtbopuyzyasu.supabase.co' }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_ci_placeholder' }}
     steps:
-      - name: Download debug APK
-        uses: actions/download-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
         with:
-          name: uzzap-debug-apk
-          path: dist
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: Rebuild debug APK for release
+        run: |
+          ./gradlew :app:assembleDebug \
+            -PSUPABASE_URL="$SUPABASE_URL" \
+            -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
+            --stacktrace
       - name: Publish debug APK to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          APK="$(find dist -maxdepth 2 -type f -name '*.apk' -print -quit)"
-          test -n "$APK" || { echo "Debug APK artifact not found."; exit 1; }
+          APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          test -n "$APK" || { echo "Debug APK not found after rebuild."; exit 1; }
           TAG="debug-latest"
-          NOTES="Automated Uzzap debug APK from commit $GITHUB_SHA. This prerelease is updated by the next successful manual build."
+          NOTES="Automated Uzzap debug APK from commit $GITHUB_SHA. Updated by the latest successful manual build."
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" --clobber
             gh release edit "$TAG" --title "Uzzap Debug APK (latest)" --notes "$NOTES" --prerelease
