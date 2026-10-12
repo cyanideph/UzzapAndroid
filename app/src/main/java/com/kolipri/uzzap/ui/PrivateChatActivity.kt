@@ -19,6 +19,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.UserProfileClient
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.DirectMessageClient
