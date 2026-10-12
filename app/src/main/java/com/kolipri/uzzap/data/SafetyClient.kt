@@ -92,6 +92,9 @@ object SafetyClient {
     }
 
     fun fetchActiveModerationActions(onResult: (List<ModerationAction>) -> Unit) {
+        // The table keeps history rows: an "active" sanction is one with no
+        // expiry or an expiry in the future. Filter client-side so expired
+        // sanctions are never presented as active.
         val path = "/rest/v1/moderation_actions?select=id,moderator_id,target_username,action_type,room_name,reason,expires_at,created_at&action_type=in.(mute,kick,ban)&order=created_at.desc&limit=100"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { onResult(emptyList()) } }
@@ -99,7 +102,7 @@ object SafetyClient {
                 if (!it.isSuccessful) { main.post { onResult(emptyList()) }; return }
                 val list = mutableListOf<ModerationAction>()
                 runCatching { val a = JSONArray(it.body?.string().orEmpty()); for (i in 0 until a.length()) { val o = a.getJSONObject(i); list += ModerationAction(o.optLong("id"), o.optString("moderator_id").ifBlank { null }, o.optString("target_username"), o.optString("action_type").ifBlank { o.optString("action") }, o.optString("room_name").ifBlank { null }, o.optString("reason"), o.optString("expires_at").ifBlank { null }, o.optString("created_at")) } }
-                main.post { onResult(list) }
+                main.post { onResult(list.filter { a -> a.expiresAt.isNullOrBlank() || TimeUtils.isFuture(a.expiresAt) }) }
             } }
         })
     }

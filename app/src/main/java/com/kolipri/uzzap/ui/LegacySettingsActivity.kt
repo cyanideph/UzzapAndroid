@@ -228,7 +228,8 @@ class LegacySettingsActivity : BaseChromeActivity() {
         progress.show()
 
         SupabaseClient.deleteAccount { success ->
-            progress.dismiss()
+            if (!isFinishing && !isDestroyed) progress.dismiss()
+            else return@deleteAccount
             if (success) {
                 Toast.makeText(this, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
                 AppState.resetSession()

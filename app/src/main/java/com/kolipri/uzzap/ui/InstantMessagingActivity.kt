@@ -18,6 +18,7 @@ import com.kolipri.uzzap.data.AvatarManager
 import com.kolipri.uzzap.data.DirectMessageClient
 import com.kolipri.uzzap.data.PrivateMessageStateClient
 import com.kolipri.uzzap.data.UserProfileClient
+import com.kolipri.uzzap.data.canonicalizeUsername
 
 /** Full private-message inbox: recent conversations first, then available buddies. */
 class InstantMessagingActivity : BaseChromeActivity() {
@@ -71,7 +72,7 @@ class InstantMessagingActivity : BaseChromeActivity() {
     private fun renderRows(root: LinearLayout, names: List<String>, unreadCounts: Map<String, Int>, profiles: Map<String, com.kolipri.uzzap.data.PublicProfile>, clearExisting: Boolean = true) {
         if (clearExisting) while (root.childCount > 2) root.removeViewAt(2)
         if (names.isEmpty()) { if (root.childCount <= 2) root.addView(emptyRow()); return }
-        names.distinctBy { it.lowercase() }.forEach { buddy -> root.addView(buddyRow(buddy, unreadCounts[buddy.lowercase()] ?: 0, profiles[buddy.lowercase()])) }
+        names.distinctBy { it.lowercase() }.forEach { buddy -> root.addView(buddyRow(buddy, unreadCounts[buddy.lowercase()] ?: 0, profiles[canonicalizeUsername(buddy)])) }
     }
 
     private fun emptyRow(): View = TextView(this).apply {

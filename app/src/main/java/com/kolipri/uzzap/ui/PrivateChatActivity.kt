@@ -91,8 +91,13 @@ class PrivateChatActivity : BaseChromeActivity() {
             if (!polling || realtimeConnected || isFinishing || isDestroyed) return
             DirectMessageClient.fetchConversation(AppState.username, buddy, lastId) { messages ->
                 if (isFinishing || isDestroyed || !::messageList.isInitialized || !::messageAdapter.isInitialized) return@fetchConversation
-                if (messages != null) messages.forEach { if (it.id > lastId && renderedIds.add(it.id)) { lastId = it.id; appendMessage(it, true) } }
-                if (messages != null) markReadAndRefreshNotification()
+                // Mark-read issues a server write and busts the unread cache:
+                // only do it when the poll actually delivered something new.
+                if (messages != null) {
+                    var added = false
+                    messages.forEach { if (it.id > lastId && renderedIds.add(it.id)) { lastId = it.id; appendMessage(it, true); added = true } }
+                    if (added) markReadAndRefreshNotification()
+                }
                 if (polling && !realtimeConnected) handler.postDelayed(this, 2500L)
             }
         }

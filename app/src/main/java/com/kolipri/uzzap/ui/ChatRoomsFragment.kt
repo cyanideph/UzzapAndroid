@@ -14,6 +14,7 @@ import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.ModeratorRoleClient
+import com.kolipri.uzzap.data.ModeratorRoomClient
 import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.data.UnifiedRoomClient
 import com.kolipri.uzzap.model.ChatRoomCategory
@@ -119,26 +120,45 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
                         }
                         ChatRoomCategory(category.name, rooms.sumOf { it.userCount }, rooms.sumOf { it.capacity }, rooms)
                     }.toMutableList()
-                    if (AppState.isModerator) {
-                        val modRemote = live["Moderator Room"] ?: 0
-                        val isModJoined = AppState.isRoomJoined("Moderator Room")
-                        val modCount = if (isModJoined && modRemote < 1) 1 else modRemote
-                        val moderatorRoom = ChatRoomInfo("Moderator Room", modCount, 50)
-                        updated.add(ChatRoomCategory("Moderation", moderatorRoom.userCount, moderatorRoom.capacity, listOf(moderatorRoom)))
+                    if (!AppState.isModerator) {
+                        finishRoomLoad(updated)
+                        return@liveCounts
                     }
-                    AppState.categories = updated
-                    loaded = true
-                    lastSuccessfulLoadAt = System.currentTimeMillis()
-                    loadInFlight = false
-                    tvLoading.visibility = View.GONE
-                    contentContainer.visibility = View.VISIBLE
-                    val selectedName = selectedCategory?.name
-                    selectedCategory = selectedName?.let { n -> updated.firstOrNull { it.name == n } }
-                    if (selectedCategory != null) showRoomsFor(selectedCategory!!) else showCategories()
-                    AppDiagnostics.success("RoomList.load", "regions=${updated.size} rooms=${updated.sumOf { it.rooms.size }}")
+                    // Never hardcode the moderator room name: resolve the
+                    // configured room so counts and taps target a real room.
+                    ModeratorRoomClient.fetchModeratorRoom { modName ->
+                        if (!isAdded) {
+                            loadInFlight = false
+                            return@fetchModeratorRoom
+                        }
+                        val name = modName?.ifBlank { null } ?: "Moderator Room"
+                        val modRemote = live[name] ?: 0
+                        val isModJoined = AppState.isRoomJoined(name)
+                        val modCount = if (isModJoined && modRemote < 1) 1 else modRemote
+                        val moderatorRoom = ChatRoomInfo(name, modCount, 50)
+                        updated.add(ChatRoomCategory("Moderation", moderatorRoom.userCount, moderatorRoom.capacity, listOf(moderatorRoom)))
+                        finishRoomLoad(updated)
+                    }
                 }
             }
         }
+    }
+
+    private fun finishRoomLoad(updated: MutableList<ChatRoomCategory>) {
+        if (!isAdded) {
+            loadInFlight = false
+            return
+        }
+        AppState.categories = updated
+        loaded = true
+        lastSuccessfulLoadAt = System.currentTimeMillis()
+        loadInFlight = false
+        tvLoading.visibility = View.GONE
+        contentContainer.visibility = View.VISIBLE
+        val selectedName = selectedCategory?.name
+        selectedCategory = selectedName?.let { n -> updated.firstOrNull { it.name == n } }
+        if (selectedCategory != null) showRoomsFor(selectedCategory!!) else showCategories()
+        AppDiagnostics.success("RoomList.load", "regions=${updated.size} rooms=${updated.sumOf { it.rooms.size }}")
     }
 
     private fun showCategories() {

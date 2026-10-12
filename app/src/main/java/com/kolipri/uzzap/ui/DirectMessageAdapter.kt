@@ -10,6 +10,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.kolipri.uzzap.data.AppState
+import com.kolipri.uzzap.data.TimeUtils
 import com.kolipri.uzzap.model.DirectMessage
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -24,7 +25,9 @@ class DirectMessageAdapter(private val context: Context) : RecyclerView.Adapter<
     fun setItems(messages: List<DirectMessage>) {
         val unique = LinkedHashMap<Long, DirectMessage>()
         messages.forEach { message -> if (message.id > 0) unique[message.id] = message }
-        val next = unique.values.sortedBy { it.id }
+        // Never drop not-yet-acknowledged local echoes (id <= 0): a history
+        // refresh arriving before the send callback must not erase them.
+        val next = (unique.values.sortedBy { it.id } + items.filter { it.id <= 0 }.distinct()).toList()
         val old = items.toList()
         val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
             override fun getOldListSize() = old.size
@@ -69,7 +72,9 @@ class DirectMessageAdapter(private val context: Context) : RecyclerView.Adapter<
             if (!mine) setStroke(dp(1), Color.rgb(229, 231, 235))
         }
         holder.bubble.text = message.body
-        val time = if (message.createdAt.isNotBlank()) message.createdAt
+        val time = TimeUtils.parseIsoToEpochMillis(message.createdAt)?.let {
+            SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(it))
+        } ?: if (message.createdAt.isNotBlank()) message.createdAt
         else SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
         holder.time.text = if (mine) "$time  ✓" else time
         holder.time.setTextColor(Color.rgb(125, 130, 138))
