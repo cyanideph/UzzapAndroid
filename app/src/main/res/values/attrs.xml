@@ -8,4 +8,7 @@
     <attr name="uzzapColorMuted" format="color" />
     <attr name="uzzapColorHeader" format="color" />
     <attr name="uzzapColorDivider" format="color" />
+    <attr name="uzzapColorDanger" format="color" />
+    <attr name="uzzapColorSuccess" format="color" />
+    <attr name="uzzapColorCard" format="color" />
 </resources>

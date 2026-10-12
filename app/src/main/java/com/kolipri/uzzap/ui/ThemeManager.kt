@@ -37,4 +37,13 @@ object ThemeManager {
         a.recycle()
         return color
     }
+
+    /** Content-card background. Replaces hardcoded Color.WHITE surfaces. */
+    fun card(context: Context): Int = resolve(context, R.attr.uzzapColorCard, 0xFFFFFFFF.toInt())
+
+    /** Destructive/moderation-red actions and badges. */
+    fun danger(context: Context): Int = resolve(context, R.attr.uzzapColorDanger, 0xFFB00020.toInt())
+
+    /** Healthy/online accents. */
+    fun success(context: Context): Int = resolve(context, R.attr.uzzapColorSuccess, 0xFF2E7D32.toInt())
 }
