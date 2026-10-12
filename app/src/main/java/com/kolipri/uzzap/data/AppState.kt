@@ -16,7 +16,6 @@ object AppState {
     /** DiceBear avatar selection encoded as dicebear:style:seed. */
     var avatar: String = ""
     var themeName: String = "default"
-    var firstLoginShown: Boolean = false
     var activeChatBuddy: String? = null
     var role: String = "user"
     val isModerator: Boolean get() = role.equals("moderator", ignoreCase = true) || role.equals("admin", ignoreCase = true)

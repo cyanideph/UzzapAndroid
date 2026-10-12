@@ -62,7 +62,7 @@ class AppGridActivity : BaseChromeActivity() {
         findViewById<ImageView>(R.id.icon_profile).setOnClickListener { footer.text = "Change Status"; startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_STATUS)) }
         AppState.role = "user"
         ModeratorRoleClient.refresh { role -> if (role == "moderator" || role == "admin") footer.text = if (role == "admin") "Moderator Management" else "Moderator Console" }
-        if (!AppState.firstLoginShown) { AppState.firstLoginShown = true; handler.postDelayed({ openWelcome() }, 300) }
+        if (!getSharedPreferences("uzzap_prefs", MODE_PRIVATE).getBoolean("welcome_seen_v1", false)) { handler.postDelayed({ openWelcome() }, 300) }
     }
 
     override fun onResume() { super.onResume(); handler.post(tickRunnable); refreshOnlineCount(); handler.post(onlineRunnable) }

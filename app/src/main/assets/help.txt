@@ -200,3 +200,18 @@ The current application uses a secure cloud backend and includes modern authenti
 Created by CY.
 
 For the current implementation and release information, use Options > About Uzzap.
+21. MESSAGE COLORS
+
+Messages support 30 Uzzap color codes (c01 through c30). Multiple colors can appear in one message. Colors apply to message text only; nicknames stay text-only.
+
+22. WHISPERS ARE PRIVATE
+
+The Whisper option in a room sends a true one-to-one private message. It is not shown to the room.
+
+23. NOTIFICATION PERMISSION
+
+On Android 13 and newer, the app asks once for notification permission so private messages, buddy requests and invitations can alert you. If you decline, the app asks at most one more time and then never nags; you can enable notifications later in Android Settings.
+
+24. DELETE YOUR ACCOUNT
+
+Settings > Privacy > Request Account Deletion permanently removes your profile, buddy list and message history. If you cannot open the app, use the web deletion page linked from the Uzzap website.
