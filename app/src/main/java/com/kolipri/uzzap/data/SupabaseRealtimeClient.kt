@@ -200,7 +200,11 @@ object SupabaseRealtimeClient {
             )
         }
 
-        val currentUser = AppState.username.trim().lowercase().replace(" ", "_")
+        // Usernames are case-sensitive in stored sender/recipient columns and
+        // AppState.username already holds the exact canonical case from the
+        // profile. Do NOT lowercase here: a lowercased filter would miss rows
+        // for mixed-case usernames and silently drop live direct messages.
+        val currentUser = AppState.username.trim()
         if (currentUser.isBlank()) return
         val dmChanges = JSONArray()
             .put(JSONObject().apply {
