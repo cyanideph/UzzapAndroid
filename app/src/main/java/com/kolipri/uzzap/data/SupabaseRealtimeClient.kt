@@ -200,7 +200,7 @@ object SupabaseRealtimeClient {
             )
         }
 
-        val currentUser = AppState.username.trim()
+        val currentUser = AppState.username.trim().lowercase().replace(" ", "_")
         if (currentUser.isBlank()) return
         val dmChanges = JSONArray()
             .put(JSONObject().apply {

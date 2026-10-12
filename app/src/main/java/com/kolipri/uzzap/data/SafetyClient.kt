@@ -20,7 +20,7 @@ object SafetyClient {
     private val url = BuildConfig.SUPABASE_URL.trimEnd('/')
     private val key = BuildConfig.SUPABASE_ANON_KEY
     private val mediaType = "application/json; charset=utf-8".toMediaType()
-    private fun req(path: String) = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", "Bearer ${SupabaseClient.userAccessToken.orEmpty()}").header("Content-Type", "application/json")
+    private fun req(path: String) = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", SupabaseClient.authHeader()).header("Content-Type", "application/json")
     private fun rpc(name: String, body: JSONObject, cb: Callback) { http.newCall(req("/rest/v1/rpc/$name").post(body.toString().toRequestBody(mediaType)).build()).enqueue(cb) }
     private fun simple(result: (Boolean) -> Unit) = object : Callback {
         override fun onFailure(call: Call, e: IOException) { main.post { result(false) } }

@@ -228,7 +228,7 @@ class node_auth,node_backend,node_push_service,node_fcm,node_push_receiver,node_
 - Room messages are writable only by authenticated users; database-side controls enforce sender identity.
 - Presence and buddy rows are writable only by their owner.
 - Direct messages are readable only by sender/recipient.
-- Categories, rooms and room history are publicly readable for the classic room-browsing experience.
+- Categories and rooms are publicly readable for the classic room-browsing experience; room message history requires authenticated room membership or moderator role (`room_messages_read`).
 - Moderation actions are protected by authenticated authorization and role hierarchy checks.
 - RLS policies use authenticated ownership checks and optimized `select auth.uid()` patterns.
 - Trigger-only push functions are not exposed as public APIs.

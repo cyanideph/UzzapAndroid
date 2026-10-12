@@ -15,6 +15,18 @@ async function getAccessToken(clientEmail: string, privateKey: string): Promise<
 serve(async (req) => {
   try {
     if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+    // pg_net triggers call this function without an Authorization header, so
+    // verify_jwt must stay false (see supabase/config.toml). Instead require an
+    // optional shared webhook secret once configured: triggers add
+    // `x-uzzap-webhook: <PUSH_WEBHOOK_SECRET>` and direct callers without it
+    // are rejected. Until the secret is deployed this check is a no-op.
+    const expectedSecret = Deno.env.get("PUSH_WEBHOOK_SECRET")?.trim();
+    if (expectedSecret) {
+      const provided = req.headers.get("x-uzzap-webhook")?.trim();
+      if (provided !== expectedSecret) {
+        return Response.json({ ok: false, error: "unauthorized webhook caller" }, { status: 401 });
+      }
+    }
     const payload = await req.json() as WebhookPayload;
     if (payload.type && payload.type !== "INSERT") return Response.json({ ok: true, skipped: payload.type });
     const table = payload.table || "direct_messages";

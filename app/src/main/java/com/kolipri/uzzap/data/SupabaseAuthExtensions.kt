@@ -163,11 +163,10 @@ fun SupabaseClient.upsertProfile(username: String, nickname: String, email: Stri
     })
 }
 
-fun SupabaseClient.signOut() {
-    val token = SupabaseClient.userAccessToken
-    if (!token.isNullOrBlank()) SupabaseAuthCompat.client().newCall(SupabaseAuthCompat.request("/auth/v1/logout", true).header("Authorization", "Bearer $token").post("".toRequestBody("application/json".toMediaType())).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { Log.w("SupabaseAuthCompat", "Logout request failed", e) }; override fun onResponse(call: Call, response: Response) { response.close() } })
-    SupabaseClient.setAccessTokenForLegacy(null); AppState.authToken = ""; AppState.username = ""; AppState.nickname = ""; AppState.email = ""; AppState.role = "user"; SessionStore.clear()
-}
+// NOTE: Do not add an extension fun SupabaseClient.signOut() here — the member
+// SupabaseClient.signOut() is the single source of truth (it clears session,
+// realtime/presence, SessionStore AND AppState). A duplicate extension would be
+// shadowed by the member and silently never run.
 
 private fun loadProfileData(userId: String, token: String = SupabaseClient.userAccessToken.orEmpty(), onResult: (ProfileIdentity) -> Unit) {
     if (userId.isBlank() || token.isBlank()) { SupabaseAuthCompat.handler().post { onResult(ProfileIdentity("", "", "")) }; return }

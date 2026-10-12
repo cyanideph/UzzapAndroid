@@ -3,7 +3,6 @@ package com.kolipri.uzzap.data
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.util.Base64
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessaging
 import com.kolipri.uzzap.BuildConfig
@@ -12,11 +11,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
-import java.nio.charset.StandardCharsets
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
 object FcmClient {
@@ -102,43 +96,26 @@ object FcmClient {
         }
     }
 
-    private fun extractUserId(): String? {
-        return SupabaseClient.userAccessToken?.let { token ->
-            runCatching {
-                val payload = token.split('.').getOrNull(1) ?: return@runCatching null
-                val bytes = Base64.decode(payload, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
-                JSONObject(String(bytes, StandardCharsets.UTF_8)).optString("sub").ifBlank { null }
-            }.getOrNull()
-        }
-    }
-
     fun syncTokenWithSupabase(context: Context, token: String? = null) {
         val fcmToken = token ?: getLocalToken(context) ?: return
         val userToken = SupabaseClient.userAccessToken
-        val username = AppState.username
-        if (userToken.isNullOrBlank() || username.isBlank()) {
+        if (userToken.isNullOrBlank()) {
             return
         }
 
-        val userId = extractUserId()
-        if (userId.isNullOrBlank()) {
-            Log.w(TAG, "Cannot sync FCM token: authenticated user id unavailable")
-            return
-        }
-
+        // Server-side ownership via upsert_fcm_token(p_token) SECURITY DEFINER.
+        // It derives user_id/username from auth.uid() so a token row can safely
+        // change ownership across accounts on shared devices without hitting
+        // owner-scoped RLS or client-supplied identity spoofing.
         val bodyJson = JSONObject().apply {
-            put("user_id", userId)
-            put("username", username)
-            put("fcm_token", fcmToken)
-            put("updated_at", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date()))
+            put("p_token", fcmToken)
         }
 
         val request = Request.Builder()
-            .url("$url/rest/v1/user_fcm_tokens?on_conflict=fcm_token")
+            .url("$url/rest/v1/rpc/upsert_fcm_token")
             .header("apikey", key)
             .header("Authorization", "Bearer $userToken")
             .header("Content-Type", "application/json")
-            .header("Prefer", "resolution=merge-duplicates,return=minimal")
             .post(bodyJson.toString().toRequestBody(jsonMediaType))
             .build()
 
