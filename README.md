@@ -298,6 +298,14 @@ The **About Uzzap** screen reports the live application version/build and docume
 
 ## Version history
 
+### Unreleased (post-beta.8)
+- Unified `SupabaseClient.signOut` as the single logout path (session + realtime/presence + `AppState` reset)
+- FCM registration now uses the server-side `upsert_fcm_token` RPC instead of direct table writes
+- Notification permission asks at most twice per install, then stops nagging after denial
+- Removed Sentry leftovers (crash reporting stays on in-house diagnostics)
+- Health check probes the public categories endpoint; corrected room-history readability wording
+- Workflows: CI + secret scan run on `main` pushes, shared Android setup action, release publish gated on `v*` tags, nightly/optimizer/Pages workflows removed (public site lives in `uzzap-site`)
+
 ### v1.0-beta.8 — September 2026
 - Security audit fixes verified against the live database: anon email enumeration closed via nickname-login RPC; leaked API key rotated, legacy JWT keys disabled
 - Canonical live-schema baseline documentation updated to reflect the current production schema; see `docs/DATABASE.md` for the verified inventory and current object counts.
@@ -348,7 +356,7 @@ The **About Uzzap** screen reports the live application version/build and docume
 
 ## Project status
 
-The current `main` branch contains the Phase 1–4 work plus the beta.8 security-audit, messaging, profile, welcome-system and moderation fixes. The app is still a **Beta** release. Every push to `main` starts the debug Android CI workflow, which runs unit tests, assembles the debug APK and publishes the `Uzzap-debug-apk` artifact for device testing.
+The current `main` branch contains the Phase 1–4 work plus the beta.8 security-audit, messaging, profile, welcome-system and moderation fixes. The app is still a **Beta** release. Every push to `main` starts the debug Android CI workflow, which runs unit tests, assembles the debug APK and replaces the `debug-latest` GitHub Release for device testing.
 
 ## Before public release
 

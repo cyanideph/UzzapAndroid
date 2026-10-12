@@ -353,8 +353,8 @@ class LegacySettingsActivity : BaseChromeActivity() {
             "Privacy",
             listOf("Privacy Policy", "Request Account Deletion", "Allow buddy invitations", "Allow room invitations", "Show my online presence"),
             listOf(
-                { openWebPage("https://hrjgblvxhtbopuyzyasu.supabase.co/functions/v1/uzzap-privacy") },
-                { openWebPage("https://hrjgblvxhtbopuyzyasu.supabase.co/functions/v1/uzzap-privacy?delete=1") },
+                { openWebPage("https://mauhdrdnlrvjkekxencu.supabase.co/functions/v1/uzzap-privacy") },
+                { openWebPage("https://mauhdrdnlrvjkekxencu.supabase.co/functions/v1/uzzap-privacy?delete=1") },
                 { togglePrivacyPreference("privacy_allow_buddy_invitations", "Allow buddy invitations") },
                 { togglePrivacyPreference("privacy_allow_room_invitations", "Allow room invitations") },
                 { togglePrivacyPreference("privacy_show_presence", "Show my online presence") }
