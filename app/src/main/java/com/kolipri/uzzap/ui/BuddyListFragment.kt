@@ -1,7 +1,6 @@
 package com.kolipri.uzzap.ui
 
 import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -17,8 +16,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import com.kolipri.uzzap.data.NotificationPermission
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.BuddyRequest
@@ -28,6 +27,7 @@ import com.kolipri.uzzap.data.PresenceClient
 import com.kolipri.uzzap.data.SafetyClient
 import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.data.UzzapNotificationManager
+import com.kolipri.uzzap.data.UserProfileClient
 import com.kolipri.uzzap.model.BuddyGroup
 import com.kolipri.uzzap.model.Presence
 import com.kolipri.uzzap.ui.dialogs.J2mePopup
@@ -41,12 +41,19 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
     private var monitoring = false
     private var buddyRequestFetchInFlight = false
     private var cachedUnreadCounts: Map<String, Int> = emptyMap()
+    private var lastBadgePollMs = 0L
+    private val badgePollThrottleMs = 8000L
     private var pendingRequests: List<BuddyRequest> = emptyList()
-    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!isAdded) return@registerForActivityResult
+        // Read AFTER the result: false means "don't ask again" / double-denied.
+        val canAskAgain = shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)
+        NotificationPermission.onResult(requireContext(), granted, canAskAgain)
+    }
     private val monitor = object : Runnable {
         override fun run() {
             if (!monitoring || !isAdded) return
-            PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE)
+            if (!com.kolipri.uzzap.data.AppPreferences.isBatterySavingEnabled(requireContext())) PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE)
             checkUnreadNotifications()
             checkBuddyRequests(showDialog = true)
             adapter.notifyDataSetChanged()
@@ -103,7 +110,8 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
     }
 
     private fun requestNotificationPermissionIfNeeded() {
-        if (android.os.Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        if (!isAdded) return
+        if (NotificationPermission.shouldRequest(requireContext())) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
@@ -172,7 +180,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
 
     private fun checkUnreadNotifications() {
         PrivateMessageStateClient.fetchUnread(AppState.username) { state ->
-            if (isAdded && state != null && state.count > 0) UzzapNotificationManager.notifyPrivateMessages(requireContext(), state.count, state.senders)
+            if (isAdded && state != null && state.count > 0) UzzapNotificationManager.notifyPrivateMessages(requireContext(), state.count, state.senders, state.messageIds)
         }
     }
 
@@ -327,7 +335,8 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
                     row.setOnClickListener { showBuddyOptions(buddy, group) }
                     container.addView(row)
                 }
-                if (group.key != "pending") {
+                if (group.key != "pending" && System.currentTimeMillis() - lastBadgePollMs >= badgePollThrottleMs) {
+                    lastBadgePollMs = System.currentTimeMillis()
                     PrivateMessageStateClient.fetchUnread(AppState.username) { unreadState ->
                         if (!isAdded || unreadState == null || !container.isAttachedToWindow) return@fetchUnread
                         cachedUnreadCounts = unreadState.countsBySender
@@ -339,7 +348,10 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
                     PresenceClient.fetchMultiple(buddies) { presenceMap ->
                         if (!isAdded || !container.isAttachedToWindow) return@fetchMultiple
                         for (i in 0 until container.childCount) {
-                            val r = container.getChildAt(i); val n = r.findViewById<TextView>(R.id.tv_status_username).text.toString(); val p = presenceMap[n.lowercase()]; r.findViewById<ImageView>(R.id.iv_status_icon).setImageResource(if (p?.isOnline == true) R.drawable.d_online else R.drawable.d_offline)
+                            val r = container.getChildAt(i)
+                            val n = r.findViewById<TextView>(R.id.tv_status_username).text.toString().removeSuffix(" • Request")
+                            val p = presenceMap[n.lowercase()]
+                            r.findViewById<ImageView>(R.id.iv_status_icon).setImageResource(if (p?.isOnline == true) R.drawable.d_online else R.drawable.d_offline)
                         }
                     }
                 }

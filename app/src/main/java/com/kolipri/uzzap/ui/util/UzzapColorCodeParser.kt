@@ -10,7 +10,7 @@ object UzzapColorCodeParser {
     private val colors = mapOf(
         1 to 0xFF000000.toInt(), 2 to 0xFF009600.toInt(), 3 to 0xFFFF0000.toInt(), 4 to 0xFF0000FF.toInt(),
         5 to 0xFFBEAA00.toInt(), 6 to 0xFFFF8C00.toInt(), 7 to 0xFF800080.toInt(), 8 to 0xFFFF69B4.toInt(),
-        9 to 0xFF808080.toInt(), 10 to 0xFFFFFFFF.toInt(), 11 to 0xFF00FFFF.toInt(), 12 to 0xFFFF00FF.toInt(),
+        9 to 0xFF808080.toInt(), 10 to 0xFF006400.toInt(), 11 to 0xFF00FFFF.toInt(), 12 to 0xFFFF00FF.toInt(),
         13 to 0xFF00FF00.toInt(), 14 to 0xFFD4AF37.toInt(), 15 to 0xFF8B4513.toInt(), 16 to 0xFF000080.toInt(),
         17 to 0xFF87CEEB.toInt(), 18 to 0xFF8A2BE2.toInt(), 19 to 0xFF008080.toInt(), 20 to 0xFF800000.toInt(),
         21 to 0xFF808000.toInt(), 22 to 0xFFC0C0C0.toInt(), 23 to 0xFFFF7F50.toInt(), 24 to 0xFF40E0D0.toInt(),

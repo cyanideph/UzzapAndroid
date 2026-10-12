@@ -139,6 +139,13 @@ object UzzapNotificationManager {
         notifyPrivateMessages(context, 1, listOf(sender), listOf(System.currentTimeMillis()), messageText)
     }
 
+    fun clearAllNotifications(context: Context) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(NOTIFICATION_ID)
+        manager.cancel(EVENT_NOTIFICATION_ID)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
+    }
+
     fun clearPrivateMessageNotification(context: Context) {
         (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(NOTIFICATION_ID)
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()

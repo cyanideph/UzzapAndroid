@@ -40,67 +40,110 @@ class CenteredImageSpan(drawable: Drawable) : ImageSpan(drawable) {
     }
 }
 
+/**
+ * Single source of truth for Uzzap emoticons on Android.
+ *
+ * The network/database layer stores only the text code. Android owns the
+ * code -> drawable mapping and is the only layer that decides how a code
+ * is rendered. The picker consumes this same registry, so it cannot drift
+ * from the renderer.
+ */
 object EmoticonParser {
-    private val CODE_TO_DRAWABLE: Map<String, Int> = buildMap {
-        listOf(":)", ":-)", "(:", "(:-", "🙂", "😊", "☺️", "😀", "😃", "😄", "😸").forEach { put(it, R.drawable.d_emoticon_smile) }
-        listOf(";)", ";-)", ";D", ";d", "😉", "😜").forEach { put(it, R.drawable.d_emoticon_wink) }
-        listOf(":(", ":-(", "):", ")-:", "🙁", "☹️", "😞", "😔", "😟").forEach { put(it, R.drawable.d_emoticon_sad) }
-        listOf(":D", ":-D", ":d", ":-d", "xD", "XD", "😆", "😹", "🤣", "😂", "😁").forEach { put(it, R.drawable.d_emoticon_laugh) }
-        listOf(":p", ":-p", ":P", ":-P", "😛", "😋", "😝").forEach { put(it, R.drawable.d_emoticon_tongue) }
-        listOf("<3", "[love]", "[heart]", "❤️", "💖", "💕", "💗", "💓", "💘", "💌", "😍", "🥰").forEach { put(it, R.drawable.d_emoticon_love) }
-        listOf(";(", ";-(", ":'(", ":'-(", "T_T", "T.T", "😢", "😭", "😿").forEach { put(it, R.drawable.d_emoticon_cry) }
-        listOf(">:(", ">:-(", ":-@", ":@", "😡", "😠", "🤬").forEach { put(it, R.drawable.d_emoticon_angry) }
-        listOf(":o", ":-o", ":O", ":-O", "=o", "=O", "😮", "😲", "😯", "😱", "🤯").forEach { put(it, R.drawable.d_emoticon_surprise) }
-        listOf(":s", ":-s", ":S", ":-S", "🤢", "🤮", "🤒", "🥴", "🤧").forEach { put(it, R.drawable.d_emoticon_sick) }
-        listOf(":o)", ":-o)", "🤡").forEach { put(it, R.drawable.d_emoticon_clown) }
-        listOf("\\o/", "\\\\o/", "[party]", "🎉", "🥳", "🎊", "🍾", "🥂").forEach { put(it, R.drawable.d_emoticon_party) }
-        listOf("[drink]", "[beer]", "🍺", "🍻", "🍹", "🍸", "🍷", "☕").forEach { put(it, R.drawable.d_emoticon_drink) }
-        listOf("[rose]", "[flower]", "@}->--", "🌹", "🥀", "🌸", "💐").forEach { put(it, R.drawable.d_emoticon_rose) }
-        listOf("[kiss]", ":*", ":-*", "💋", "😘", "😽").forEach { put(it, R.drawable.d_kiss) }
-
-        // Numbered Uzzap emoji assets. The picker stores these markers in Supabase;
-        // this display parser converts them back to the actual drawable locally.
-        for (code in listOf(11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 47)) {
-            put("[emoticon-$code]", when (code) {
-                11 -> R.drawable.d_emoticon_11
-                12 -> R.drawable.d_emoticon_12
-                13 -> R.drawable.d_emoticon_13
-                14 -> R.drawable.d_emoticon_14
-                15 -> R.drawable.d_emoticon_15
-                16 -> R.drawable.d_emoticon_16
-                17 -> R.drawable.d_emoticon_17
-                18 -> R.drawable.d_emoticon_18
-                19 -> R.drawable.d_emoticon_19
-                20 -> R.drawable.d_emoticon_20
-                47 -> R.drawable.d_emoticon_47
-                else -> error("Unsupported numbered emoticon: $code")
-            })
-        }
-
-        put("[head-buntis]", R.drawable.d_head_buntis)
-        put("[head-deckard]", R.drawable.d_head_deckard)
-        put("[head-jp]", R.drawable.d_head_jp)
-        put("[head-kool]", R.drawable.d_head_kool)
-        put("[head-lupz]", R.drawable.d_head_lupz)
-        put("[head-requiem]", R.drawable.d_head_requiem)
-        put("[head-root]", R.drawable.d_head_root)
-        put("[head-saiyan]", R.drawable.d_head_saiyan)
-        put("[head-valkyrie]", R.drawable.d_head_valkyrie)
-    }
-
-    private val EMOTICON_PATTERN: Pattern = Pattern.compile(
-        CODE_TO_DRAWABLE.keys.sortedByDescending { it.length }.joinToString("|") { Pattern.quote(it) }
+    data class Definition(
+        val code: String,
+        val drawableRes: Int,
+        val label: String = code
     )
 
-    private fun getSizedDrawable(context: Context, resId: Int, targetHeightPx: Int): Drawable? {
-        val original = ContextCompat.getDrawable(context, resId) ?: return null
-        val d = original.constantState?.newDrawable(context.resources)?.mutate() ?: original.mutate()
-        val widthPx = if (d.intrinsicHeight > 0) (targetHeightPx * d.intrinsicWidth) / d.intrinsicHeight else targetHeightPx
-        d.setBounds(0, 0, widthPx, targetHeightPx)
-        return d
-    }
+    val definitions: List<Definition> = listOf(
+        Definition(":)", R.drawable.d_emoticon_smile, "Smile"),
+        Definition(":-)", R.drawable.d_emoticon_smile, "Smile"),
+        Definition(":(", R.drawable.d_emoticon_sad, "Sad"),
+        Definition(":-(", R.drawable.d_emoticon_sad, "Sad"),
+        Definition(";)", R.drawable.d_emoticon_wink, "Wink"),
+        Definition(";-)", R.drawable.d_emoticon_wink, "Wink"),
+        Definition(":p", R.drawable.d_emoticon_tongue, "Tongue"),
+        Definition(":-p", R.drawable.d_emoticon_tongue, "Tongue"),
+        Definition(":P", R.drawable.d_emoticon_tongue, "Tongue"),
+        Definition(":-P", R.drawable.d_emoticon_tongue, "Tongue"),
+        Definition(":D", R.drawable.d_emoticon_laugh, "Laugh"),
+        Definition(":-D", R.drawable.d_emoticon_laugh, "Laugh"),
+        Definition("<3", R.drawable.d_emoticon_love, "Love"),
+        Definition("[love]", R.drawable.d_emoticon_love, "Love"),
+        Definition(";(", R.drawable.d_emoticon_cry, "Cry"),
+        Definition(";-(", R.drawable.d_emoticon_cry, "Cry"),
+        Definition(">:(", R.drawable.d_emoticon_angry, "Angry"),
+        Definition(">:-(", R.drawable.d_emoticon_angry, "Angry"),
+        Definition(":o", R.drawable.d_emoticon_surprise, "Surprise"),
+        Definition(":-o", R.drawable.d_emoticon_surprise, "Surprise"),
+        Definition(":s", R.drawable.d_emoticon_sick, "Sick"),
+        Definition(":o)", R.drawable.d_emoticon_clown, "Clown"),
+        Definition("\\o/", R.drawable.d_emoticon_party, "Party"),
+        Definition("[party]", R.drawable.d_emoticon_party, "Party"),
+        Definition("[drink]", R.drawable.d_emoticon_drink, "Drink"),
+        Definition("[rose]", R.drawable.d_emoticon_rose, "Rose"),
+        Definition("[kiss]", R.drawable.d_kiss, "Kiss"),
+        Definition(":*", R.drawable.d_kiss, "Kiss"),
 
-    fun hasEmoticons(text: CharSequence?): Boolean = !text.isNullOrEmpty() && EMOTICON_PATTERN.matcher(text).find()
+        // Exact legacy Uzzap codes from the original client.
+        Definition(":e", R.drawable.d_emoticon_e),
+        Definition(">|", R.drawable.d_emoticon_angry),
+        Definition(":>", R.drawable.d_emoticon_tongue),
+        Definition(":DD", R.drawable.d_emoticon_11),
+        Definition("o/", R.drawable.d_emoticon_12),
+        Definition(":Oo", R.drawable.d_emoticon_13),
+        Definition(">,", R.drawable.d_emoticon_14),
+        Definition(":|", R.drawable.d_emoticon_15),
+        Definition(":B,", R.drawable.d_emoticon_16),
+        Definition(":OOo", R.drawable.d_emoticon_17),
+        Definition(":Zz.", R.drawable.d_emoticon_18),
+        Definition("O:)", R.drawable.d_emoticon_19),
+        Definition("))(", R.drawable.d_emoticon_20),
+        Definition(">><)", R.drawable.d_emoticon_47),
+        Definition("<:D", R.drawable.d_emoticon_clown),
+        Definition("(cU)", R.drawable.d_emoticon_drink),
+        Definition("<:)", R.drawable.d_emoticon_party),
+        Definition("(+)", R.drawable.d_emoticon_sick),
+        Definition("@};-", R.drawable.d_emoticon_rose),
+        Definition("@}->--", R.drawable.d_emoticon_rose),
+
+        // Backward-compatible markers used by earlier app versions.
+        Definition("[emoticon-11]", R.drawable.d_emoticon_11),
+        Definition("[emoticon-12]", R.drawable.d_emoticon_12),
+        Definition("[emoticon-13]", R.drawable.d_emoticon_13),
+        Definition("[emoticon-14]", R.drawable.d_emoticon_14),
+        Definition("[emoticon-15]", R.drawable.d_emoticon_15),
+        Definition("[emoticon-16]", R.drawable.d_emoticon_16),
+        Definition("[emoticon-17]", R.drawable.d_emoticon_17),
+        Definition("[emoticon-18]", R.drawable.d_emoticon_18),
+        Definition("[emoticon-19]", R.drawable.d_emoticon_19),
+        Definition("[emoticon-20]", R.drawable.d_emoticon_20),
+        Definition("[emoticon-47]", R.drawable.d_emoticon_47),
+
+        Definition("[head-buntis]", R.drawable.d_head_buntis),
+        Definition("[head-deckard]", R.drawable.d_head_deckard),
+        Definition("[head-jp]", R.drawable.d_head_jp),
+        Definition("[head-kool]", R.drawable.d_head_kool),
+        Definition("[head-lupz]", R.drawable.d_head_lupz),
+        Definition("[head-requiem]", R.drawable.d_head_requiem),
+        Definition("[head-root]", R.drawable.d_head_root),
+        Definition("[head-saiyan]", R.drawable.d_head_saiyan),
+        Definition("[head-valkyrie]", R.drawable.d_head_valkyrie)
+    )
+
+    private val codeToDrawable: Map<String, Int> =
+        definitions.associate { it.code to it.drawableRes }
+
+    private val emoticonPattern: Pattern = Pattern.compile(
+        definitions.map { it.code }
+            .sortedByDescending { it.length }
+            .joinToString("|") { Pattern.quote(it) }
+    )
+
+    fun drawableFor(code: String): Int? = codeToDrawable[code]
+
+    fun hasEmoticons(text: CharSequence?): Boolean =
+        !text.isNullOrEmpty() && emoticonPattern.matcher(text).find()
 
     fun parse(context: Context, text: CharSequence?, textSizeSp: Float = 15f): CharSequence {
         if (text.isNullOrEmpty()) return ""
@@ -109,16 +152,35 @@ object EmoticonParser {
         return ssb
     }
 
+    private fun getSizedDrawable(context: Context, resId: Int, targetHeightPx: Int): Drawable? {
+        val original = ContextCompat.getDrawable(context, resId) ?: return null
+        val d = original.constantState?.newDrawable(context.resources)?.mutate() ?: original.mutate()
+        val widthPx = if (d.intrinsicHeight > 0) {
+            (targetHeightPx * d.intrinsicWidth) / d.intrinsicHeight
+        } else {
+            targetHeightPx
+        }
+        d.setBounds(0, 0, widthPx, targetHeightPx)
+        return d
+    }
+
     fun applySpans(context: Context, text: Spannable, textSizeSp: Float = 15f) {
         val oldSpans = text.getSpans(0, text.length, CenteredImageSpan::class.java)
         for (old in oldSpans) text.removeSpan(old)
+
         val density = context.resources.displayMetrics.scaledDensity
         val targetHeightPx = (textSizeSp * density * 1.25f).toInt().coerceAtLeast(18)
-        val matcher = EMOTICON_PATTERN.matcher(text)
+        val matcher = emoticonPattern.matcher(text)
+
         while (matcher.find()) {
-            val resId = CODE_TO_DRAWABLE[matcher.group()] ?: continue
+            val resId = codeToDrawable[matcher.group()] ?: continue
             val drawable = getSizedDrawable(context, resId, targetHeightPx) ?: continue
-            text.setSpan(CenteredImageSpan(drawable), matcher.start(), matcher.end(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            text.setSpan(
+                CenteredImageSpan(drawable),
+                matcher.start(),
+                matcher.end(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
         }
     }
 }

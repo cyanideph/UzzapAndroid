@@ -14,7 +14,7 @@ object ModerationAuditClient {
     private val http = OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
     private val url = BuildConfig.SUPABASE_URL.trimEnd('/')
     private val key = BuildConfig.SUPABASE_ANON_KEY
-    private fun req(path: String) = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", "Bearer ${SupabaseClient.userAccessToken.orEmpty()}").header("Content-Type", "application/json")
+    private fun req(path: String) = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", SupabaseClient.authHeader()).header("Content-Type", "application/json")
 
     fun fetch(onResult: (List<ModerationAction>?) -> Unit) {
         val path = "/rest/v1/moderation_actions?select=id,moderator_id,target_username,action_type,room_name,reason,expires_at,created_at&order=created_at.desc&limit=200"

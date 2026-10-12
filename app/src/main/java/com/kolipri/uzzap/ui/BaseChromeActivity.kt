@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkRequest
+import java.util.Collections
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,6 +13,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.content.Intent
 import androidx.annotation.LayoutRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -22,6 +24,9 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppDiagnostics
+import com.kolipri.uzzap.data.PresenceClient
+import com.kolipri.uzzap.data.SupabaseClient
+import com.kolipri.uzzap.data.UzzapNotificationManager
 
 /** Shared phone chrome plus automatic diagnostics for screens and hosted fragments. */
 abstract class BaseChromeActivity : AppCompatActivity() {
@@ -34,8 +39,21 @@ abstract class BaseChromeActivity : AppCompatActivity() {
 
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private val activeNetworks = Collections.synchronizedSet(mutableSetOf<Network>())
+    @Volatile private var destroyed = false
     protected var isNetworkConnected: Boolean = true
         private set
+
+    private val sessionExpiredListener: () -> Unit = {
+        if (!destroyed && !isFinishing && !isDestroyed) {
+            UzzapNotificationManager.clearAllNotifications(this)
+            AppDiagnostics.warn(this, "Auth.Session", "Session expired; returning to login")
+            startActivity(Intent(this, SplashMenuActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            })
+            finish()
+        }
+    }
 
     private val fragmentDiagnostics = object : FragmentManager.FragmentLifecycleCallbacks() {
         override fun onFragmentCreated(fm: FragmentManager, f: Fragment, savedInstanceState: Bundle?) {
@@ -65,6 +83,7 @@ abstract class BaseChromeActivity : AppCompatActivity() {
         appliedThemeName = ThemeManager.current(this)
         super.onCreate(savedInstanceState)
         AppDiagnostics.monitorActivity(this, "chrome_create")
+        SupabaseClient.addSessionExpiredListener(sessionExpiredListener)
         supportFragmentManager.registerFragmentLifecycleCallbacks(fragmentDiagnostics, true)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -88,18 +107,29 @@ abstract class BaseChromeActivity : AppCompatActivity() {
         tabStripContainer = findViewById(R.id.tab_strip_container)
 
         connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-        val activeNetwork = connectivityManager?.activeNetworkInfo
-        setConnectionStatus(activeNetwork?.isConnectedOrConnecting == true)
+        val activeNetwork = connectivityManager?.activeNetwork
+        if (activeNetwork != null) {
+            activeNetworks.add(activeNetwork)
+            setConnectionStatus(true)
+        } else {
+            setConnectionStatus(false)
+        }
         networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = runOnUiThread {
+                if (destroyed || isFinishing || isDestroyed) return@runOnUiThread
+                val wasDisconnected = activeNetworks.isEmpty()
+                activeNetworks.add(network)
                 setConnectionStatus(true)
                 AppDiagnostics.event("Network", AppDiagnostics.Status.PASS, "AVAILABLE")
-                onNetworkRestored()
+                if (wasDisconnected) onNetworkRestored()
             }
             override fun onLost(network: Network) = runOnUiThread {
-                setConnectionStatus(false)
+                if (destroyed || isFinishing || isDestroyed) return@runOnUiThread
+                activeNetworks.remove(network)
+                val stillConnected = activeNetworks.isNotEmpty()
+                setConnectionStatus(stillConnected)
                 AppDiagnostics.event("Network", AppDiagnostics.Status.WARN, "LOST")
-                onNetworkLost()
+                if (!stillConnected) onNetworkLost()
             }
         }
         runCatching { connectivityManager?.registerNetworkCallback(NetworkRequest.Builder().build(), networkCallback!!) }
@@ -137,8 +167,21 @@ abstract class BaseChromeActivity : AppCompatActivity() {
     protected open fun onNetworkRestored() {}
     protected open fun onNetworkLost() {}
 
+    override fun onResume() {
+        super.onResume()
+        if (!com.kolipri.uzzap.data.SupabaseClient.userAccessToken.isNullOrBlank()) PresenceClient.startHeartbeat()
+    }
+
+    override fun onPause() {
+        PresenceClient.stopHeartbeat()
+        super.onPause()
+    }
+
     override fun onDestroy() {
         supportFragmentManager.unregisterFragmentLifecycleCallbacks(fragmentDiagnostics)
+        SupabaseClient.removeSessionExpiredListener(sessionExpiredListener)
+        destroyed = true
+        activeNetworks.clear()
         networkCallback?.let { runCatching { connectivityManager?.unregisterNetworkCallback(it) } }
         AppDiagnostics.monitorActivity(this, "chrome_destroy")
         super.onDestroy()

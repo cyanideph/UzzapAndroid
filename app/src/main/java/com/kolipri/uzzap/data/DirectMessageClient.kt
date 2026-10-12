@@ -19,18 +19,20 @@ object DirectMessageClient {
     private val url = BuildConfig.SUPABASE_URL.trimEnd('/')
     private val key = BuildConfig.SUPABASE_ANON_KEY
     private val json = "application/json; charset=utf-8".toMediaType()
-    private fun req(path: String): Request.Builder = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", "Bearer ${SupabaseClient.userAccessToken.orEmpty()}").header("Content-Type", "application/json")
+    private fun req(path: String): Request.Builder = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", SupabaseClient.authHeader()).header("Content-Type", "application/json")
 
     private fun currentUserId(): String? = SupabaseClient.userAccessToken?.let { token -> runCatching { val p = token.split('.').getOrNull(1) ?: return@runCatching null; val bytes = Base64.decode(p, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING); JSONObject(String(bytes, StandardCharsets.UTF_8)).optString("sub").ifBlank { null } }.getOrNull() }
     private data class UserRef(val id: String, val username: String)
-    private fun normalizeUsername(username: String): String = username.trim().lowercase().replace(" ", "_")
 
     private fun resolveUser(username: String, cb: (UserRef?) -> Unit) {
-        val u = URLEncoder.encode(normalizeUsername(username), "UTF-8")
-        val path = "/rest/v1/profiles?username=eq.$u&select=owner_id,username&limit=1"
+        // profiles.username keeps registration case: ilike lookup, then exact
+        // canonical match (ilike wildcards can over-match).
+        val wanted = username.trim()
+        val u = URLEncoder.encode(wanted, "UTF-8")
+        val path = "/rest/v1/profiles?username=ilike.$u&select=owner_id,username&limit=10"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { cb(null) } }
-            override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { main.post { cb(null) }; return }; val value = runCatching { val o = JSONArray(it.body?.string().orEmpty()).optJSONObject(0) ?: return@runCatching null; val id = o.optString("owner_id").ifBlank { return@runCatching null }; val canonical = o.optString("username").ifBlank { return@runCatching null }; UserRef(id, canonical) }.getOrNull(); main.post { cb(value) } } }
+            override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { main.post { cb(null) }; return }; val value = runCatching { val arr = JSONArray(it.body?.string().orEmpty()); (0 until arr.length()).mapNotNull { i -> arr.optJSONObject(i) }.firstOrNull { o -> matchesHandle(o.optString("username"), wanted) }?.let { o -> val id = o.optString("owner_id").ifBlank { return@runCatching null }; val canonical = o.optString("username").ifBlank { return@runCatching null }; UserRef(id, canonical) } }.getOrNull(); main.post { cb(value) } } }
         })
     }
 
@@ -117,4 +119,35 @@ object DirectMessageClient {
             }
         }
     }
+
+    /** Returns recent conversation partners from the authenticated user's own messages. */
+    fun fetchRecentConversationPartners(onResult: (List<String>) -> Unit) {
+        val myId = currentUserId()
+        if (myId.isNullOrBlank()) { main.post { onResult(emptyList()) }; return }
+        val encoded = URLEncoder.encode(myId, "UTF-8")
+        val or = URLEncoder.encode("(sender_id.eq.$myId,recipient_id.eq.$myId)", "UTF-8")
+        val path = "/rest/v1/direct_messages?or=$or&select=sender,recipient,created_at&order=created_at.desc&limit=100"
+        http.newCall(req(path).get().build()).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) { main.post { onResult(emptyList()) } }
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    if (!it.isSuccessful) { main.post { onResult(emptyList()) }; return }
+                    val partners = runCatching {
+                        val array = JSONArray(it.body?.string().orEmpty())
+                        buildList {
+                            for (i in 0 until array.length()) {
+                                val o = array.optJSONObject(i) ?: continue
+                                val sender = o.optString("sender").trim()
+                                val recipient = o.optString("recipient").trim()
+                                val partner = if (sender.equals(AppState.username, true)) recipient else sender
+                                if (partner.isNotBlank() && !partner.equals(AppState.username, true) && none<String> { existing -> existing.equals(partner, true) }) add(partner)
+                            }
+                        }
+                    }.getOrDefault(emptyList())
+                    main.post { onResult(partners) }
+                }
+            }
+        })
+    }
+
 }

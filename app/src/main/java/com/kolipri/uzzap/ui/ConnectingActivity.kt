@@ -19,6 +19,8 @@ class ConnectingActivity : BaseChromeActivity() {
     override fun contentLayoutRes() = R.layout.content_connecting
 
     private val pendingRunnables = mutableListOf<Runnable>()
+    private var navigated = false
+    private var keyError = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,8 +34,14 @@ class ConnectingActivity : BaseChromeActivity() {
         tvStatus.text = getString(R.string.status_connecting)
 
         // Start background health and room sync
-        SupabaseClient.checkHealth { isOnline, tablesReady, _ ->
+        SupabaseClient.checkHealth { isOnline, tablesReady, status ->
             if (isFinishing || isDestroyed) return@checkHealth
+            if (!isOnline && status.contains("key", ignoreCase = true)) {
+                keyError = true
+                showConnectedBall(false)
+                tvStatus.text = status
+                return@checkHealth
+            }
             if (isOnline) {
                 AppState.syncProfileToSupabase()
                 com.kolipri.uzzap.data.FcmClient.syncTokenWithSupabase(this@ConnectingActivity)
@@ -64,14 +72,17 @@ class ConnectingActivity : BaseChromeActivity() {
         pendingRunnables.add(initRunnable)
         handler.postDelayed(initRunnable, 1700)
 
-        // Stage 4: Navigate to AppGridActivity after 2600ms
-        val navRunnable = Runnable {
-            if (isFinishing || isDestroyed) return@Runnable
-            startActivity(Intent(this, AppGridActivity::class.java))
-            finish()
-        }
+        // Stage 4: Navigate to AppGridActivity after 2600ms (blocked on key/config errors)
+        val navRunnable = Runnable { navigateOnce() }
         pendingRunnables.add(navRunnable)
         handler.postDelayed(navRunnable, 2600)
+    }
+
+    private fun navigateOnce() {
+        if (navigated || keyError || isFinishing || isDestroyed) return
+        navigated = true
+        startActivity(Intent(this, AppGridActivity::class.java))
+        finish()
     }
 
     private fun showOptions() {

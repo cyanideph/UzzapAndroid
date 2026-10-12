@@ -60,8 +60,8 @@
     <string name="menu_list_participants">List Participants</string>
     <string name="menu_invite_participants">Invite Participants</string>
     <string name="menu_leave_chatroom">Leave Chatroom</string>
-    <string name="leave_room_confirm">Are you sure you want to leave this chat room?</string>
+    <string name="hide_room_confirm">Are you sure you want to hide this chat room? You can come back anytime from Chat Rooms.</string>
 
-    <string name="welcome_title">Welcome %1$s!</string>
-    <string name="welcome_intro">Here are some things to try:</string>
+    <string name="welcome_title">Welcome %1$s</string>
+    <string name="welcome_intro">Start with these essentials:</string>
 </resources>

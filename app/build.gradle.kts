@@ -13,12 +13,10 @@ android {
         applicationId = "com.cy.uzzap"
         minSdk = 23
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.0-beta.7"
+        versionCode = 8
+        versionName = "1.0-beta.8"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Client-side Supabase configuration.
-        // Only the publishable/anon key belongs in an Android client.
-        // Never put a service-role/secret key in the APK.
         val envProps = Properties().apply {
             val envExample = rootProject.file(".env.example")
             if (envExample.exists()) envExample.inputStream().use { load(it) }
@@ -26,11 +24,8 @@ android {
             if (envFile.exists()) envFile.inputStream().use { load(it) }
         }
 
-        // Production/source-of-truth Uzzap database: KOTLINJARZAP.
-        // Local/CI configuration can override it with -PSUPABASE_URL or SUPABASE_URL.
-        val defaultSupabaseUrl = "https://hrjgblvxhtbopuyzyasu.supabase.co"
+        val defaultSupabaseUrl = "https://mauhdrdnlrvjkekxencu.supabase.co"
         val defaultSupabaseAnonKey = ""
-
         val projectSupabaseUrl = providers.gradleProperty("SUPABASE_URL").orNull
         val projectSupabasePublishableKey = providers.gradleProperty("SUPABASE_PUBLISHABLE_KEY").orNull
         val projectSupabaseAnonKey = providers.gradleProperty("SUPABASE_ANON_KEY").orNull
@@ -41,20 +36,10 @@ android {
         val fileSupabasePublishableKey = envProps.getProperty("SUPABASE_PUBLISHABLE_KEY")
         val fileSupabaseAnonKey = envProps.getProperty("SUPABASE_ANON_KEY")
 
-        val supabaseUrl = (projectSupabaseUrl ?: envSupabaseUrl ?: fileSupabaseUrl ?: defaultSupabaseUrl)
-            .trim().trimEnd('/').ifBlank { defaultSupabaseUrl }
-        val supabaseKey = (projectSupabasePublishableKey
-            ?: envSupabasePublishableKey
-            ?: fileSupabasePublishableKey
-            ?: projectSupabaseAnonKey
-            ?: envSupabaseAnonKey
-            ?: fileSupabaseAnonKey
-            ?: defaultSupabaseAnonKey)
-            .trim()
+        val supabaseUrl = (projectSupabaseUrl ?: envSupabaseUrl ?: fileSupabaseUrl ?: defaultSupabaseUrl).trim().trimEnd('/').ifBlank { defaultSupabaseUrl }
+        val supabaseKey = (projectSupabasePublishableKey ?: envSupabasePublishableKey ?: fileSupabasePublishableKey ?: projectSupabaseAnonKey ?: envSupabaseAnonKey ?: fileSupabaseAnonKey ?: defaultSupabaseAnonKey).trim()
 
-        fun quoteBuildConfig(value: String): String =
-            "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
-
+        fun quoteBuildConfig(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
         buildConfigField("String", "SUPABASE_URL", quoteBuildConfig(supabaseUrl))
         buildConfigField("String", "SUPABASE_ANON_KEY", quoteBuildConfig(supabaseKey))
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoteBuildConfig(supabaseKey))
@@ -79,13 +64,8 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            if (!releaseKeystorePath.isNullOrBlank()) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (!releaseKeystorePath.isNullOrBlank()) signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -103,11 +83,11 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("com.google.android.material:material:1.11.0")
+    implementation("com.google.android.material:material:1.14.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.fragment:fragment-ktx:1.6.2")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.2.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.coil-kt:coil:2.6.0")
     implementation("io.coil-kt:coil-gif:2.6.0")
@@ -116,4 +96,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-process:2.7.0")
     implementation("com.google.firebase:firebase-messaging:23.4.1")
     testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:core:1.7.0")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:rules:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 }

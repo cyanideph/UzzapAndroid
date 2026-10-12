@@ -161,8 +161,8 @@ The Kotlin room hierarchy is authoritative from Supabase instead of fake/local r
 
 ## 10. Remaining parity gaps
 
-1. Persistent buddy deletion needs a dedicated backend delete call and UI confirmation.
+1. Buddy deletion is implemented client-side via owner-scoped backend delete (`SupabaseClient.deleteBuddy`); keep UI confirmation.
 2. Legacy external Yahoo/MSN/SMS/email transports are not part of the Supabase-native architecture.
 3. Legacy authorization/contact metadata is not represented as a first-class table yet.
-4. Background push notifications are currently polling-based; a true push/realtime channel can be added later without changing the PM data model.
+4. Push delivery runs through the `send-push` Edge Function + FCM (token registered via `upsert_fcm_token` RPC); REST polling remains as the realtime fallback channel.
 5. Enable Supabase leaked-password protection in Auth settings before production.

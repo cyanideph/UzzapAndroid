@@ -12,6 +12,7 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.content.Intent
+import android.net.Uri
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -170,38 +171,38 @@ class LegacySettingsActivity : BaseChromeActivity() {
     }
 
     private fun settingsScreen() {
-        val labels = listOf("Edit My Profile", "Change Status", "Change Password", "Change Mobile Number", "Offline Settings", "Chatroom Tones", "Battery Saving", "Extended Messaging", "Instant Messaging", "Privacy", "Theme", "Subscription", "Delete Account", "Back")
-        val subtitles = listOf("Nickname, presence and about me", "Available / Not Available / Invisible", "Update your account password", "Update the mobile number on your account", "Offline message and status behavior", "Chatroom, PM and buddy notification sounds", "Reduce background activity", "Buddy list and messaging tools", "Private messaging entry point", "Invitation and presence controls", "Choose the Uzzap appearance", "Account subscription information", "Permanently delete account and chat history", "Return to Uzzap")
-        rows("Settings", labels, labels.map { label ->
-            {
-                when (label) {
-                    "Edit My Profile" -> startActivity(UzzapParityActivity.intent(this, UzzapParityActivity.MODE_PROFILE))
-                    "Change Status" -> open(MODE_STATUS)
-                    "Change Password" -> open(MODE_PASSWORD)
-                    "Change Mobile Number" -> open(MODE_MOBILE)
-                    "Offline Settings" -> open(MODE_OFFLINE)
-                    "Chatroom Tones" -> open(MODE_TONES)
-                    "Battery Saving" -> open(MODE_BATTERY)
-                    "Extended Messaging" -> open(MODE_EM)
-                    "Instant Messaging" -> open(MODE_IM)
-                    "Privacy" -> open(MODE_PRIVACY)
-                    "Theme" -> startActivity(UzzapParityActivity.intent(this, UzzapParityActivity.MODE_THEMES))
-                    "Subscription" -> open(MODE_SUBSCRIPTION)
-                    "Delete Account" -> confirmDeleteAccount()
-                    else -> finish()
-                }
-            }
-        }, subtitles, listOf(
-            R.drawable.d_edit, R.drawable.d_d003_status_small, R.drawable.d_settings,
-            R.drawable.d_n001_abm_small, R.drawable.d_outbox, R.drawable.d_n008_ringtone_small,
-            R.drawable.d_n007_batteryinfo_small, R.drawable.d_d000_em_small, R.drawable.d_d001_im_small,
-            R.drawable.d_padlock, R.drawable.d_n005_themes_small, R.drawable.d_billing,
-            R.drawable.d_minus, 0
-        ), listOf(
-            "anim-icons/edit_profile.gif", "anim-icons/status_user.gif", "anim-icons/password_lock.gif",
-            "anim-icons/im_profile.gif", "anim-icons/upload_arrow.gif", "anim-icons/tones_spectrum.gif",
-            "anim-icons/battery_animated.gif", "anim-icons/em_chat.gif", "anim-icons/im_chat2.gif",
-            "anim-icons/privacy_lock.gif", "anim-icons/theme_palette.gif", "anim-icons/subscription_card.gif", "anim-icons/delete_trash.gif", null
+        // Exact legacy Uzzap Settings menu from com.kolipri.kalypte.aa:
+        // 1 Edit My Profile, 2 Change Status, 3 Change Password,
+        // 4 Change Mobile Number, 5 Offline Settings, 6 Chatroom Tones.
+        val labels = listOf(
+            "Edit My Profile",
+            "Change Status",
+            "Change Password",
+            "Change Mobile Number",
+            "Offline Settings",
+            "Chatroom Tones"
+        )
+        rows("Settings", labels, listOf(
+            { startActivity(UzzapParityActivity.intent(this, UzzapParityActivity.MODE_PROFILE)) },
+            { open(MODE_STATUS) },
+            { open(MODE_PASSWORD) },
+            { open(MODE_MOBILE) },
+            { open(MODE_OFFLINE) },
+            { open(MODE_TONES) }
+        ), icons = listOf(
+            R.drawable.d_edit,
+            R.drawable.d_d003_status_small,
+            R.drawable.d_settings,
+            R.drawable.d_n001_abm_small,
+            R.drawable.d_outbox,
+            R.drawable.d_n008_ringtone_small
+        ), animAssets = listOf(
+            "anim-icons/edit_profile.gif",
+            "anim-icons/status_user.gif",
+            "anim-icons/password_lock.gif",
+            "anim-icons/im_profile.gif",
+            "anim-icons/upload_arrow.gif",
+            "anim-icons/tones_spectrum.gif"
         ))
     }
 
@@ -215,7 +216,7 @@ class LegacySettingsActivity : BaseChromeActivity() {
     private fun performAccountDeletion() {
         val textColor = ThemeManager.resolve(this, R.attr.uzzapColorText)
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = GradientDrawable().apply { setColor(0x2B8EEF04); cornerRadius = dp(14).toFloat() } }
+        val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = GradientDrawable().apply { setColor(0x2BAF0C0D); cornerRadius = dp(14).toFloat() } }
         tile.addView(ImageView(this).apply { loadAnimIcon("anim-icons/delete_trash.gif") }, LinearLayout.LayoutParams(dp(30), dp(30)))
         row.addView(tile, LinearLayout.LayoutParams(dp(48), dp(48)))
         row.addView(TextView(this).apply { text = "Please wait while your account is deleted..."; textSize = 14f; setTextColor(textColor); setPadding(dp(12), 0, 0, 0) })
@@ -227,20 +228,25 @@ class LegacySettingsActivity : BaseChromeActivity() {
         progress.show()
 
         SupabaseClient.deleteAccount { success ->
-            progress.dismiss()
-            Toast.makeText(this, if (success) "Account deleted successfully." else "Local account session cleared.", Toast.LENGTH_SHORT).show()
-            AppState.resetSession()
-            SessionStore.clear()
-            val intent = Intent(this, SplashMenuActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            if (!isFinishing && !isDestroyed) progress.dismiss()
+            else return@deleteAccount
+            if (success) {
+                Toast.makeText(this, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
+                AppState.resetSession()
+                SessionStore.clear()
+                val intent = Intent(this, SplashMenuActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+                startActivity(intent)
+                finish()
+            } else {
+                Toast.makeText(this, "Account deletion failed. Your account was not deleted.", Toast.LENGTH_LONG).show()
             }
-            startActivity(intent)
-            finish()
         }
     }
 
     private fun statusScreen() {
-        rows("Change Status", listOf("Status Message", "Available", "Not Available", "Invisible"), listOf(
+        rows("Change Status", listOf("Status Message..", "Available", "Not Available", "Invisible"), listOf(
             { statusMessageDialog() }, { setPresence(Presence.AVAILABLE) }, { setPresence(Presence.NOT_AVAILABLE) }, { setPresence(Presence.INVISIBLE) }
         ), listOf("Set your personal status message", "Show me as available", "Show me as not available", "Hide my online presence"))
     }
@@ -343,7 +349,41 @@ class LegacySettingsActivity : BaseChromeActivity() {
         { finish() }
     ), listOf("Open the private messaging list", "Return to Settings"))
 
-    private fun privacyScreen() = toggleScreen("Privacy", listOf("Allow buddy invitations", "Allow room invitations", "Show my online presence"), "privacy")
+    private fun privacyScreen() {
+        rows(
+            "Privacy",
+            listOf("Privacy Policy", "Request Account Deletion", "Allow buddy invitations", "Allow room invitations", "Show my online presence"),
+            listOf(
+                { openWebPage("https://mauhdrdnlrvjkekxencu.supabase.co/functions/v1/uzzap-privacy") },
+                { openWebPage("https://mauhdrdnlrvjkekxencu.supabase.co/functions/v1/uzzap-privacy?delete=1") },
+                { togglePrivacyPreference("privacy_allow_buddy_invitations", "Allow buddy invitations") },
+                { togglePrivacyPreference("privacy_allow_room_invitations", "Allow room invitations") },
+                { togglePrivacyPreference("privacy_show_presence", "Show my online presence") }
+            ),
+            listOf(
+                "How Uzzap collects, uses and deletes data",
+                "Delete your account even if the app is unavailable",
+                "Allow other users to send buddy invitations",
+                "Allow room invitations",
+                "Control your online presence"
+            )
+        )
+    }
+
+    private fun togglePrivacyPreference(key: String, label: String) {
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val next = !prefs.getBoolean(key, true)
+        prefs.edit().putBoolean(key, next).apply()
+        toast("$label: ${if (next) "ON" else "OFF"}")
+    }
+
+    private fun openWebPage(url: String) {
+        runCatching {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }.onFailure {
+            toast("Unable to open web page")
+        }
+    }
 
     private fun subscriptionScreen() {
         prepareScreen("Subscription", null, "Back", onLeft = null, onRight = { finish() })

@@ -7,7 +7,11 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   release:
@@ -15,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -23,19 +27,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
+      - name: Android setup (JDK, Gradle, Supabase key)
+        uses: ./.github/actions/android-setup
         with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Make Gradle wrapper executable
-        run: chmod +x ./gradlew
-
+          supabase-publishable-key: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
       - name: Validate release signing secrets
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -44,36 +39,38 @@ jobs:
           test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "Missing ANDROID_KEYSTORE_PASSWORD"; exit 1; }
           test -n "$ANDROID_KEY_ALIAS" || { echo "Missing ANDROID_KEY_ALIAS"; exit 1; }
           test -n "$ANDROID_KEY_PASSWORD" || { echo "Missing ANDROID_KEY_PASSWORD"; exit 1; }
-
       - name: Decode release keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/uzzap-release.jks"
           test -s "$RUNNER_TEMP/uzzap-release.jks"
-
-      - name: Run unit tests
+      - name: Run release unit tests
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/uzzap-release.jks
         run: |
           ./gradlew :app:testReleaseUnitTest \
-            -PSUPABASE_URL="${SUPABASE_URL}" \
-            -PSUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" \
+            -PSUPABASE_URL="$SUPABASE_URL" \
+            -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
             --stacktrace
-
       - name: Build signed release AAB
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/uzzap-release.jks
         run: |
           ./gradlew :app:bundleRelease \
-            -PSUPABASE_URL="${SUPABASE_URL}" \
-            -PSUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" \
+            -PSUPABASE_URL="$SUPABASE_URL" \
+            -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
             --stacktrace
-
-      - name: Upload signed AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: Uzzap-release-aab
-          path: app/build/outputs/bundle/release/*.aab
-          if-no-files-found: error
-          retention-days: 30
+      # Tags only: a manual dispatch builds and tests but must never cut a
+      # release named after a branch (previously created "Uzzap Android main").
+      - name: Publish signed AAB to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          AAB="$(find app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)"
+          test -n "$AAB" || { echo "Release AAB not found."; exit 1; }
+          TAG="$GITHUB_REF_NAME"
+          gh release create "$TAG" "$AAB" \
+            --title "Uzzap Android $TAG" \
+            --generate-notes

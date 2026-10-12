@@ -32,34 +32,50 @@ class WelcomeActivity : BaseChromeActivity() {
         bindTip(
             R.id.tip_im,
             R.drawable.d_d001_im_large,
-            "Chat privately with your buddies. Send messages, follow delivery and read status, and keep track of unread conversations."
-        )
+            "Private chats",
+            "Message buddies and see read status."
+        ) { startActivity(InstantMessagingActivity.intent(this)) }
         bindTip(
             R.id.tip_add,
             R.drawable.d_n002_buddies_large,
-            "Build your Buddy List. Add or remove buddies, check presence, start private chats, block users, and report problems when needed."
-        )
+            "Your buddies",
+            "Build your Buddy List and manage contacts."
+        ) { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_EM)) }
         bindTip(
             R.id.tip_chat,
             R.drawable.d_d002_chat_large,
-            "Explore Philippine chatrooms by region and province. Join a room, meet other users, send messages, invite buddies, and leave anytime."
-        )
+            "Chat rooms",
+            "Explore Philippine rooms and join conversations."
+        ) { startActivity(ChatHostActivity.intent(this, ChatHostActivity.MODE_CHAT)) }
         bindTip(
             R.id.tip_matching,
             R.drawable.d_n001_abm_large,
-            "Stay safe and connected. Use Report and Block when necessary. Authorized moderators can review reports and manage room safety."
-        )
+            "Stay safe",
+            "Report or block when needed."
+        ) { startActivity(SimpleTextActivity.intentForAsset(this, "Help", "help.txt")) }
+
+        markWelcomeSeen()
+    }
+
+    /** First-run memory: the full welcome shows once ever, later opens are tips. */
+    private fun markWelcomeSeen() {
+        getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit()
+            .putBoolean("welcome_seen_v1", true).apply()
     }
 
     private fun updateWelcomeTitle() {
         val accountName = AppState.username.ifBlank { AppState.nickname }.ifBlank { "Uzzap user" }
         findViewById<TextView>(R.id.tv_welcome_title).text =
-            "Welcome to Uzzap, $accountName!"
+            "Welcome to Uzzap, $accountName"
     }
 
-    private fun bindTip(containerId: Int, iconRes: Int, text: String) {
+    private fun bindTip(containerId: Int, iconRes: Int, title: String, text: String, onOpen: () -> Unit) {
         val container = findViewById<android.view.View>(containerId)
         container.findViewById<ImageView>(R.id.iv_tip_icon).setImageResource(iconRes)
+        container.findViewById<TextView>(R.id.tv_tip_title).text = title
         container.findViewById<TextView>(R.id.tv_tip_text).text = text
+        container.isClickable = true
+        container.isFocusable = true
+        container.setOnClickListener { onOpen() }
     }
 }

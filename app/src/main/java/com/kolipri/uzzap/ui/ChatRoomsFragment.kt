@@ -14,6 +14,7 @@ import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.ModeratorRoleClient
+import com.kolipri.uzzap.data.ModeratorRoomClient
 import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.data.UnifiedRoomClient
 import com.kolipri.uzzap.model.ChatRoomCategory
@@ -119,26 +120,45 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
                         }
                         ChatRoomCategory(category.name, rooms.sumOf { it.userCount }, rooms.sumOf { it.capacity }, rooms)
                     }.toMutableList()
-                    if (AppState.isModerator) {
-                        val modRemote = live["Moderator Room"] ?: 0
-                        val isModJoined = AppState.isRoomJoined("Moderator Room")
-                        val modCount = if (isModJoined && modRemote < 1) 1 else modRemote
-                        val moderatorRoom = ChatRoomInfo("Moderator Room", modCount, 50)
-                        updated.add(ChatRoomCategory("Moderation", moderatorRoom.userCount, moderatorRoom.capacity, listOf(moderatorRoom)))
+                    if (!AppState.isModerator) {
+                        finishRoomLoad(updated)
+                        return@liveCounts
                     }
-                    AppState.categories = updated
-                    loaded = true
-                    lastSuccessfulLoadAt = System.currentTimeMillis()
-                    loadInFlight = false
-                    tvLoading.visibility = View.GONE
-                    contentContainer.visibility = View.VISIBLE
-                    val selectedName = selectedCategory?.name
-                    selectedCategory = selectedName?.let { n -> updated.firstOrNull { it.name == n } }
-                    if (selectedCategory != null) showRoomsFor(selectedCategory!!) else showCategories()
-                    AppDiagnostics.success("RoomList.load", "regions=${updated.size} rooms=${updated.sumOf { it.rooms.size }}")
+                    // Never hardcode the moderator room name: resolve the
+                    // configured room so counts and taps target a real room.
+                    ModeratorRoomClient.fetchModeratorRoom { modName ->
+                        if (!isAdded) {
+                            loadInFlight = false
+                            return@fetchModeratorRoom
+                        }
+                        val name = modName?.ifBlank { null } ?: "Moderator Room"
+                        val modRemote = live[name] ?: 0
+                        val isModJoined = AppState.isRoomJoined(name)
+                        val modCount = if (isModJoined && modRemote < 1) 1 else modRemote
+                        val moderatorRoom = ChatRoomInfo(name, modCount, 50)
+                        updated.add(ChatRoomCategory("Moderation", moderatorRoom.userCount, moderatorRoom.capacity, listOf(moderatorRoom)))
+                        finishRoomLoad(updated)
+                    }
                 }
             }
         }
+    }
+
+    private fun finishRoomLoad(updated: MutableList<ChatRoomCategory>) {
+        if (!isAdded) {
+            loadInFlight = false
+            return
+        }
+        AppState.categories = updated
+        loaded = true
+        lastSuccessfulLoadAt = System.currentTimeMillis()
+        loadInFlight = false
+        tvLoading.visibility = View.GONE
+        contentContainer.visibility = View.VISIBLE
+        val selectedName = selectedCategory?.name
+        selectedCategory = selectedName?.let { n -> updated.firstOrNull { it.name == n } }
+        if (selectedCategory != null) showRoomsFor(selectedCategory!!) else showCategories()
+        AppDiagnostics.success("RoomList.load", "regions=${updated.size} rooms=${updated.sumOf { it.rooms.size }}")
     }
 
     private fun showCategories() {
@@ -152,7 +172,7 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
                 val liveUserCount = c.rooms.sumOf { r -> if (AppState.isRoomJoined(r.name)) maxOf(r.userCount, 1) else r.userCount }
                 val cap = if (c.capacity > 0) c.capacity else c.rooms.sumOf { if (it.capacity > 0) it.capacity else 20 }
                 v.findViewById<ImageView>(R.id.iv_room_icon).setImageResource(R.drawable.d_chatroom_category)
-                v.findViewById<TextView>(R.id.tv_room_label).text = "${if (moderator) "🛡️ " else ""}${c.name} ($liveUserCount/$cap)"
+                v.findViewById<TextView>(R.id.tv_room_label).text = "${c.name} ($liveUserCount/$cap)"
                 return v
             }
         }
@@ -171,7 +191,7 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
                 val count = if (isJoined) maxOf(r.userCount, 1) else r.userCount
                 val cap = if (r.capacity > 0) r.capacity else 20
                 v.findViewById<ImageView>(R.id.iv_room_icon).setImageResource(R.drawable.d_chat_icon)
-                v.findViewById<TextView>(R.id.tv_room_label).text = "${if (category.name == "Moderation") "🛡️ " else ""}${r.name} ($count/$cap)"
+                v.findViewById<TextView>(R.id.tv_room_label).text = "${r.name} ($count/$cap)"
                 return v
             }
         }
@@ -184,15 +204,23 @@ class ChatRoomsFragment : Fragment(R.layout.fragment_chat_rooms) {
     }
 
     private fun showOptionsMenu() {
-        val items = if (selectedCategory == null) listOf("Join Room", "Select Region", "Refresh Room List", "Refresh Region List", "Search Rooms", "Backend Status")
-        else listOf("Join Room", "Room Actions", "Refresh Room List", "Refresh Region List", "Search Rooms", "Backend Status")
-        J2mePopup.show(requireContext(), items.map { PopupItem(it) }) { index ->
+        // Exact legacy Chat Rooms list options from com.kolipri.kalypte.bm.
+        val labels = if (selectedCategory == null) {
+            listOf("Select Category", "Refresh Category List", "Start Buddy Group Chat", "Close Tab")
+        } else {
+            listOf("Join Room", "Refresh Room List", "Start Buddy Group Chat", "Close Tab")
+        }
+        J2mePopup.show(requireContext(), labels.map { PopupItem(it) }) { index ->
             when (index) {
-                0 -> if (selectedCategory?.rooms?.isNotEmpty() == true) host.openRoom(selectedCategory!!.rooms.first().name) else Toast.makeText(requireContext(), "Select a room first.", Toast.LENGTH_SHORT).show()
-                1 -> if (selectedCategory == null) showCategories() else selectedCategory?.rooms?.firstOrNull()?.let { startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_ACTIONS, it.name)) }
-                2, 3 -> refreshFromSupabase(initial = false)
-                4 -> showSearch()
-                5 -> UzzapDialogs.show(requireContext(), iconAsset = "anim-icons/menu_backend.gif", title = "Supabase Status", message = "Status: ${SupabaseClient.connectionStatus}\nRegions: ${AppState.categories.size}\nProvince rooms: ${AppState.categories.sumOf { it.rooms.size }}", positive = "OK")
+                0 -> if (selectedCategory == null) showCategories()
+                    else selectedCategory?.rooms?.firstOrNull()?.let { host.openRoom(it.name) }
+                1 -> refreshFromSupabase(initial = false)
+                2 -> {
+                    val room = selectedCategory?.rooms?.firstOrNull()
+                    if (room != null) startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_ACTIONS, room.name))
+                    else Toast.makeText(requireContext(), "Select a room first.", Toast.LENGTH_SHORT).show()
+                }
+                3 -> requireActivity().finish()
             }
         }
     }

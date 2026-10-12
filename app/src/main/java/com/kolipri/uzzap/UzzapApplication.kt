@@ -25,10 +25,7 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
     private val syncPresenceAndNotifications = object : Runnable {
         override fun run() {
             if (!foreground) return
-            if (SupabaseClient.userAccessToken.isNullOrBlank()) { handler.postDelayed(this, 10_000L); return }
-            val presenceOp = AppDiagnostics.begin("Presence.heartbeat")
-            runCatching { PresenceClient.heartbeat(AppState.presence != Presence.INVISIBLE); presenceOp.pass() }
-                .onFailure { presenceOp.fail(it.message ?: it.javaClass.simpleName); AppDiagnostics.exception(this@UzzapApplication, "Presence", it) }
+            if (SupabaseClient.userAccessToken.isNullOrBlank()) { handler.postDelayed(this, 30_000L); return }
             val unreadOp = AppDiagnostics.begin("Notifications.fetchUnread", "user=${AppState.username}")
             runCatching {
                 PrivateMessageStateClient.fetchUnread(AppState.username) { unread ->
@@ -44,7 +41,7 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
                     } else unreadOp.fail("Unread check returned no data")
                 }
             }.onFailure { unreadOp.fail(it.message ?: it.javaClass.simpleName); AppDiagnostics.exception(this@UzzapApplication, "UnreadMessages", it) }
-            handler.postDelayed(this, 10_000L)
+            handler.postDelayed(this, 30_000L)
         }
     }
 

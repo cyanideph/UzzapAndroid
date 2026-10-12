@@ -1,0 +1,9 @@
+# Supabase CLI config (checked in so Edge Function auth is explicit).
+# send-push is invoked by pg_net database triggers which send only
+# Content-Type (see live_functions_triggers.sql notify_*_push), so Supabase
+# JWT verification must stay OFF for this function. Abuse protection comes
+# from the PUSH_WEBHOOK_SECRET check in functions/send-push/index.ts:
+# set PUSH_WEBHOOK_SECRET as a function secret and update the three
+# notify_* triggers to send header x-uzzap-webhook with the same value.
+[functions.send-push]
+verify_jwt = false

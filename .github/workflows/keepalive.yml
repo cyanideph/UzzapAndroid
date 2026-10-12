@@ -1,0 +1,41 @@
+name: Supabase Keepalive
+
+# Free-tier Supabase projects pause after 7 days without activity (a paused
+# project looks like the app is stuck on "Connecting to network..."). This
+# lightweight ping every 3 days keeps it awake. ~10s of Actions time per run.
+# The categories endpoint is publicly readable, so no privileged key is used.
+
+on:
+  schedule:
+    - cron: '0 3 */3 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: none
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    name: Ping Supabase
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping public categories endpoint
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          test -n "$SUPABASE_URL" || { echo "Missing SUPABASE_URL"; exit 1; }
+          test -n "$SUPABASE_PUBLISHABLE_KEY" || { echo "Missing SUPABASE_PUBLISHABLE_KEY"; exit 1; }
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 30 \
+            "$SUPABASE_URL/rest/v1/chat_categories?select=id&limit=1" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY")
+          echo "Supabase responded with HTTP $CODE"
+          case "$CODE" in
+            200) echo "Supabase is awake." ;;
+            *) echo "Unexpected Supabase status."; exit 1 ;;
+          esac

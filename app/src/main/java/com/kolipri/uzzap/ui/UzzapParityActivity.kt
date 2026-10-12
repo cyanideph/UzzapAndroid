@@ -23,7 +23,6 @@ import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.model.Presence
 import com.kolipri.uzzap.ui.dialogs.J2mePopup
 import com.kolipri.uzzap.ui.dialogs.PopupItem
-import com.kolipri.uzzap.ui.util.UzzapColorCodeParser
 
 class UzzapParityActivity : BaseChromeActivity() {
     override fun contentLayoutRes(): Int? = null
@@ -91,17 +90,7 @@ class UzzapParityActivity : BaseChromeActivity() {
         setSoftkeys("Save", "Back", onLeft = { saveProfile(root) }, onRight = { finish() })
         showConnectedBall(true)
 
-        val currentNickname = UzzapColorCodeParser.plainText(AppState.nickname).trim().ifBlank { AppState.username }
-        val avatar = TextView(this).apply {
-            text = currentNickname.firstOrNull()?.uppercase() ?: "U"
-            textSize = 30f
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = rounded(Color.rgb(13, 12, 175), 40f)
-            contentDescription = "Profile avatar"
-        }
-        root.addView(avatar, LinearLayout.LayoutParams(76, 76).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = 10 })
-
+        val currentNickname = AppState.nickname.trim().ifBlank { AppState.username }
         val name = TextView(this).apply {
             text = currentNickname
             textSize = 22f
@@ -163,13 +152,12 @@ class UzzapParityActivity : BaseChromeActivity() {
             background = rounded(Color.WHITE, 14f)
         }
         root.addView(account, rowParams())
-        root.tag = ProfileFields(nickname, status, avatar, name, account)
+        root.tag = ProfileFields(nickname, status, name, account)
     }
 
     private data class ProfileFields(
         val nickname: EditText,
         val status: EditText,
-        val avatar: TextView,
         val name: TextView,
         val account: TextView
     )
@@ -191,7 +179,7 @@ class UzzapParityActivity : BaseChromeActivity() {
     private fun saveProfile(root: LinearLayout) {
         val fields = root.tag as? ProfileFields ?: return
         val rawNickname = fields.nickname.text.toString().trim()
-        val visibleNickname = UzzapColorCodeParser.plainText(rawNickname).trim()
+        val visibleNickname = rawNickname.trim()
         when {
             rawNickname.isBlank() -> Toast.makeText(this, "Nickname cannot be empty.", Toast.LENGTH_SHORT).show()
             rawNickname.length > 64 -> Toast.makeText(this, "Nickname is limited to 64 characters.", Toast.LENGTH_SHORT).show()
@@ -200,7 +188,6 @@ class UzzapParityActivity : BaseChromeActivity() {
                 AppState.nickname = visibleNickname
                 AppState.statusMessage = fields.status.text.toString().trim()
                 fields.account.text = "Username\n${AppState.username}\n\nNickname\n${visibleNickname}"
-                fields.avatar.text = visibleNickname.firstOrNull()?.uppercase() ?: "U"
                 fields.name.text = visibleNickname
                 AppState.syncProfileToSupabase()
                 Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show()
@@ -245,7 +232,7 @@ class UzzapParityActivity : BaseChromeActivity() {
             // which added the current user a second time when the backend already returned
             // the same member under a different case. Normalize and de-duplicate display
             // names before rendering, while preserving the current saved nickname.
-            val currentNickname = UzzapColorCodeParser.plainText(AppState.nickname).trim()
+            val currentNickname = AppState.nickname.trim()
                 .ifBlank { AppState.username.trim() }
             val currentKey = currentNickname.trim().lowercase()
 
@@ -286,7 +273,7 @@ class UzzapParityActivity : BaseChromeActivity() {
 
     private fun privateChat(buddy: String) { if (buddy.isBlank()) { finish(); return }; startActivity(PrivateChatActivity.intent(this, buddy)); finish() }
     private fun settings() = startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_SETTINGS)).also { finish() }
-    private fun notifications() = startActivity(LegacySettingsActivity.intent(this, LegacySettingsActivity.MODE_TONES)).also { finish() }
+    private fun notifications() = startActivity(Intent(this, NotificationCenterActivity::class.java)).also { finish() }
 
     private fun themes() {
         val themes = arrayOf("Classic Uzzap", "Dark", "Black", "Blue", "Green")

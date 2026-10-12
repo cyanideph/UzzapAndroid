@@ -20,7 +20,7 @@ object SafetyClient {
     private val url = BuildConfig.SUPABASE_URL.trimEnd('/')
     private val key = BuildConfig.SUPABASE_ANON_KEY
     private val mediaType = "application/json; charset=utf-8".toMediaType()
-    private fun req(path: String) = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", "Bearer ${SupabaseClient.userAccessToken.orEmpty()}").header("Content-Type", "application/json")
+    private fun req(path: String) = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", SupabaseClient.authHeader()).header("Content-Type", "application/json")
     private fun rpc(name: String, body: JSONObject, cb: Callback) { http.newCall(req("/rest/v1/rpc/$name").post(body.toString().toRequestBody(mediaType)).build()).enqueue(cb) }
     private fun simple(result: (Boolean) -> Unit) = object : Callback {
         override fun onFailure(call: Call, e: IOException) { main.post { result(false) } }
@@ -31,7 +31,7 @@ object SafetyClient {
     fun isBlocked(username: String, onResult: (Boolean) -> Unit) {
         val me = currentId()
         if (me.isNullOrBlank() || username.isBlank()) { main.post { onResult(false) }; return }
-        val blocked = URLEncoder.encode(username.trim().lowercase().replace(" ", "_"), "UTF-8")
+        val blocked = URLEncoder.encode(canonicalizeUsername(username), "UTF-8")
         val path = "/rest/v1/blocked_users?owner_id=eq.$me&blocked_username=eq.$blocked&select=id&limit=1"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { onResult(false) } }
@@ -43,7 +43,7 @@ object SafetyClient {
     fun unblock(username: String, onResult: (Boolean) -> Unit) = setBlock(username, false, onResult)
     private fun setBlock(username: String, blocked: Boolean, result: (Boolean) -> Unit) {
         val me = currentId()
-        val clean = username.trim().lowercase().replace(" ", "_")
+        val clean = canonicalizeUsername(username)
         if (me.isNullOrBlank() || clean.isBlank()) { main.post { result(false) }; return }
         val encoded = URLEncoder.encode(clean, "UTF-8")
         val request = if (blocked) {
@@ -57,7 +57,7 @@ object SafetyClient {
 
     fun report(username: String, reason: String, details: String, onResult: (Boolean) -> Unit) {
         val me = currentId()
-        val clean = username.trim().lowercase().replace(" ", "_")
+        val clean = canonicalizeUsername(username)
         if (me.isNullOrBlank() || clean.isBlank()) { main.post { onResult(false) }; return }
         val body = JSONObject().put("reporter_id", me).put("reported_username", clean).put("reason", reason.take(100)).put("details", details.take(2000))
         http.newCall(req("/rest/v1/user_reports").header("Prefer", "return=minimal").post(body.toString().toRequestBody(mediaType)).build()).enqueue(simple(onResult))
@@ -92,6 +92,9 @@ object SafetyClient {
     }
 
     fun fetchActiveModerationActions(onResult: (List<ModerationAction>) -> Unit) {
+        // The table keeps history rows: an "active" sanction is one with no
+        // expiry or an expiry in the future. Filter client-side so expired
+        // sanctions are never presented as active.
         val path = "/rest/v1/moderation_actions?select=id,moderator_id,target_username,action_type,room_name,reason,expires_at,created_at&action_type=in.(mute,kick,ban)&order=created_at.desc&limit=100"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { onResult(emptyList()) } }
@@ -99,7 +102,7 @@ object SafetyClient {
                 if (!it.isSuccessful) { main.post { onResult(emptyList()) }; return }
                 val list = mutableListOf<ModerationAction>()
                 runCatching { val a = JSONArray(it.body?.string().orEmpty()); for (i in 0 until a.length()) { val o = a.getJSONObject(i); list += ModerationAction(o.optLong("id"), o.optString("moderator_id").ifBlank { null }, o.optString("target_username"), o.optString("action_type").ifBlank { o.optString("action") }, o.optString("room_name").ifBlank { null }, o.optString("reason"), o.optString("expires_at").ifBlank { null }, o.optString("created_at")) } }
-                main.post { onResult(list) }
+                main.post { onResult(list.filter { a -> a.expiresAt.isNullOrBlank() || TimeUtils.isFuture(a.expiresAt) }) }
             } }
         })
     }
@@ -111,21 +114,60 @@ object SafetyClient {
 
     fun deleteRoomMessage(messageId: Long, onResult: (Boolean) -> Unit) {
         if (messageId <= 0) { main.post { onResult(false) }; return }
-        rpc("moderate_room_message", JSONObject().put("p_message_id", messageId).put("p_reason", "Moderator deletion"), simple(onResult))
+
+        // Message deletion is a privileged authenticated RPC. Ensure the access JWT
+        // is refreshed before constructing the Authorization header so a moderator
+        // does not get a misleading "deletion failed" after a stale session.
+        SupabaseClient.withValidSession { ready ->
+            if (!ready) {
+                main.post { onResult(false) }
+                return@withValidSession
+            }
+
+            val body = JSONObject()
+                .put("p_message_id", messageId)
+                .put("p_reason", "Moderator deletion")
+
+            rpc("moderate_room_message", body, object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    android.util.Log.w("SafetyClient", "deleteRoomMessage network failure", e)
+                    main.post { onResult(false) }
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    response.use {
+                        val responseBody = it.body?.string().orEmpty()
+                        if (!it.isSuccessful) {
+                            android.util.Log.w(
+                                "SafetyClient",
+                                "deleteRoomMessage HTTP ${it.code}: $responseBody"
+                            )
+                        }
+                        main.post { onResult(it.isSuccessful) }
+                    }
+                }
+            })
+        }
     }
 
     fun checkUserMuted(username: String, roomName: String?, onResult: (Boolean, String?) -> Unit) {
         if (roomName.isNullOrBlank() || username.isBlank()) { main.post { onResult(false, null) }; return }
-        val u = URLEncoder.encode(username.trim().lowercase().replace(" ", "_"), "UTF-8")
+        // Sanction rows keep registration case; ilike widens the match while
+        // matchesHandle below re-checks exact canonical equality (ilike treats
+        // _ and % as wildcards, so the server filter alone can over-match).
+        val wanted = canonicalizeUsername(username)
+        val u = URLEncoder.encode(wanted, "UTF-8")
         val r = URLEncoder.encode(roomName.trim(), "UTF-8")
-        val path = "/rest/v1/room_sanctions?username=eq.$u&room_name=eq.$r&sanction=eq.mute&active=is.true&select=expires_at&limit=20"
+        val path = "/rest/v1/room_sanctions?username=ilike.$u&room_name=eq.$r&sanction=eq.mute&active=is.true&select=username,expires_at&limit=20"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { onResult(false, null) } }
             override fun onResponse(call: Call, response: Response) { response.use {
                 val active = if (!it.isSuccessful) false else runCatching {
                     val a = JSONArray(it.body?.string().orEmpty())
                     (0 until a.length()).any { i ->
-                        val expiry = a.getJSONObject(i).optString("expires_at").ifBlank { null }
+                        val row = a.getJSONObject(i)
+                        if (!matchesHandle(row.optString("username"), wanted)) return@any false
+                        val expiry = row.optString("expires_at").ifBlank { null }
                         expiry == null || TimeUtils.isFuture(expiry)
                     }
                 }.getOrDefault(false)

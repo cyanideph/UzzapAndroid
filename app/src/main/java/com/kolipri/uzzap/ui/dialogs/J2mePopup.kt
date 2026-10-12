@@ -46,7 +46,7 @@ object J2mePopup {
             val row = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = android.view.Gravity.CENTER_VERTICAL
-                setPadding(28, 20, 28, 20)
+                setPadding(dpToPx(context, 14), dpToPx(context, 10), dpToPx(context, 14), dpToPx(context, 10))
                 setBackgroundResource(R.drawable.bg_menu_row_selector)
                 isSelected = index == selectedIndex
                 setOnClickListener {
@@ -66,6 +66,7 @@ object J2mePopup {
                 text = item.label
                 textSize = 17f
                 setTextColor(if (item.enabled) Color.BLACK else Color.GRAY)
+                gravity = Gravity.CENTER_VERTICAL
             })
             list.addView(row)
         }

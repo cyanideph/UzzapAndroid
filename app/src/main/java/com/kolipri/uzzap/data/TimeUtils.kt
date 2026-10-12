@@ -16,7 +16,10 @@ object TimeUtils {
 
     fun parseIsoToEpochMillis(isoString: String?): Long? {
         if (isoString.isNullOrBlank()) return null
-        val str = isoString.trim()
+        // PostgREST timestamps carry microsecond precision (e.g. .123456).
+        // SimpleDateFormat reads every S as milliseconds, so .123456 would
+        // parse as 123456ms (~2min off). Truncate to millis first.
+        val str = isoString.trim().replace(Regex("(\\.\\d{3})\\d+"), "$1")
         for (pattern in isoFormats) {
             try {
                 val sdf = SimpleDateFormat(pattern, Locale.US).apply {

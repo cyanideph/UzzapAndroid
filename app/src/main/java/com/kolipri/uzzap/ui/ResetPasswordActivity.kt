@@ -16,7 +16,6 @@ import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.PasswordRecoveryClient
 import com.kolipri.uzzap.data.SupabaseClient
-import com.kolipri.uzzap.data.signOut
 
 class ResetPasswordActivity : BaseChromeActivity() {
     override fun contentLayoutRes() = R.layout.content_simple_text

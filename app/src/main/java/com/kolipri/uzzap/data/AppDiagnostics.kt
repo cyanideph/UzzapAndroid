@@ -8,6 +8,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.Executors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +19,11 @@ object AppDiagnostics {
     private const val MAX_LINES = 1600
     private const val MAX_MESSAGE = 600
     private const val MAX_LIVE_EVENTS = 300
+    private const val MAX_DISK_BYTES = 256 * 1024L
     private val lock = Any()
+    private val diskExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "UzzapDiagnosticsDisk").apply { isDaemon = true }
+    }
     private var applicationContext: Context? = null
 
     enum class Level { INFO, OK, WARN, ERROR, STARTED, FAILED }
@@ -69,14 +74,20 @@ object AppDiagnostics {
                 updated[cleanFunction] = FunctionHealth(cleanFunction, status, now, durationMs, cleanDetails, correlationId)
                 _health.value = updated.toMap()
             }
-            runCatching {
-                val file = File(context()?.filesDir ?: return@runCatching, FILE_NAME)
-                val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS Z", Locale.US).format(Date(now))
-                val duration = durationMs?.let { " ${it}ms" } ?: ""
-                val corr = correlationId?.let { " [$it]" } ?: ""
-                val line = "$stamp|${level.name}|$cleanArea|$cleanFunction|${status?.name ?: ""}$duration$corr|$cleanDetails"
-                val lines = if (file.isFile) file.readLines(Charsets.UTF_8).takeLast(MAX_LINES - 1) else emptyList()
-                file.writeText((lines + line).joinToString("\n"), Charsets.UTF_8)
+            val context = context() ?: return@synchronized
+            val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS Z", Locale.US).format(Date(now))
+            val duration = durationMs?.let { " ${it}ms" } ?: ""
+            val corr = correlationId?.let { " [${it}]" } ?: ""
+            val line = "$stamp|${level.name}|$cleanArea|$cleanFunction|${status?.name ?: ""}$duration$corr|$cleanDetails"
+            diskExecutor.execute {
+                runCatching {
+                    val file = File(context.filesDir, FILE_NAME)
+                    file.appendText(line + "\n", Charsets.UTF_8)
+                    if (file.length() > MAX_DISK_BYTES) {
+                        val lines = file.readLines(Charsets.UTF_8).takeLast(MAX_LINES)
+                        file.writeText(lines.joinToString("\n") + if (lines.isNotEmpty()) "\n" else "", Charsets.UTF_8)
+                    }
+                }
             }
         }
     }

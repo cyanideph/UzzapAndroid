@@ -30,6 +30,8 @@ object SupabaseRealtimeClient {
     @Volatile private var connected = false
     private var connecting = false
     private var shouldConnect = false
+    /** Number of active UI/session consumers holding the realtime connection. */
+    private var connectionUsers = 0
 
     private val roomListeners = CopyOnWriteArrayList<(ChatMessage, String) -> Unit>()
     private val roomDeleteListeners = CopyOnWriteArrayList<(Long, String) -> Unit>()
@@ -57,15 +59,24 @@ object SupabaseRealtimeClient {
     }
 
     fun start() {
+        connectionUsers++
         shouldConnect = true
         if (!connected && !connecting) connect()
     }
 
     fun stop() {
+        if (connectionUsers > 0) connectionUsers--
+        if (connectionUsers > 0) return
+        shutdown()
+    }
+
+    /** Forcefully tears down all session-scoped realtime state, including leaked consumers. */
+    fun shutdown() {
+        connectionUsers = 0
         shouldConnect = false
         main.removeCallbacks(heartbeat)
         main.removeCallbacks(reconnect)
-        ws?.close(1000, "Client stop")
+        ws?.close(1000, "Client shutdown")
         ws = null
         connected = false
         connecting = false
@@ -74,6 +85,24 @@ object SupabaseRealtimeClient {
 
     /** True when the room/direct-message WebSocket is currently connected. */
     fun isConnected(): Boolean = connected
+
+    /** Reconnects using the current Supabase access token after session refresh. */
+    fun refreshSubscriptions() { refreshAuth() }
+
+    fun refreshAuth() {
+        if (!shouldConnect) return
+        main.post {
+            if (!shouldConnect) return@post
+            main.removeCallbacks(reconnect)
+            ws?.close(1000, "Session refreshed")
+            ws = null
+            connected = false
+            connecting = false
+            main.removeCallbacks(heartbeat)
+            notifyConnection(false)
+            connect()
+        }
+    }
 
     fun addRoomMessageListener(l: (ChatMessage, String) -> Unit) { roomListeners.add(l) }
     fun removeRoomMessageListener(l: (ChatMessage, String) -> Unit) { roomListeners.remove(l) }
@@ -104,7 +133,13 @@ object SupabaseRealtimeClient {
         connecting = true
         ws = http.newWebSocket(Request.Builder().url(u).build(), object : WebSocketListener() {
             override fun onOpen(s: WebSocket, r: Response) {
-                ws = s
+                // refreshAuth() can replace a socket before the old socket finishes
+                // closing. Never let a stale callback take ownership of the new
+                // connection or tear it down.
+                if (ws !== s || !shouldConnect) {
+                    s.close(1000, "Stale socket")
+                    return
+                }
                 connecting = false
                 connected = true
                 notifyConnection(true)
@@ -112,34 +147,81 @@ object SupabaseRealtimeClient {
                 joinRealtimeTables(s)
             }
 
-            override fun onMessage(s: WebSocket, text: String) { handle(text) }
-            override fun onClosed(s: WebSocket, c: Int, r: String) = disconnect()
-            override fun onFailure(s: WebSocket, t: Throwable, r: Response?) = disconnect()
-            override fun onClosing(s: WebSocket, c: Int, r: String) { s.close(1000, null) }
+            override fun onMessage(s: WebSocket, text: String) {
+                if (ws === s && connected) handle(text)
+            }
+
+            override fun onClosed(s: WebSocket, c: Int, r: String) {
+                if (ws === s) disconnect(s)
+            }
+
+            override fun onFailure(s: WebSocket, t: Throwable, r: Response?) {
+                if (ws === s) disconnect(s)
+            }
+
+            override fun onClosing(s: WebSocket, c: Int, r: String) {
+                if (ws === s) s.close(1000, null) else s.close(1000, "Stale socket")
+            }
         })
     }
 
     private fun joinRealtimeTables(s: WebSocket) {
         val accessToken = SupabaseClient.userAccessToken.orEmpty()
-        val authPayload = JSONObject().apply {
-            if (accessToken.isNotBlank()) put("access_token", accessToken)
-        }
-        val roomChanges = JSONArray()
-            .put(JSONObject().put("event", "INSERT").put("schema", "public").put("table", "room_messages"))
-            .put(JSONObject().put("event", "UPDATE").put("schema", "public").put("table", "room_messages"))
-            .put(JSONObject().put("event", "DELETE").put("schema", "public").put("table", "room_messages"))
-        s.send(
-            JSONObject()
-                .put("topic", "realtime:public:room_messages")
-                .put("event", "phx_join")
-                .put("payload", JSONObject().put("config", JSONObject().put("postgres_changes", roomChanges)).put("access_token", accessToken))
-                .put("ref", refs.incrementAndGet())
-                .toString()
-        )
+        val joinedRooms = AppState.joinedRooms.distinct().filter { it.isNotBlank() }
 
+        // Never subscribe to the entire room_messages table. Split large room sets into
+        // independently named Realtime topics so the filter remains bounded and hidden/
+        // unjoined rooms are never pulled into this client.
+        joinedRooms.chunked(100).forEachIndexed { chunkIndex, chunk ->
+            val roomFilter = chunk.joinToString(prefix = "room_name=in.(", postfix = ")", separator = ",") { quoteRealtimeFilterValue(it) }
+            val roomChanges = JSONArray()
+                .put(JSONObject().apply {
+                    put("event", "INSERT"); put("schema", "public"); put("table", "room_messages")
+                    put("filter", roomFilter)
+                    put("select", JSONArray().put("id").put("sender").put("body").put("is_system").put("created_at").put("room_name"))
+                })
+                .put(JSONObject().apply {
+                    put("event", "UPDATE"); put("schema", "public"); put("table", "room_messages")
+                    put("filter", roomFilter)
+                    put("select", JSONArray().put("id").put("sender").put("body").put("is_system").put("created_at").put("room_name"))
+                })
+                .put(JSONObject().apply {
+                    put("event", "DELETE"); put("schema", "public"); put("table", "room_messages")
+                    put("filter", roomFilter)
+                    put("select", JSONArray().put("id").put("sender").put("body").put("is_system").put("created_at").put("room_name"))
+                })
+            s.send(
+                JSONObject()
+                    .put("topic", "realtime:public:room_messages_$chunkIndex")
+                    .put("event", "phx_join")
+                    .put("payload", JSONObject().put("config", JSONObject().put("postgres_changes", roomChanges)).put("access_token", accessToken))
+                    .put("ref", refs.incrementAndGet())
+                    .toString()
+            )
+        }
+
+        // Usernames are case-sensitive in stored sender/recipient columns and
+        // AppState.username already holds the exact canonical case from the
+        // profile. Do NOT lowercase here: a lowercased filter would miss rows
+        // for mixed-case usernames and silently drop live direct messages.
+        val currentUser = AppState.username.trim()
+        if (currentUser.isBlank()) return
         val dmChanges = JSONArray()
-            .put(JSONObject().put("event", "INSERT").put("schema", "public").put("table", "direct_messages"))
-            .put(JSONObject().put("event", "UPDATE").put("schema", "public").put("table", "direct_messages"))
+            .put(JSONObject().apply {
+                put("event", "INSERT"); put("schema", "public"); put("table", "direct_messages")
+                put("filter", "sender=eq." + quoteRealtimeFilterValue(currentUser))
+                put("select", JSONArray().put("id").put("sender").put("recipient").put("body").put("created_at").put("is_read"))
+            })
+            .put(JSONObject().apply {
+                put("event", "INSERT"); put("schema", "public"); put("table", "direct_messages")
+                put("filter", "recipient=eq." + quoteRealtimeFilterValue(currentUser))
+                put("select", JSONArray().put("id").put("sender").put("recipient").put("body").put("created_at").put("is_read"))
+            })
+            .put(JSONObject().apply {
+                put("event", "UPDATE"); put("schema", "public"); put("table", "direct_messages")
+                put("filter", "recipient=eq." + quoteRealtimeFilterValue(currentUser))
+                put("select", JSONArray().put("id").put("sender").put("recipient").put("body").put("created_at").put("is_read"))
+            })
         s.send(
             JSONObject()
                 .put("topic", "realtime:public:direct_messages")
@@ -148,6 +230,14 @@ object SupabaseRealtimeClient {
                 .put("ref", refs.incrementAndGet())
                 .toString()
         )
+    }
+
+    private fun quoteRealtimeFilterValue(value: String): String {
+        val escaped = value
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+
+        return "\"$escaped\""
     }
 
     private fun handle(text: String) {
@@ -214,7 +304,9 @@ object SupabaseRealtimeClient {
         }.onFailure { e -> Log.w(TAG, "Realtime parse error", e) }
     }
 
-    private fun disconnect() {
+    private fun disconnect(socket: WebSocket) {
+        if (ws !== socket) return
+        ws = null
         connected = false
         connecting = false
         main.removeCallbacks(heartbeat)

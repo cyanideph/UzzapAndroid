@@ -6,47 +6,16 @@ import android.view.Gravity
 import android.widget.GridLayout
 import android.widget.ImageView
 import android.widget.ScrollView
-import com.kolipri.uzzap.R
+import com.kolipri.uzzap.ui.util.EmoticonParser
 
+/**
+ * Uzzap emoticon picker.
+ *
+ * The picker does not maintain its own emoticon mapping. It reads the
+ * Android central registry from EmoticonParser so picker, composer and
+ * message renderer always use exactly the same code -> drawable mapping.
+ */
 object EmoticonPickerDialog {
-
-    private val emoticons: List<Pair<Int, String>> = listOf(
-        R.drawable.d_emoticon_smile to ":)",
-        R.drawable.d_emoticon_sad to ":(",
-        R.drawable.d_emoticon_wink to ";)",
-        R.drawable.d_emoticon_tongue to ":p",
-        R.drawable.d_emoticon_laugh to ":D",
-        R.drawable.d_emoticon_love to "<3",
-        R.drawable.d_emoticon_cry to ";(",
-        R.drawable.d_emoticon_angry to ">:(",
-        R.drawable.d_emoticon_surprise to ":o",
-        R.drawable.d_emoticon_sick to ":s",
-        R.drawable.d_emoticon_clown to ":o)",
-        R.drawable.d_emoticon_party to "\\o/",
-        R.drawable.d_emoticon_drink to "[drink]",
-        R.drawable.d_emoticon_rose to "[rose]",
-        R.drawable.d_kiss to "[kiss]",
-        R.drawable.d_emoticon_11 to "[emoticon-11]",
-        R.drawable.d_emoticon_12 to "[emoticon-12]",
-        R.drawable.d_emoticon_13 to "[emoticon-13]",
-        R.drawable.d_emoticon_14 to "[emoticon-14]",
-        R.drawable.d_emoticon_15 to "[emoticon-15]",
-        R.drawable.d_emoticon_16 to "[emoticon-16]",
-        R.drawable.d_emoticon_17 to "[emoticon-17]",
-        R.drawable.d_emoticon_18 to "[emoticon-18]",
-        R.drawable.d_emoticon_19 to "[emoticon-19]",
-        R.drawable.d_emoticon_20 to "[emoticon-20]",
-        R.drawable.d_emoticon_47 to "[emoticon-47]",
-        R.drawable.d_head_buntis to "[head-buntis]",
-        R.drawable.d_head_deckard to "[head-deckard]",
-        R.drawable.d_head_jp to "[head-jp]",
-        R.drawable.d_head_kool to "[head-kool]",
-        R.drawable.d_head_lupz to "[head-lupz]",
-        R.drawable.d_head_requiem to "[head-requiem]",
-        R.drawable.d_head_root to "[head-root]",
-        R.drawable.d_head_saiyan to "[head-saiyan]",
-        R.drawable.d_head_valkyrie to "[head-valkyrie]"
-    )
 
     fun show(context: Context, onPick: (String) -> Unit) {
         val dialog = Dialog(context)
@@ -60,9 +29,9 @@ object EmoticonPickerDialog {
         val itemSize = (52 * density).toInt()
         val pad = (10 * density).toInt()
 
-        emoticons.forEach { (res, code) ->
+        EmoticonParser.definitions.forEach { definition ->
             grid.addView(ImageView(context).apply {
-                setImageResource(res)
+                setImageResource(definition.drawableRes)
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 setPadding(pad, pad, pad, pad)
                 layoutParams = GridLayout.LayoutParams().apply {
@@ -70,13 +39,14 @@ object EmoticonPickerDialog {
                     height = itemSize
                 }
                 setBackgroundResource(android.R.drawable.list_selector_background)
-                contentDescription = "Emoticon $code"
+                contentDescription = "Emoticon " + definition.label
                 setOnClickListener {
-                    onPick(code)
+                    onPick(definition.code)
                     dialog.dismiss()
                 }
             })
         }
+
         val scroll = ScrollView(context).apply {
             addView(grid)
         }

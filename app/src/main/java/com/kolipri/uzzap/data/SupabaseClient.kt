@@ -19,6 +19,7 @@ import org.json.JSONObject
 import java.io.IOException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CopyOnWriteArrayList
 
 /** REST/Auth client for the Uzzap Supabase backend. */
 object SupabaseClient {
@@ -36,6 +37,17 @@ object SupabaseClient {
     private var userRefreshToken: String? = null
     private var sessionExpiresAtMs: Long = 0L
     private var sessionMonitorStarted = false
+    private val sessionMonitor = object : Runnable {
+        override fun run() {
+            if (authenticated()) refreshSessionIfNeeded()
+            if (sessionMonitorStarted) mainHandler.postDelayed(this, 60_000L)
+        }
+    }
+    private val sessionRefreshLock = Any()
+    private val sessionExpiredListeners = CopyOnWriteArrayList<() -> Unit>()
+    private var sessionRefreshInFlight = false
+    private var sessionGeneration = 0L
+    private val sessionRefreshWaiters = mutableListOf<(Boolean) -> Unit>()
     private fun authenticated(): Boolean = !userAccessToken.isNullOrBlank()
 
     fun restorePersistedSession() {
@@ -43,25 +55,213 @@ object SupabaseClient {
         userAccessToken = token; userRefreshToken = SessionStore.refreshToken(); sessionExpiresAtMs = SessionStore.expiresAtMs()
         AppState.authToken = token; AppState.email = SessionStore.email(); AppState.nickname = SessionStore.nickname().ifBlank { AppState.nickname }
         AppState.role = SessionStore.role()
-        AppState.username = AppState.nickname.lowercase().replace(" ", "_"); startSessionMonitor()
-        if (sessionExpiresAtMs > 0L && sessionExpiresAtMs <= System.currentTimeMillis() + 60_000L) refreshSession()
+        AppState.username = SessionStore.username().trim().ifBlank {
+            canonicalizeUsername(AppState.nickname)
+        }
+        startSessionMonitor()
+        if (sessionExpiresAtMs > 0L && sessionExpiresAtMs <= System.currentTimeMillis() + 60_000L) {
+            ensureValidSession { refreshed ->
+                if (!refreshed) Log.w(TAG, "Persisted session could not be refreshed")
+            }
+        }
     }
-    private fun startSessionMonitor() { if (sessionMonitorStarted) return; sessionMonitorStarted = true; val tick = object : Runnable { override fun run() { if (authenticated()) refreshSessionIfNeeded(); mainHandler.postDelayed(this, 60_000L) } }; mainHandler.post(tick) }
-    private fun refreshSessionIfNeeded() { val refresh = userRefreshToken ?: return; if (sessionExpiresAtMs == 0L || sessionExpiresAtMs <= System.currentTimeMillis() + 120_000L) refreshSession(refresh) }
+    private fun startSessionMonitor() {
+        if (sessionMonitorStarted) return
+        sessionMonitorStarted = true
+        mainHandler.removeCallbacks(sessionMonitor)
+        mainHandler.post(sessionMonitor)
+    }
+
+    fun addSessionExpiredListener(listener: () -> Unit) {
+        sessionExpiredListeners.add(listener)
+    }
+
+    fun removeSessionExpiredListener(listener: () -> Unit) {
+        sessionExpiredListeners.remove(listener)
+    }
+
+    private fun invalidateExpiredSession() {
+        sessionMonitorStarted = false
+        mainHandler.removeCallbacks(sessionMonitor)
+        PresenceClient.stopHeartbeat(markOffline = true)
+        SupabaseRealtimeClient.shutdown()
+        userAccessToken = null
+        userRefreshToken = null
+        sessionExpiresAtMs = 0L
+        AppState.authToken = ""
+        AppState.username = "unknown-user"
+        AppState.nickname = ""
+        AppState.email = ""
+        AppState.role = "user"
+        AppState.avatar = ""
+        AppState.activeChatBuddy = null
+        AppState.roomMessages.clear()
+        AppState.joinedRooms.clear()
+        SessionStore.clear()
+        sessionExpiredListeners.forEach { listener ->
+            mainHandler.post { runCatching { listener() } }
+        }
+    }
+
+    private fun refreshSessionIfNeeded() {
+        if (sessionExpiresAtMs == 0L || sessionExpiresAtMs <= System.currentTimeMillis() + 120_000L) {
+            ensureValidSession { refreshed ->
+                if (!refreshed) Log.w(TAG, "Background session refresh failed")
+            }
+        }
+    }
+
+    /**
+     * Ensures an authenticated request never intentionally uses an expired access JWT.
+     * Refreshes are serialized because Supabase refresh-token rotation normally allows a
+     * refresh token to be exchanged only once. Concurrent refresh calls can otherwise race.
+     */
+    private fun ensureValidSession(forceRefresh: Boolean = false, onResult: (Boolean) -> Unit) {
+        if (!authenticated()) {
+            mainHandler.post { onResult(false) }
+            return
+        }
+
+        val needsRefresh = forceRefresh ||
+            sessionExpiresAtMs == 0L ||
+            sessionExpiresAtMs <= System.currentTimeMillis() + 30_000L
+
+        if (!needsRefresh) {
+            mainHandler.post { onResult(true) }
+            return
+        }
+
+        synchronized(sessionRefreshLock) {
+            sessionRefreshWaiters.add(onResult)
+            if (sessionRefreshInFlight) return
+            sessionRefreshInFlight = true
+        }
+        refreshSession()
+    }
+
+    private fun finishSessionRefresh(success: Boolean, generation: Long) {
+        synchronized(sessionRefreshLock) { if (generation != sessionGeneration || !sessionRefreshInFlight) return }
+        val waiters = synchronized(sessionRefreshLock) {
+            sessionRefreshInFlight = false
+            val pending = sessionRefreshWaiters.toList()
+            sessionRefreshWaiters.clear()
+            pending
+        }
+        mainHandler.post { waiters.forEach { it(success) } }
+    }
+
     private fun refreshSession(refreshToken: String? = userRefreshToken) {
-        if (refreshToken.isNullOrBlank()) return
+        val generation = synchronized(sessionRefreshLock) { sessionGeneration }
+        if (refreshToken.isNullOrBlank()) {
+            finishSessionRefresh(false, generation)
+            return
+        }
+
         val json = JSONObject().put("refresh_token", refreshToken)
         httpClient.newCall(postJson("/auth/v1/token?grant_type=refresh_token", json, false)).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "Session refresh failed", e) }
-            override fun onResponse(call: Call, response: Response) { response.use { val body = it.body?.string().orEmpty(); if (!it.isSuccessful) { Log.w(TAG, "Session refresh rejected: ${errorTextFromBody(body, "HTTP ${it.code}")}"); return }; runCatching { val obj = JSONObject(body); val access = obj.optString("access_token"); if (access.isBlank()) error("Missing access token"); val nextRefresh = obj.optString("refresh_token").ifBlank { refreshToken }; val expiresIn = obj.optLong("expires_in", 3600L); userAccessToken = access; userRefreshToken = nextRefresh; sessionExpiresAtMs = System.currentTimeMillis() + expiresIn * 1000L; AppState.authToken = access; SessionStore.save(access, nextRefresh, sessionExpiresAtMs, AppState.email, AppState.nickname, AppState.role) }.onFailure { e -> Log.w(TAG, "Invalid refresh response", e) } } }
+            override fun onFailure(call: Call, e: IOException) {
+                Log.w(TAG, "Session refresh failed", e)
+                finishSessionRefresh(false, generation)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    val body = it.body?.string().orEmpty()
+                    if (!it.isSuccessful) {
+                        Log.w(TAG, "Session refresh rejected: ${errorTextFromBody(body, "HTTP ${it.code}")}")
+                        finishSessionRefresh(false, generation)
+                        if (it.code == 400 || it.code == 401 || it.code == 403) {
+                            invalidateExpiredSession()
+                        }
+                        return
+                    }
+
+                    val success = runCatching {
+                        val obj = JSONObject(body)
+                        val access = obj.optString("access_token")
+                        if (access.isBlank()) error("Missing access token")
+                        val nextRefresh = obj.optString("refresh_token").ifBlank { refreshToken }
+                        val expiresIn = obj.optLong("expires_in", 3600L)
+
+                        synchronized(sessionRefreshLock) {
+                            if (generation != sessionGeneration || userRefreshToken != refreshToken) return@runCatching false
+                        }
+                        userAccessToken = access
+                        userRefreshToken = nextRefresh
+                        sessionExpiresAtMs = System.currentTimeMillis() + expiresIn * 1000L
+                        AppState.authToken = access
+                        SessionStore.save(
+                            access,
+                            nextRefresh,
+                            sessionExpiresAtMs,
+                            AppState.email,
+                            AppState.nickname,
+                            AppState.role,
+                            AppState.username,
+                            SessionStore.avatar()
+                        )
+                        SupabaseRealtimeClient.refreshAuth()
+                        true
+                    }.getOrElse { e ->
+                        Log.w(TAG, "Invalid refresh response", e)
+                        false
+                    }
+                    finishSessionRefresh(success, generation)
+                }
+            }
         })
     }
+
+    /** Runs an authenticated operation after silently refreshing the session when needed. */
+    /** Clears the local auth session and tears down session-scoped realtime/presence state. */
+    fun signOut() {
+        val token = userAccessToken
+        if (!token.isNullOrBlank()) {
+            runCatching {
+                httpClient.newCall(
+                    request("/auth/v1/logout", true).post("".toRequestBody(jsonMediaType)).build()
+                ).enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "Auth sign-out request failed", e) }
+                    override fun onResponse(call: Call, response: Response) { response.close() }
+                })
+            }.onFailure { Log.w(TAG, "Unable to start auth sign-out request", it) }
+        }
+        PresenceClient.stopHeartbeat(markOffline = true)
+        SupabaseRealtimeClient.shutdown()
+        mainHandler.removeCallbacks(sessionMonitor)
+        synchronized(sessionRefreshLock) { sessionGeneration++ }
+        userAccessToken = null
+        userRefreshToken = null
+        sessionExpiresAtMs = 0L
+        sessionMonitorStarted = false
+        sessionRefreshInFlight = false
+        synchronized(sessionRefreshLock) { sessionRefreshWaiters.clear() }
+        SessionStore.clear()
+        // Single source of truth for logout: also reset process-local UI state.
+        // (Previously an extension signOut cleared AppState while the member
+        //  cleared session/realtime — only the member runs, so do both here.)
+        AppState.authToken = ""
+        AppState.username = "unknown-user"
+        AppState.nickname = ""
+        AppState.email = ""
+        AppState.role = "user"
+        AppState.avatar = ""
+        AppState.activeChatBuddy = null
+        AppState.roomMessages.clear()
+        AppState.joinedRooms.clear()
+    }
+
+    fun withValidSession(onReady: (Boolean) -> Unit) {
+        ensureValidSession(onResult = onReady)
+    }
+    fun authHeader(): String = "Bearer ${userAccessToken ?: anonKey}"
+
     private fun request(path: String, authenticated: Boolean = false): Request.Builder { val bearer = if (authenticated && !userAccessToken.isNullOrBlank()) "Bearer ${userAccessToken!!}" else "Bearer $anonKey"; return Request.Builder().url("$supabaseUrl$path").header("apikey", anonKey).header("Authorization", bearer).header("Content-Type", "application/json") }
     private fun postJson(path: String, json: JSONObject, authenticated: Boolean = true): Request = request(path, authenticated).post(json.toString().toRequestBody(jsonMediaType)).build()
     private fun errorText(response: Response, fallback: String): String = errorTextFromBody(response.body?.string().orEmpty(), fallback)
     private fun errorTextFromBody(body: String, fallback: String): String = try { val obj = JSONObject(body); obj.optString("error_description").ifBlank { obj.optString("message").ifBlank { obj.optString("msg").ifBlank { fallback } } } } catch (_: Exception) { fallback }
 
-    fun checkHealth(onResult: (Boolean, Boolean, String) -> Unit) { val req = request("/rest/v1/room_messages?select=id&limit=1").get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { isOnline = false; isTablesConfigured = false; connectionStatus = "Offline / Connection Failed"; mainHandler.post { onResult(false, false, connectionStatus) } }; override fun onResponse(call: Call, response: Response) { response.use { val body = it.body?.string().orEmpty(); when { it.isSuccessful -> { isOnline = true; isTablesConfigured = true; connectionStatus = "Network Online" }; it.code == 404 && body.contains("PGRST205") -> { isOnline = true; isTablesConfigured = false; connectionStatus = "Network Online (setup required)" }; else -> { isOnline = true; isTablesConfigured = false; connectionStatus = "Network HTTP ${it.code}" } }; mainHandler.post { onResult(isOnline, isTablesConfigured, connectionStatus) } } } }) }
+    fun checkHealth(onResult: (Boolean, Boolean, String) -> Unit) { if (anonKey.isBlank()) { isOnline = false; isTablesConfigured = false; connectionStatus = "Missing Supabase key (check build config)"; mainHandler.post { onResult(false, false, connectionStatus) }; return }; val req = request("/rest/v1/chat_categories?select=id&limit=1").get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { isOnline = false; isTablesConfigured = false; connectionStatus = "Offline / Connection Failed"; mainHandler.post { onResult(false, false, connectionStatus) } }; override fun onResponse(call: Call, response: Response) { response.use { val body = it.body?.string().orEmpty(); when { it.isSuccessful -> { isOnline = true; isTablesConfigured = true; connectionStatus = "Network Online" }; it.code == 401 || it.code == 403 -> { isOnline = false; isTablesConfigured = false; connectionStatus = "Invalid Supabase key (check SUPABASE_PUBLISHABLE_KEY)" }; it.code == 404 && body.contains("PGRST205") -> { isOnline = true; isTablesConfigured = false; connectionStatus = "Network Online (setup required)" }; else -> { isOnline = false; isTablesConfigured = false; connectionStatus = "Network HTTP ${it.code}" } }; mainHandler.post { onResult(isOnline, isTablesConfigured, connectionStatus) } } } }) }
 
     fun fetchCategoriesAndRooms(onResult: (List<ChatRoomCategory>?) -> Unit) { val req = request("/rest/v1/chat_categories?select=id,name,sort_order&order=sort_order.asc").get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { mainHandler.post { onResult(null) }; return }; try { val categories = JSONArray(it.body?.string().orEmpty()); val roomReq = request("/rest/v1/chat_rooms?select=id,category_id,name,capacity&order=name.asc").get().build(); httpClient.newCall(roomReq).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, roomResponse: Response) { roomResponse.use { if (!it.isSuccessful) { mainHandler.post { onResult(null) }; return }; try { val rooms = JSONArray(it.body?.string().orEmpty()); val byCategory = mutableMapOf<String, MutableList<ChatRoomInfo>>(); for (i in 0 until rooms.length()) { val o = rooms.getJSONObject(i); byCategory.getOrPut(o.optString("category_id")) { mutableListOf() }.add(ChatRoomInfo(o.optString("name"), 0, o.optInt("capacity", 50))) }; val result = buildList { for (i in 0 until categories.length()) { val c = categories.getJSONObject(i); val list = byCategory[c.optString("id")] ?: emptyList(); add(ChatRoomCategory(c.optString("name"), list.sumOf { it.userCount }, list.sumOf { it.capacity }, list)) } }; mainHandler.post { onResult(result) } } catch (e: Exception) { Log.e(TAG, "Room parsing failed", e); mainHandler.post { onResult(null) } } } } }); } catch (e: Exception) { Log.e(TAG, "Category parsing failed", e); mainHandler.post { onResult(null) } } } } }) }
 
@@ -93,11 +293,31 @@ object SupabaseClient {
         val json = JSONObject().apply { put("room_name", roomName); put("sender", sender); put("body", body.trim()); put("is_system", isSystem) }
         httpClient.newCall(request("/rest/v1/room_messages", true).header("Prefer", "return=representation").post(json.toString().toRequestBody(jsonMediaType)).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { Log.w(TAG, "sendMessage failed: ${errorText(it, "HTTP ${it.code}")}"); mainHandler.post { onResult(null) }; return }; try { val o = JSONArray(it.body?.string().orEmpty()).optJSONObject(0); mainHandler.post { onResult(o?.let { x -> ChatMessage(x.optString("sender"), x.optString("body"), x.optBoolean("is_system"), x.optLong("id"), x.optString("created_at")) } ?: ChatMessage(sender, body.trim())) } } catch (_: Exception) { mainHandler.post { onResult(ChatMessage(sender, body.trim())) } } } } })
     }
-    fun fetchOnlineCount(onResult: (Int) -> Unit) { val req = request("/rest/v1/profiles?is_online=eq.true&select=username").get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(-1) } }; override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { mainHandler.post { onResult(-1) }; return }; try { val body = it.body?.string().orEmpty(); val count = JSONArray(body).length(); mainHandler.post { onResult(count) } } catch (e: Exception) { mainHandler.post { onResult(-1) } } } } }) }
+    /** Uses a server-side aggregate instead of downloading every online profile. */
+    fun fetchOnlineCount(onResult: (Int) -> Unit) {
+        val req = request("/rest/v1/rpc/get_online_user_count", true)
+            .post(JSONObject().toString().toRequestBody(jsonMediaType))
+            .build()
+        httpClient.newCall(req).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(-1) } }
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    if (!it.isSuccessful) { mainHandler.post { onResult(-1) }; return }
+                    val count = runCatching {
+                        JSONArray(it.body?.string().orEmpty()).optJSONObject(0)?.optLong("user_count", -1L)?.toInt() ?: -1
+                    }.getOrDefault(-1)
+                    mainHandler.post { onResult(count) }
+                }
+            }
+        })
+    }
 
     fun fetchParticipants(roomName: String, onResult: (List<String>?) -> Unit) { val room = URLEncoder.encode(roomName, "UTF-8"); val req = request("/rest/v1/room_participants?room_name=eq.$room&select=username&order=username.asc").get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { if (!it.isSuccessful) { mainHandler.post { onResult(null) }; return }; try { val arr = JSONArray(it.body?.string().orEmpty()); mainHandler.post { onResult(List(arr.length()) { i -> arr.getJSONObject(i).optString("username") }) } } catch (_: Exception) { mainHandler.post { onResult(null) } } } } }) }
+    /** Uses a server-side aggregate instead of downloading every participant row. */
     fun fetchLiveRoomCounts(onResult: (Map<String, Int>?) -> Unit) {
-        val req = request("/rest/v1/room_participants?select=room_name,username").get().build()
+        val req = request("/rest/v1/rpc/get_live_room_counts", true)
+            .post(JSONObject().toString().toRequestBody(jsonMediaType))
+            .build()
         httpClient.newCall(req).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.w(TAG, "fetchLiveRoomCounts failed", e)
@@ -105,63 +325,181 @@ object SupabaseClient {
             }
             override fun onResponse(call: Call, response: Response) {
                 response.use {
-                    if (!it.isSuccessful) {
-                        mainHandler.post { onResult(null) }
-                        return
-                    }
-                    try {
+                    if (!it.isSuccessful) { mainHandler.post { onResult(null) }; return }
+                    val counts = runCatching {
                         val arr = JSONArray(it.body?.string().orEmpty())
-                        val counts = mutableMapOf<String, MutableSet<String>>()
-                        for (i in 0 until arr.length()) {
-                            val o = arr.getJSONObject(i)
-                            val room = o.optString("room_name").trim()
-                            val user = o.optString("username").trim()
-                            if (room.isNotEmpty() && user.isNotEmpty()) {
-                                counts.getOrPut(room) { mutableSetOf() }.add(user)
+                        buildMap<String, Int> {
+                            for (i in 0 until arr.length()) {
+                                val row = arr.optJSONObject(i) ?: continue
+                                val room = row.optString("room_name").trim()
+                                if (room.isNotBlank()) put(room, row.optLong("user_count", 0L).toInt())
                             }
                         }
-                        val map = counts.mapValues { entry -> entry.value.size }
-                        mainHandler.post { onResult(map) }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "fetchLiveRoomCounts parse failed", e)
-                        mainHandler.post { onResult(null) }
-                    }
+                    }.getOrDefault(emptyMap())
+                    mainHandler.post { onResult(counts) }
                 }
             }
         })
     }
-    fun pingPresence(roomName: String, username: String) { if (!authenticated()) return; val json = JSONObject().put("room_name", roomName).put("username", username); httpClient.newCall(request("/rest/v1/room_participants?on_conflict=room_name,username", true).header("Prefer", "resolution=merge-duplicates").post(json.toString().toRequestBody(jsonMediaType)).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) = Unit; override fun onResponse(call: Call, response: Response) { response.close() } }) }
-    fun leaveRoom(roomName: String, username: String) { if (!authenticated()) return; val room = URLEncoder.encode(roomName, "UTF-8"); val user = URLEncoder.encode(username, "UTF-8"); httpClient.newCall(request("/rest/v1/room_participants?room_name=eq.$room&username=eq.$user", true).delete().build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) = Unit; override fun onResponse(call: Call, response: Response) { response.close() } }) }
-    fun fetchBuddies(userHandle: String, onResult: (Map<String, List<String>>?) -> Unit) { if (!authenticated()) { mainHandler.post { onResult(null) }; return }; val req = request("/rest/v1/buddies?select=buddy_handle,group_name&order=buddy_handle.asc", true).get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "fetchBuddies network failure", e); mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { val body = it.body?.string().orEmpty(); if (!it.isSuccessful) { Log.w(TAG, "fetchBuddies HTTP ${it.code}: $body"); mainHandler.post { onResult(null) }; return }; try { val arr = JSONArray(body); val grouped = mutableMapOf<String, MutableList<String>>(); for (i in 0 until arr.length()) { val o = arr.getJSONObject(i); val buddy = o.optString("buddy_handle").trim(); if (buddy.isNotEmpty()) grouped.getOrPut(o.optString("group_name").ifBlank { "My Friends" }) { mutableListOf() }.add(buddy) }; Log.d(TAG, "fetchBuddies: ${arr.length()} rows for $userHandle"); mainHandler.post { onResult(grouped) } } catch (e: Exception) { Log.e(TAG, "fetchBuddies parse failed", e); mainHandler.post { onResult(null) } } } } }) }
-    fun addBuddy(userHandle: String, buddyHandle: String, groupName: String, onResult: (Boolean) -> Unit) { if (!authenticated()) { mainHandler.post { onResult(false) }; return }; val json = JSONObject().put("user_handle", userHandle).put("buddy_handle", buddyHandle).put("group_name", groupName); httpClient.newCall(request("/rest/v1/buddies?on_conflict=user_handle,buddy_handle", true).header("Prefer", "resolution=merge-duplicates").post(json.toString().toRequestBody(jsonMediaType)).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(false) } }; override fun onResponse(call: Call, response: Response) { response.use { mainHandler.post { onResult(it.isSuccessful) } } } }) }
+    private fun extractUserId(): String? {
+        val token = userAccessToken ?: return null
+        return try {
+            val parts = token.split(".")
+            if (parts.size < 2) null
+            else {
+                val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING), Charsets.UTF_8)
+                JSONObject(payload).optString("sub").takeIf { it.isNotBlank() }
+            }
+        } catch (_: Exception) { null }
+    }
+
+    fun pingPresence(roomName: String, username: String, onResult: ((Boolean) -> Unit)? = null) {
+        if (!authenticated()) {
+            mainHandler.post { onResult?.invoke(false) }
+            return
+        }
+
+        val json = JSONObject().put("room_name", roomName).put("username", username)
+
+        fun sendPresence(retryAfterRefresh: Boolean) {
+            val request = request("/rest/v1/room_participants?on_conflict=room_name,username", true)
+                .header("Prefer", "resolution=merge-duplicates")
+                .post(json.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            httpClient.newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.w(TAG, "Join room network failure for $roomName", e)
+                    mainHandler.post { onResult?.invoke(false) }
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    val code = response.code
+                    response.close()
+
+                    if (code == 401 && retryAfterRefresh) {
+                        Log.i(TAG, "Join room received 401; refreshing session and retrying once")
+                        ensureValidSession(forceRefresh = true) { refreshed ->
+                            if (refreshed) sendPresence(false)
+                            else mainHandler.post { onResult?.invoke(false) }
+                        }
+                        return
+                    }
+
+                    mainHandler.post { onResult?.invoke(code in 200..299) }
+                }
+            })
+        }
+
+        ensureValidSession { ready ->
+            if (ready) sendPresence(true)
+            else {
+                Log.w(TAG, "Join room blocked because the session could not be refreshed")
+                mainHandler.post { onResult?.invoke(false) }
+            }
+        }
+    }
+    fun leaveRoom(roomName: String, username: String) { if (!authenticated()) return; val room = URLEncoder.encode(roomName, "UTF-8"); val uid = extractUserId()?.let { URLEncoder.encode(it, "UTF-8") } ?: return; httpClient.newCall(request("/rest/v1/room_participants?room_name=eq.$room&owner_id=eq.$uid", true).delete().build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) = Unit; override fun onResponse(call: Call, response: Response) { response.close() } }) }
+    fun fetchBuddies(userHandle: String, onResult: (Map<String, List<String>>?) -> Unit) { if (!authenticated()) { mainHandler.post { onResult(null) }; return }; val normalizedUser = canonicalizeUsername(userHandle); val encodedUser = URLEncoder.encode(normalizedUser, "UTF-8"); val req = request("/rest/v1/buddies?user_handle=ilike.$encodedUser&select=buddy_handle,group_name&order=buddy_handle.asc", true).get().build(); httpClient.newCall(req).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "fetchBuddies network failure", e); mainHandler.post { onResult(null) } }; override fun onResponse(call: Call, response: Response) { response.use { val body = it.body?.string().orEmpty(); if (!it.isSuccessful) { Log.w(TAG, "fetchBuddies HTTP ${it.code}: $body"); mainHandler.post { onResult(null) }; return }; try { val arr = JSONArray(body); val grouped = mutableMapOf<String, MutableList<String>>(); for (i in 0 until arr.length()) { val o = arr.getJSONObject(i); val buddy = o.optString("buddy_handle").trim(); if (buddy.isNotEmpty()) grouped.getOrPut(o.optString("group_name").ifBlank { "My Friends" }) { mutableListOf() }.add(buddy) }; Log.d(TAG, "fetchBuddies: ${arr.length()} rows for $userHandle"); mainHandler.post { onResult(grouped) } } catch (e: Exception) { Log.e(TAG, "fetchBuddies parse failed", e); mainHandler.post { onResult(null) } } } } }) }
+    fun addBuddy(userHandle: String, buddyHandle: String, groupName: String, onResult: (Boolean) -> Unit) { if (!authenticated()) { mainHandler.post { onResult(false) }; return }; val json = JSONObject().put("user_handle", canonicalizeUsername(userHandle)).put("buddy_handle", canonicalizeUsername(buddyHandle)).put("group_name", groupName); httpClient.newCall(request("/rest/v1/buddies?on_conflict=user_handle,buddy_handle", true).header("Prefer", "resolution=merge-duplicates").post(json.toString().toRequestBody(jsonMediaType)).build()).enqueue(object : Callback { override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(false) } }; override fun onResponse(call: Call, response: Response) { response.use { mainHandler.post { onResult(it.isSuccessful) } } } }) }
     fun deleteBuddy(userHandle: String, buddyHandle: String, onResult: (Boolean) -> Unit) {
         if (!authenticated()) { mainHandler.post { onResult(false) }; return }
-        val user = URLEncoder.encode(userHandle, "UTF-8"); val buddy = URLEncoder.encode(buddyHandle, "UTF-8")
-        val req = request("/rest/v1/buddies?user_handle=eq.$user&buddy_handle=eq.$buddy", true).delete().build()
+        val uid = extractUserId()?.let { URLEncoder.encode(it, "UTF-8") } ?: run { mainHandler.post { onResult(false) }; return }; val buddy = URLEncoder.encode(buddyHandle, "UTF-8")
+        val req = request("/rest/v1/buddies?owner_id=eq.$uid&buddy_handle=eq.$buddy", true).delete().build()
         httpClient.newCall(req).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { Log.w(TAG, "deleteBuddy network failure", e); mainHandler.post { onResult(false) } }
             override fun onResponse(call: Call, response: Response) { response.use { val ok = it.isSuccessful; if (!ok) Log.w(TAG, "deleteBuddy HTTP ${it.code}"); mainHandler.post { onResult(ok) } } }
         })
     }
 
+    /** Runs non-mutating backend smoke probes and reports elapsed time for diagnostics. */
+    fun runReadOnlyDiagnostics(onResult: (List<DiagnosticProbe>) -> Unit) {
+        if (!authenticated()) {
+            mainHandler.post { onResult(listOf(DiagnosticProbe("Supabase.auth", false, 0L, "No active session"))) }
+            return
+        }
+        val userId = extractUserId()?.let { URLEncoder.encode(it, "UTF-8") }.orEmpty()
+        val probes = listOf(
+            Pair("Supabase.auth", "/auth/v1/user"),
+            Pair("Rooms.LoadCategories", "/rest/v1/chat_categories?select=id&limit=1"),
+            Pair("Rooms.LoadList", "/rest/v1/chat_rooms?select=id&limit=1"),
+            Pair("Profile.Load", "/rest/v1/profiles?select=id,username,nickname&owner_id=eq.$userId&limit=1"),
+            Pair("Buddies.load", "/rest/v1/buddies?select=buddy_handle&limit=1"),
+            Pair("Room.participants", "/rest/v1/room_participants?select=username&limit=1"),
+            Pair("Room.history", "/rest/v1/room_messages?select=id&limit=1")
+        )
+        val results = java.util.Collections.synchronizedList(mutableListOf<DiagnosticProbe>())
+        val remaining = java.util.concurrent.atomic.AtomicInteger(probes.size)
+        probes.forEach { (name, path) ->
+            val startedAt = System.nanoTime()
+            val req = request(path, true).get().build()
+            httpClient.newCall(req).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    results.add(DiagnosticProbe(name, false, (System.nanoTime() - startedAt) / 1_000_000L, e.message ?: "Network failure"))
+                    complete()
+                }
+                override fun onResponse(call: Call, response: Response) {
+                    response.use { results.add(DiagnosticProbe(name, it.isSuccessful, (System.nanoTime() - startedAt) / 1_000_000L, "HTTP ${it.code}")) }
+                    complete()
+                }
+                private fun complete() {
+                    if (remaining.decrementAndGet() == 0) mainHandler.post { onResult(results.sortedBy { it.name }) }
+                }
+            })
+        }
+    }
+
+    data class DiagnosticProbe(val name: String, val success: Boolean, val elapsedMs: Long, val detail: String)
     fun deleteAccount(onResult: (Boolean) -> Unit) {
-        if (!authenticated()) { mainHandler.post { onResult(true) }; return }
-        // RLS policies allow authenticated users to delete their own profile, buddies, and DM entries
-        val profileReq = request("/rest/v1/profiles", true).delete().build()
-        httpClient.newCall(profileReq).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(false) } }
-            override fun onResponse(call: Call, response: Response) {
-                response.close()
-                val buddiesReq = request("/rest/v1/buddies", true).delete().build()
-                httpClient.newCall(buddiesReq).enqueue(object : Callback {
-                    override fun onFailure(call: Call, e: IOException) { mainHandler.post { onResult(true) } }
-                    override fun onResponse(call: Call, resp2: Response) {
-                        resp2.close()
+        if (!authenticated()) {
+            mainHandler.post { onResult(false) }
+            return
+        }
+
+        fun invokeDeletion(retryAfterRefresh: Boolean) {
+            val req = request("/functions/v1/uzzap-delete-account", true)
+                .post(JSONObject().toString().toRequestBody(jsonMediaType))
+                .build()
+
+            httpClient.newCall(req).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.w(TAG, "Account deletion request failed", e)
+                    mainHandler.post { onResult(false) }
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    response.use {
+                        val body = it.body?.string().orEmpty()
+                        if (it.code == 401 && retryAfterRefresh) {
+                            Log.i(TAG, "Account deletion received 401; refreshing session and retrying once")
+                            ensureValidSession(forceRefresh = true) { refreshed ->
+                                if (refreshed) invokeDeletion(false)
+                                else mainHandler.post { onResult(false) }
+                            }
+                            return
+                        }
+
+                        if (!it.isSuccessful) {
+                            Log.w(TAG, "Account deletion HTTP ${it.code}: ${errorTextFromBody(body, "Deletion failed")}")
+                            mainHandler.post { onResult(false) }
+                            return
+                        }
+
+                        // The backend has already removed auth.users and owned data.
+                        // Clear local credentials only after the server confirms deletion.
                         signOut()
                         mainHandler.post { onResult(true) }
                     }
-                })
+                }
+            })
+        }
+
+        ensureValidSession { ready ->
+            if (ready) invokeDeletion(true)
+            else {
+                Log.w(TAG, "Account deletion blocked because the session could not be refreshed")
+                mainHandler.post { onResult(false) }
             }
-        })
+        }
     }
 }

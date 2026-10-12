@@ -28,15 +28,19 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
+import com.kolipri.uzzap.data.canonicalizeUsername
+import com.kolipri.uzzap.data.NotificationPermission
 import coil.load
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.CrashDiagnostics
+import com.kolipri.uzzap.data.FcmClient
+import com.kolipri.uzzap.data.UzzapNotificationManager
 import com.kolipri.uzzap.data.NicknameResolver
 import com.kolipri.uzzap.data.PasswordRecoveryClient
+import com.kolipri.uzzap.data.SessionStore
 import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.data.signInWithEmail
-import com.kolipri.uzzap.data.signOut
 import com.kolipri.uzzap.data.signUpWithEmail
 import com.kolipri.uzzap.data.verifySession
 
@@ -57,19 +61,33 @@ class SplashMenuActivity : BaseChromeActivity() {
     }
 
     private fun requestNotificationPermissionAtStartup() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            window.decorView.post {
-                if (!isFinishing && !isDestroyed) {
-                    ActivityCompat.requestPermissions(
-                        this,
-                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                        NOTIFICATION_PERMISSION_REQUEST
-                    )
-                }
+        if (!NotificationPermission.shouldRequest(this)) return
+        window.decorView.post {
+            if (!isFinishing && !isDestroyed && NotificationPermission.shouldRequest(this)) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    NOTIFICATION_PERMISSION_REQUEST
+                )
             }
         }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != NOTIFICATION_PERMISSION_REQUEST) return
+        val index = permissions.indexOf(Manifest.permission.POST_NOTIFICATIONS)
+        if (index < 0) return
+        val granted = grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED
+        // Read AFTER the result: false means "don't ask again" / double-denied.
+        val canAskAgain = ActivityCompat.shouldShowRequestPermissionRationale(
+            this, Manifest.permission.POST_NOTIFICATIONS
+        )
+        NotificationPermission.onResult(this, granted, canAskAgain)
     }
 
     private fun showCrashReportIfPresent() {
@@ -79,9 +97,9 @@ class SplashMenuActivity : BaseChromeActivity() {
     }
 
     override fun onResume() { super.onResume(); loadSession(); renderMenu() }
-    private fun loadSession() { val p = getSharedPreferences("uzzap_prefs", MODE_PRIVATE); val nick = p.getString("nickname", "cy") ?: "cy"; AppState.nickname = nick; AppState.username = nick; AppState.email = p.getString("email", "") ?: ""; val token = p.getString("auth_token", "") ?: ""; if (p.getBoolean("session_active", false) && token.isNotBlank()) { AppState.authToken = token; SupabaseClient.setAccessTokenForLegacy(token) } }
+    private fun loadSession() { val p = getSharedPreferences("uzzap_prefs", MODE_PRIVATE); val nick = SessionStore.nickname().ifBlank { p.getString("nickname", "cy") ?: "cy" }; AppState.nickname = nick; AppState.username = SessionStore.username().ifBlank { nick }; AppState.email = SessionStore.email().ifBlank { p.getString("email", "") ?: "" }; AppState.role = SessionStore.role().ifBlank { "user" }; var token = SessionStore.accessToken() ?: ""; if (token.isBlank() && p.getBoolean("session_active", false)) { val legacy = p.getString("auth_token", "") ?: ""; if (legacy.isNotBlank()) { token = legacy; p.edit().remove("auth_token").apply() } }; if (p.getBoolean("session_active", false) && token.isNotBlank()) { AppState.authToken = token; SupabaseClient.setAccessTokenForLegacy(token) } else if (p.getBoolean("session_active", false)) { p.edit().putBoolean("session_active", false).remove("auth_token").apply(); AppState.resetSession() } }
     private fun sessionActive(): Boolean = getSharedPreferences("uzzap_prefs", MODE_PRIVATE).getBoolean("session_active", false)
-    private fun verifySession() { val p = getSharedPreferences("uzzap_prefs", MODE_PRIVATE); val token = p.getString("auth_token", "") ?: return; if (!p.getBoolean("session_active", false) || token.isBlank()) return; SupabaseClient.verifySession(token) { valid, email, nick -> if (isFinishing || isDestroyed) return@verifySession; if (!valid) { p.edit().putBoolean("session_active", false).remove("auth_token").apply(); AppState.resetSession() } else { if (!email.isNullOrBlank()) AppState.email = email; if (!nick.isNullOrBlank()) { AppState.nickname = nick; AppState.username = nick }; p.edit().putString("email", AppState.email).putString("nickname", AppState.nickname).apply() }; renderMenu() } }
+    private fun verifySession() { val p = getSharedPreferences("uzzap_prefs", MODE_PRIVATE); val token = SessionStore.accessToken() ?: return; if (!p.getBoolean("session_active", false) || token.isBlank()) return; SupabaseClient.verifySession(token) { valid, email, nick -> if (isFinishing || isDestroyed) return@verifySession; if (!valid) { p.edit().putBoolean("session_active", false).remove("auth_token").apply(); AppState.resetSession() } else { if (!email.isNullOrBlank()) AppState.email = email; if (!nick.isNullOrBlank()) { AppState.nickname = nick; AppState.username = nick }; p.edit().putString("email", AppState.email).putString("nickname", AppState.nickname).apply() }; renderMenu() } }
     private fun renderMenu() {
         val container = findViewById<LinearLayout>(R.id.menu_container) ?: return
         container.removeAllViews()
@@ -129,11 +147,18 @@ class SplashMenuActivity : BaseChromeActivity() {
         }
         load("file:///android_asset/$asset")
     }
-    private fun signOut() { UzzapDialogs.show(this, iconAsset = "anim-icons/menu_switch.gif", title = "Sign Out", message = "Are you sure you want to sign out of '${AppState.nickname}'?", positive = "Sign Out", onPositive = { getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit().putBoolean("session_active", false).remove("auth_token").apply(); SupabaseClient.signOut(); AppState.resetSession(); renderMenu() }) }
-    private fun showLoading(message: String) { loading?.dismiss(); val text = ThemeManager.resolve(this, R.attr.uzzapColorText); val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }; val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = GradientDrawable().apply { setColor(0x2B8EEF04); cornerRadius = dp(14).toFloat() } }; tile.addView(ImageView(this).apply { loadAnimIcon("anim-icons/dialog_default.gif") }, LinearLayout.LayoutParams(dp(30), dp(30))); row.addView(tile, LinearLayout.LayoutParams(dp(48), dp(48))); row.addView(TextView(this).apply { this.text = message; textSize = 14f; setTextColor(text); setPadding(dp(12), 0, 0, 0) }); val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(18), dp(26), dp(18)); background = GradientDrawable().apply { setColor(ThemeManager.resolve(this@SplashMenuActivity, R.attr.uzzapColorSurface)); cornerRadius = dp(24).toFloat() } }; card.addView(row); val root = FrameLayout(this).apply { setPadding(dp(36), dp(36), dp(36), dp(36)); addView(card, FrameLayout.LayoutParams(-1, -2)) }; loading = AlertDialog.Builder(this).setView(root).setCancelable(false).create(); loading?.setOnShowListener { loading?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT)) }; loading?.show() }
+    private fun signOut() {
+        UzzapDialogs.show(this, iconAsset = "anim-icons/menu_switch.gif", title = "Sign Out", message = "Are you sure you want to sign out of '${AppState.nickname}'?", positive = "Sign Out", onPositive = {
+            getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit().putBoolean("session_active", false).remove("auth_token").apply()
+            UzzapNotificationManager.clearAllNotifications(this)
+            AppState.resetSession()
+            renderMenu()
+        })
+    }
+    private fun showLoading(message: String) { loading?.dismiss(); val text = ThemeManager.resolve(this, R.attr.uzzapColorText); val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }; val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = GradientDrawable().apply { setColor(0x2BAF0C0D); cornerRadius = dp(14).toFloat() } }; tile.addView(ImageView(this).apply { loadAnimIcon("anim-icons/dialog_default.gif") }, LinearLayout.LayoutParams(dp(30), dp(30))); row.addView(tile, LinearLayout.LayoutParams(dp(48), dp(48))); row.addView(TextView(this).apply { this.text = message; textSize = 14f; setTextColor(text); setPadding(dp(12), 0, 0, 0) }); val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(18), dp(26), dp(18)); background = GradientDrawable().apply { setColor(ThemeManager.resolve(this@SplashMenuActivity, R.attr.uzzapColorSurface)); cornerRadius = dp(24).toFloat() } }; card.addView(row); val root = FrameLayout(this).apply { setPadding(dp(36), dp(36), dp(36), dp(36)); addView(card, FrameLayout.LayoutParams(-1, -2)) }; loading = AlertDialog.Builder(this).setView(root).setCancelable(false).create(); loading?.setOnShowListener { loading?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT)) }; loading?.show() }
     private fun hideLoading() { loading?.dismiss(); loading = null }
     private fun validEmail(value: String) = value.isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(value).matches()
-    private fun saveSession(email: String, nick: String, token: String) { AppState.email = email; AppState.nickname = nick; AppState.username = nick.lowercase().replace(" ", "_"); AppState.authToken = token; SupabaseClient.setAccessTokenForLegacy(token); getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit().putBoolean("session_active", true).putString("email", email).putString("nickname", nick).putString("auth_token", token).apply() }
+    private fun saveSession(email: String, nick: String, token: String) { AppState.email = email; AppState.nickname = nick; AppState.username = SessionStore.username().ifBlank { canonicalizeUsername(nick) }; AppState.authToken = token; SupabaseClient.setAccessTokenForLegacy(token); getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit().putBoolean("session_active", true).putString("email", email).putString("nickname", nick).apply() }
     private fun onLogin() {
         val fields = listOf(
             UzzapDialogs.FieldSpec("Email or Nickname", if (AppState.email.isNotBlank()) AppState.email else AppState.nickname),
@@ -145,7 +170,7 @@ class SplashMenuActivity : BaseChromeActivity() {
             if (identifier.isBlank()) { id.error = "Email or nickname is required"; return@form false }
             if (pass.length < 6) { password.error = "Password must be at least 6 characters"; return@form false }
             showLoading("Authenticating...")
-            fun finishLogin(email: String) { SupabaseClient.signInWithEmail(email, pass) { success, nick, token, error -> hideLoading(); if (success && !token.isNullOrBlank()) { saveSession(email, nick?.ifBlank { identifier } ?: identifier, token); Toast.makeText(this, "Welcome back, ${AppState.nickname}!", Toast.LENGTH_SHORT).show(); startActivity(Intent(this, ConnectingActivity::class.java)) } else UzzapDialogs.show(this, iconAsset = "anim-icons/menu_login.gif", title = "Login Failed", message = error ?: "Invalid nickname or password.", positive = "Try Again", onPositive = { onLogin() }, negative = "Forgot Password?", onNegative = { onForgotPassword() }) } }
+            fun finishLogin(email: String) { SupabaseClient.signInWithEmail(email, pass) { success, nick, token, error -> hideLoading(); if (success && !token.isNullOrBlank()) { saveSession(email, nick?.ifBlank { identifier } ?: identifier, token); FcmClient.initializeAndSync(this); Toast.makeText(this, "Welcome back, ${AppState.nickname}!", Toast.LENGTH_SHORT).show(); startActivity(Intent(this, ConnectingActivity::class.java)) } else UzzapDialogs.show(this, iconAsset = "anim-icons/menu_login.gif", title = "Login Failed", message = error ?: "Invalid nickname or password.", positive = "Try Again", onPositive = { onLogin() }, negative = "Forgot Password?", onNegative = { onForgotPassword() }) } }
             if (identifier.contains("@")) { if (!validEmail(identifier)) { hideLoading(); id.error = "Please enter a valid email address"; return@form false }; finishLogin(identifier) } else { NicknameResolver.resolve(identifier) { email, error -> runOnUiThread { if (email.isNullOrBlank()) { hideLoading(); UzzapDialogs.show(this, iconAsset = "anim-icons/menu_login.gif", title = "Login Failed", message = error ?: "Nickname not found", positive = "Try Again", onPositive = { onLogin() }) } else finishLogin(email) } } }
             true
         })
@@ -165,7 +190,7 @@ class SplashMenuActivity : BaseChromeActivity() {
             if (p.length < 6) { pass.error = "Password must be at least 6 characters"; return@form false }
             if (p != c) { confirm.error = "Passwords do not match"; return@form false }
             showLoading("Creating account...")
-            SupabaseClient.signUpWithEmail(e, p, n) { success, token, error -> runOnUiThread { hideLoading(); if (success && !token.isNullOrBlank()) { saveSession(e, n, token); startActivity(Intent(this, ConnectingActivity::class.java)) } else UzzapDialogs.show(this, iconAsset = "anim-icons/menu_register.gif", title = "Registration Failed", message = error ?: "Unable to create account", positive = "OK") } }
+            SupabaseClient.signUpWithEmail(e, p, n) { success, token, error -> runOnUiThread { hideLoading(); if (success && !token.isNullOrBlank()) { saveSession(e, n, token); FcmClient.initializeAndSync(this); startActivity(Intent(this, ConnectingActivity::class.java)) } else UzzapDialogs.show(this, iconAsset = "anim-icons/menu_register.gif", title = "Registration Failed", message = error ?: "Unable to create account", positive = "OK") } }
             true
         })
     }
@@ -187,49 +212,9 @@ class SplashMenuActivity : BaseChromeActivity() {
             positive = "OK")
     }
     private fun openHelp() = startActivity(SimpleTextActivity.intentForAsset(this, "Help", "help.txt"))
-    private fun openAbout() {
-        val red = UzzapDialogs.GREEN
-        val text = ThemeManager.resolve(this, R.attr.uzzapColorText)
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(4), dp(2), dp(4), dp(2))
-        }
-
-        addAboutHeading(root, "UZZAP", red)
-        addAboutText(root, "Modern Recreation by CY", text, 16, true)
-        addAboutText(root, "A modern Android/Kotlin recreation of the classic Nokia/J2ME Uzzap mobile chat experience.", text, 15, false)
-        addAboutText(root, "Developed by CY using Android/Kotlin and a modern cloud backend.", text, 15, false)
-        addAboutText(root, "This is an independent, unofficial recreation. The original Nokia/J2ME Uzzap application, its decompiled source, historical assets and trademarks are separate materials and are not claimed as original CY work. See NOTICE.md for attribution and licensing details.", text, 15, false)
-        addAboutText(root, "Animated icons courtesy of Flaticon, Lordicon and IconScout.", text, 13, false)
-        addAboutText(root, "2026 CY", text, 14, true)
-
-        val scroll = ScrollView(this).apply {
-            addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        }
-
-        UzzapDialogs.custom(this, iconAsset = "anim-icons/menu_about.gif", title = "About Uzzap", content = scroll, positive = "Close")
-    }
-
-    private fun addAboutHeading(parent: LinearLayout, value: String, color: Int) {
-        parent.addView(TextView(this).apply {
-            text = value
-            textSize = 22f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(color)
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(0, dp(8), 0, dp(10))
-        })
-    }
-
-    private fun addAboutText(parent: LinearLayout, value: String, color: Int, size: Int, bold: Boolean) {
-        parent.addView(TextView(this).apply {
-            text = value
-            textSize = size.toFloat()
-            if (bold) typeface = Typeface.DEFAULT_BOLD
-            setTextColor(color)
-            setPadding(0, dp(3), 0, dp(9))
-        })
-    }
+    // Single About surface: the splash menu used to host a second,
+    // version-less credits dialog that drifted from AboutUzzapActivity.
+    private fun openAbout() = startActivity(Intent(this, AboutUzzapActivity::class.java))
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 

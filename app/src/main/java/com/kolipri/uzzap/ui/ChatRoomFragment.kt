@@ -21,6 +21,8 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppDiagnostics
 import com.kolipri.uzzap.data.AppState
+import com.kolipri.uzzap.data.DirectMessageClient
+import com.kolipri.uzzap.data.ModeratorRoleClient
 import com.kolipri.uzzap.data.RoomPresenceClient
 import com.kolipri.uzzap.data.SafetyClient
 import com.kolipri.uzzap.data.UnifiedRoomClient
@@ -58,9 +60,31 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         if (isAdded && joinedSuccessfully && target.equals(roomName, true)) {
             val current = AppState.messagesFor(roomName)
             if (msg.id > 0 && current.none { it.id == msg.id }) {
-                current.add(msg)
-                messageAdapter.add(msg)
-                AppDiagnostics.success("Room.realtimeMessage", "room=$roomName messageId=${msg.id}")
+                // Realtime can arrive before the REST send callback. Reconcile the
+                // optimistic local message with the database row instead of appending
+                // the same message a second time.
+                val pendingEntry = pendingSends.entries.firstOrNull { (local, pending) ->
+                    local.id <= 0L &&
+                        local.sender.equals(msg.sender, ignoreCase = true) &&
+                        pending.text == msg.body
+                }
+                if (pendingEntry != null) {
+                    val local = pendingEntry.key
+                    val index = current.indexOf(local)
+                    if (index >= 0) {
+                        current[index] = msg
+                        val adapterIndex = messageAdapter.indexOf(local)
+                        if (adapterIndex >= 0) messageAdapter.replaceAt(adapterIndex, msg)
+                    } else {
+                        current.add(msg)
+                        messageAdapter.add(msg)
+                    }
+                    pendingSends.remove(local)
+                } else {
+                    current.add(msg)
+                    messageAdapter.add(msg)
+                }
+                AppDiagnostics.success("Room.realtimeMessage", "room=$roomName messageId="+msg.id)
                 scrollToLatest()
             }
         }
@@ -89,7 +113,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
 
     private val pollRunnable = object : Runnable {
         override fun run() {
-            if (!isPollingActive || !isAdded || !joinedSuccessfully || pollInFlight) return
+            if (!isPollingActive || realtimeConnected || !isAdded || !joinedSuccessfully || pollInFlight) return
             pollInFlight = true
             val current = AppState.messagesFor(roomName)
             val afterId = current.maxOfOrNull { it.id } ?: 0L
@@ -126,7 +150,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         messageList = view.findViewById(R.id.room_messages)
         messageAdapter = RoomMessageAdapter(requireContext())
         messageAdapter.onMessageLongClickListener = { message ->
-            if (AppState.isModerator && message.id > 0) showModeratorMessageActions(message)
+            if (message.id > 0) ModeratorRoleClient.refresh { if (AppState.isModerator) showModeratorMessageActions(message) }
         }
         layoutManager = LinearLayoutManager(requireContext()).apply { stackFromEnd = true }
         messageList.layoutManager = layoutManager
@@ -164,7 +188,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
             if (!isAdded) return@join
             if (!ok) {
                 AppDiagnostics.failed("Room.join", "room=$roomName error=${message ?: "Cannot join room"}")
-                UzzapDialogs.show(requireContext(), title = "Cannot Join Room", message = message ?: "This room cannot accept you.", positive = "OK", onPositive = { host.leaveRoom(roomName) }, negative = null)
+                UzzapDialogs.show(requireContext(), title = "Cannot Join Room", message = message ?: "This room cannot accept you.", positive = "OK", onPositive = { host.hideRoom(roomName) }, negative = null)
                 return@join
             }
             joinedSuccessfully = true
@@ -310,8 +334,8 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
         host.setSoftkeys(getString(R.string.softkey_options), getString(R.string.softkey_buddies), onLeft = { showOptionsMenu() }, onRight = { host.goToBuddyList() })
     }
 
-    private fun startPolling() { if (isPollingActive || !joinedSuccessfully) return; isPollingActive = true; pollInFlight = false; handler.removeCallbacks(pollRunnable); handler.post(pollRunnable) }
-    private fun scheduleNextPoll() { if (isPollingActive && isAdded && joinedSuccessfully) { handler.removeCallbacks(pollRunnable); handler.postDelayed(pollRunnable, 2_500L) } }
+    private fun startPolling() { if (realtimeConnected || isPollingActive || !joinedSuccessfully) return; isPollingActive = true; pollInFlight = false; handler.removeCallbacks(pollRunnable); handler.post(pollRunnable) }
+    private fun scheduleNextPoll() { if (isPollingActive && !realtimeConnected && isAdded && joinedSuccessfully) { handler.removeCallbacks(pollRunnable); handler.postDelayed(pollRunnable, 2_500L) } }
     private fun stopPolling() { isPollingActive = false; pollInFlight = false; handler.removeCallbacks(pollRunnable) }
 
     private fun hasNetwork(): Boolean {
@@ -363,7 +387,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
     private fun retryPendingSends() { pendingSends.values.toList().forEach { if (it.attempts < 4) sendPending(it) } }
 
     private fun showOptionsMenu() {
-        J2mePopup.show(requireContext(), listOf(PopupItem("Send Message"), PopupItem("Send Whisper"), PopupItem("Room Members"), PopupItem("Room Info"), PopupItem("Invite Buddy"), PopupItem("Report"), PopupItem("Leave Room"))) { index ->
+        J2mePopup.show(requireContext(), listOf(PopupItem("Send Message"), PopupItem("Send Whisper"), PopupItem("Room Members"), PopupItem("Room Info"), PopupItem("Invite Buddy"), PopupItem("Report"), PopupItem("Hide Room"), PopupItem("Leave Room"))) { index ->
             when (index) {
                 0 -> etMessage.requestFocus()
                 1 -> whisperDialog()
@@ -371,7 +395,8 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
                 3 -> UzzapDialogs.show(requireContext(), iconAsset = "anim-icons/menu_backend.gif", title = roomName, message = "Province chatroom\nLive room\nMessages: ${AppState.messagesFor(roomName).size}", positive = "OK")
                 4 -> startActivity(UzzapParityActivity.intent(requireContext(), UzzapParityActivity.MODE_ROOM_ACTIONS, roomName))
                 5 -> showReportDialog()
-                6 -> host.confirmLeaveRoom()
+                6 -> host.confirmHideRoom()
+                7 -> host.confirmLeaveRoom()
             }
         }
     }
@@ -404,7 +429,7 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
 
     private fun whisperDialog() {
         UnifiedRoomClient.fetchParticipants(roomName) { members ->
-            val targets = (members ?: emptyList()).filter { !it.equals(AppState.nickname, true) }
+            val targets = (members ?: emptyList()).filter { !it.equals(AppState.username, true) && !it.equals(AppState.nickname, true) }
             if (!isAdded) return@fetchParticipants
             if (targets.isEmpty()) { Toast.makeText(requireContext(), "No other room members available.", Toast.LENGTH_SHORT).show(); return@fetchParticipants }
             UzzapDialogs.items(requireContext(), title = "Whisper in $roomName", items = targets.toTypedArray(), onPick = { which ->
@@ -412,7 +437,10 @@ class ChatRoomFragment : Fragment(R.layout.fragment_chat_room) {
                 UzzapDialogs.form(requireContext(), title = "Whisper to $target", fields = listOf(UzzapDialogs.FieldSpec("Whisper to $target")), positive = "Send", onPositive = { f ->
                     val text = f[0].text.toString().trim()
                     if (text.isEmpty()) { f[0].error = "Enter a message"; return@form false }
-                    UnifiedRoomClient.sendMessage(roomName, text) {}; true
+                    DirectMessageClient.sendMessage(AppState.username, target, text) { sent ->
+                        if (isAdded) Toast.makeText(requireContext(), if (sent != null) "Whisper sent privately to $target" else "Whisper failed.", Toast.LENGTH_SHORT).show()
+                    }
+                    true
                 })
             })
         }

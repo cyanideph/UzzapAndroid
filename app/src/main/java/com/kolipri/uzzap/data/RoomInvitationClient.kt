@@ -18,7 +18,7 @@ object RoomInvitationClient {
     private val url = BuildConfig.SUPABASE_URL.trimEnd('/')
     private val key = BuildConfig.SUPABASE_ANON_KEY
     private val json = "application/json; charset=utf-8".toMediaType()
-    private fun request(path: String): Request.Builder = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", "Bearer ${SupabaseClient.userAccessToken.orEmpty()}").header("Content-Type", "application/json")
+    private fun request(path: String): Request.Builder = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", SupabaseClient.authHeader()).header("Content-Type", "application/json")
     private fun rpc(name: String, body: JSONObject, callback: Callback) { http.newCall(request("/rest/v1/rpc/$name").post(body.toString().toRequestBody(json)).build()).enqueue(callback) }
 
     fun send(room: String, inviter: String, invitee: String, onResult: (Boolean) -> Unit) {
@@ -34,8 +34,10 @@ object RoomInvitationClient {
 
     fun fetchPending(username: String, onResult: (List<RoomInvitation>?) -> Unit) {
         if (SupabaseClient.userAccessToken.isNullOrBlank()) { main.post { onResult(null) }; return }
-        val user = URLEncoder.encode(username.trim().lowercase().replace(" ", "_"), "UTF-8")
-        val path = "/rest/v1/room_invitations?invitee_username=eq.$user&status=eq.pending&select=id,room_name,inviter_username,invitee_username,status,created_at&order=created_at.desc&limit=50"
+        // Invitee handles keep registration case server-side: ilike lookup.
+        // Rows are already scoped to the caller by RLS, so all are included.
+        val user = URLEncoder.encode(username.trim(), "UTF-8")
+        val path = "/rest/v1/room_invitations?invitee_username=ilike.$user&status=eq.pending&select=id,room_name,inviter_username,invitee_username,status,created_at&order=created_at.desc&limit=50"
         http.newCall(request(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { onResult(null) } }
             override fun onResponse(call: Call, response: Response) { response.use {

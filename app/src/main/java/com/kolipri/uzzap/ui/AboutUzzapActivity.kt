@@ -1,6 +1,8 @@
 package com.kolipri.uzzap.ui
 
+import android.content.Intent
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -11,16 +13,33 @@ import com.kolipri.uzzap.BuildConfig
 import com.kolipri.uzzap.R
 
 class AboutUzzapActivity : BaseChromeActivity() {
-    private val features = listOf(
-        "Login and signup", "Logout and password recovery", "Profile creation and editing", "Avatar support", "Online/offline presence",
-        "Philippine region/category selection", "Province chat rooms", "Room joining and leaving", "Realtime room messaging", "Message history pagination",
-        "Message retry and reconnect recovery", "Message deletion", "30 Uzzap message color codes (c01-c30)", "Color-coded messages with multiple colors", "Uzzap emoticon/emoji picker",
-        "Numbered Uzzap emoticons 11-20 and 47", "Legacy text emoticon rendering", "Buddies", "Buddy requests", "Add/remove buddies", "Block and report users",
-        "Private chat", "Delivery receipts", "Read receipts", "Unread synchronization", "Room invitations", "Uzzap bot system messages",
-        "FCM push notifications", "Notification tap-to-chat", "Duplicate notification suppression", "Moderator report queue", "Moderator assignment/removal",
-        "Moderator-only room", "Warn", "Mute", "Kick", "Ban", "Sanction expiry", "Sanction revoke", "Moderator audit log",
-        "Role-aware message deletion", "Moderation hierarchy safeguards", "Rate limiting", "Session persistence", "Token refresh and recovery",
-        "Secure cloud auth", "PostgreSQL/RLS security", "Protected database functions", "Secure push-token handling", "CI APK builds", "Diagnostics and crash handling"
+    private val featureGroups = listOf(
+        "Community" to listOf(
+            "Philippine region & province chat rooms", "Room joining and leaving",
+            "Realtime room messaging", "Message history pagination",
+            "Retry and reconnect recovery", "UzzapBot system messages"
+        ),
+        "Messaging" to listOf(
+            "30 Uzzap color codes (c01-c30), multi-color messages",
+            "Uzzap emoticon/emoji picker, numbered 11-20 and 47",
+            "Legacy text emoticons (:) :D <3 …)", "Message deletion"
+        ),
+        "Buddies & private chat" to listOf(
+            "Buddy requests, add/remove, groups", "Private one-to-one chat",
+            "Delivery & read receipts", "Unread sync, room invitations",
+            "Block and report users"
+        ),
+        "Notifications" to listOf(
+            "FCM push, tap-to-chat", "Duplicate suppression", "Dead-token cleanup"
+        ),
+        "Moderation" to listOf(
+            "Report queue, moderator-only room", "Warn, mute, kick, ban + expiry/revoke",
+            "Audit log, role hierarchy safeguards", "Rate limiting"
+        ),
+        "Account & security" to listOf(
+            "Login, signup, password recovery", "Encrypted sessions, token refresh",
+            "Profiles, avatars, presence", "PostgreSQL/RLS + protected functions"
+        )
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,9 +75,12 @@ class AboutUzzapActivity : BaseChromeActivity() {
         addText(root, "Android/Kotlin modernization of the classic Uzzap chat experience with modern security and realtime messaging.", 15, false)
 
         addHeading(root, "What's New in ${BuildConfig.VERSION_NAME}")
-        addText(root, "Beta 7 — Uzzap identity, colors and emoticons\n• Added all 30 Uzzap message color codes: c01-c30\n• Messages support color markup and multiple color segments\n• Nicknames remain text-only and keep the normal Uzzap nickname color\n• Added Uzzap emoticon/emoji picker\n• Added numbered emoticons 11-20 and 47\n• Numbered emoticon markers render as their actual Uzzap images\n• Added legacy text emoticon rendering such as :), :D, :(, ;), :P and <3\n• Color codes and emoticons can be used together in messages\n• Added pure centered UzzapBot system welcome messages\n• Hardened nickname sanitization and room sender identity\n• Added secure moderator/admin room message deletion\n• Fixed password recovery HTTP 405 update failure", 15, false)
+        addText(root, "Beta 8 — Trust & polish\n• Nickname login without exposing emails\n• Truly private whispers (no more room broadcast)\n• Moderators can moderate their own messages\n• Encrypted sessions, no plaintext tokens\n• Notification permission asks at most twice\n• Fixed buddy lists and DMs for mixed-case names", 15, false)
 
         addHeading(root, "Version History")
+
+        addText(root, "v1.0-beta.8 — Trust & Polish", 17, true)
+        addText(root, "• Closed anon email enumeration via nickname-login RPC; rotated leaked keys\n• Fixed room/buddy leave after nickname changes\n• Whisper is now truly private\n• Unified encrypted session storage; startup blocks on missing/invalid key\n• Fixed FCM token ownership on multi-account devices", 15, false)
 
         addText(root, "v1.0-beta.1 — Foundation", 17, true)
         addText(root, "• Started the Android/Kotlin modernization of the Uzzap experience\n• Established the Android project structure and application identity\n• Built the first navigation, screen and shared UI foundations\n• Established the initial login, signup and profile direction\n• Began replacing the legacy client architecture with a maintainable Android codebase", 15, false)
@@ -82,9 +104,16 @@ class AboutUzzapActivity : BaseChromeActivity() {
         addText(root, "• Added 30 Uzzap message color codes: c01-c30\n• Added multi-color message rendering\n• Kept nickname editing text-only; nickname colors are not user-selectable\n• Added Uzzap emoticon/emoji picker\n• Added numbered emoticons 11-20 and 47\n• Added legacy text emoticon rendering\n• Added color + emoticon combinations in messages\n• Added pure system-style UzzapBot welcome messages\n• Sanitized nickname markup at the database boundary\n• Added secure moderator/admin room message deletion\n• Fixed password recovery HTTP 405 update failure\n• Updated the Android application to version code 7", 15, false)
 
         addHeading(root, "Current Feature Set")
-        features.forEachIndexed { index, feature ->
-            addText(root, "${index + 1}. $feature", 15, false)
+        featureGroups.forEach { (group, items) ->
+            addText(root, group, 16, true)
+            items.forEach { feature -> addText(root, "• $feature", 15, false) }
         }
+
+        addHeading(root, "Support")
+        addText(root, "Beta means rough edges — tell us.", 15, false)
+        addLinkRow(root, "🐞  Report a bug", "https://github.com/cyanideph/UzzapAndroid/issues")
+        addLinkRow(root, "🔒  Privacy policy", "https://cyanideph.github.io/uzzap-site/privacy.html")
+        addLinkRow(root, "🗑  Delete my account", "https://cyanideph.github.io/uzzap-site/delete-account.html")
 
         addHeading(root, "Build Information")
         addText(root, "Application ID: ${BuildConfig.APPLICATION_ID}\nBuild type: ${BuildConfig.BUILD_TYPE}\nTarget SDK: 36\nPush: Firebase Cloud Messaging\nRelease channel: Beta", 14, false)
@@ -103,6 +132,25 @@ class AboutUzzapActivity : BaseChromeActivity() {
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(UzzapDialogs.GREEN)
             setPadding(0, dp(22), 0, dp(8))
+        }
+        parent.addView(view)
+    }
+
+    private fun addLinkRow(parent: LinearLayout, label: String, url: String) {
+        val view = TextView(this).apply {
+            text = label
+            textSize = 15f
+            setTextColor(UzzapDialogs.GREEN)
+            setPadding(0, dp(6), 0, dp(6))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                runCatching {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                }.onFailure {
+                    android.widget.Toast.makeText(this@AboutUzzapActivity, "Unable to open link", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
         }
         parent.addView(view)
     }
