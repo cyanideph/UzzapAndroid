@@ -180,7 +180,7 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
 
     private fun checkUnreadNotifications() {
         PrivateMessageStateClient.fetchUnread(AppState.username) { state ->
-            if (isAdded && state != null && state.count > 0) UzzapNotificationManager.notifyPrivateMessages(requireContext(), state.count, state.senders)
+            if (isAdded && state != null && state.count > 0) UzzapNotificationManager.notifyPrivateMessages(requireContext(), state.count, state.senders, state.messageIds)
         }
     }
 
