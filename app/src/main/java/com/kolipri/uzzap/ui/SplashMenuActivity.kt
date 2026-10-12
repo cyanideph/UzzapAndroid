@@ -28,6 +28,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
+import com.kolipri.uzzap.data.canonicalizeUsername
 import com.kolipri.uzzap.data.NotificationPermission
 import coil.load
 import com.kolipri.uzzap.R
@@ -157,7 +158,7 @@ class SplashMenuActivity : BaseChromeActivity() {
     private fun showLoading(message: String) { loading?.dismiss(); val text = ThemeManager.resolve(this, R.attr.uzzapColorText); val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }; val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = GradientDrawable().apply { setColor(0x2BAF0C0D); cornerRadius = dp(14).toFloat() } }; tile.addView(ImageView(this).apply { loadAnimIcon("anim-icons/dialog_default.gif") }, LinearLayout.LayoutParams(dp(30), dp(30))); row.addView(tile, LinearLayout.LayoutParams(dp(48), dp(48))); row.addView(TextView(this).apply { this.text = message; textSize = 14f; setTextColor(text); setPadding(dp(12), 0, 0, 0) }); val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(18), dp(26), dp(18)); background = GradientDrawable().apply { setColor(ThemeManager.resolve(this@SplashMenuActivity, R.attr.uzzapColorSurface)); cornerRadius = dp(24).toFloat() } }; card.addView(row); val root = FrameLayout(this).apply { setPadding(dp(36), dp(36), dp(36), dp(36)); addView(card, FrameLayout.LayoutParams(-1, -2)) }; loading = AlertDialog.Builder(this).setView(root).setCancelable(false).create(); loading?.setOnShowListener { loading?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT)) }; loading?.show() }
     private fun hideLoading() { loading?.dismiss(); loading = null }
     private fun validEmail(value: String) = value.isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(value).matches()
-    private fun saveSession(email: String, nick: String, token: String) { AppState.email = email; AppState.nickname = nick; AppState.username = SessionStore.username().ifBlank { nick.lowercase().replace(" ", "_") }; AppState.authToken = token; SupabaseClient.setAccessTokenForLegacy(token); getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit().putBoolean("session_active", true).putString("email", email).putString("nickname", nick).apply() }
+    private fun saveSession(email: String, nick: String, token: String) { AppState.email = email; AppState.nickname = nick; AppState.username = SessionStore.username().ifBlank { canonicalizeUsername(nick) }; AppState.authToken = token; SupabaseClient.setAccessTokenForLegacy(token); getSharedPreferences("uzzap_prefs", MODE_PRIVATE).edit().putBoolean("session_active", true).putString("email", email).putString("nickname", nick).apply() }
     private fun onLogin() {
         val fields = listOf(
             UzzapDialogs.FieldSpec("Email or Nickname", if (AppState.email.isNotBlank()) AppState.email else AppState.nickname),

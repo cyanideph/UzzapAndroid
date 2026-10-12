@@ -140,13 +140,20 @@ object PrivateMessageStateClient {
     fun markConversationRead(username: String, buddy: String, onResult: ((Boolean) -> Unit)? = null) {
         val me = currentUserId()
         if (me.isNullOrBlank() || buddy.isBlank()) { main.post { onResult?.invoke(false) }; return }
-        val encodedBuddy = URLEncoder.encode(buddy.trim().lowercase().replace(" ", "_"), "UTF-8")
-        val lookup = "/rest/v1/profiles?username=eq.$encodedBuddy&select=owner_id&limit=1"
+        val wanted = buddy.trim()
+        val encodedBuddy = URLEncoder.encode(wanted, "UTF-8")
+        val lookup = "/rest/v1/profiles?username=ilike.$encodedBuddy&select=owner_id,username&limit=10"
         http.newCall(req(lookup).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { onResult?.invoke(false) } }
             override fun onResponse(call: Call, response: Response) { response.use {
                 if (!it.isSuccessful) { main.post { onResult?.invoke(false) }; return }
-                val other = runCatching { JSONArray(it.body?.string().orEmpty()).optJSONObject(0)?.optString("owner_id")?.ifBlank { null } }.getOrNull()
+                val other = runCatching {
+                    val arr = JSONArray(it.body?.string().orEmpty())
+                    (0 until arr.length())
+                        .mapNotNull { i -> arr.optJSONObject(i) }
+                        .firstOrNull { o -> matchesHandle(o.optString("username"), wanted) }
+                        ?.optString("owner_id")?.ifBlank { null }
+                }.getOrNull()
                 if (other.isNullOrBlank()) { main.post { onResult?.invoke(false) }; return }
                 val path = "/rest/v1/direct_messages?recipient_id=eq.$me&sender_id=eq.$other&is_read=is.false"
                 val body = JSONObject().put("is_read", true)

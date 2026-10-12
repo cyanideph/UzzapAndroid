@@ -25,13 +25,16 @@ object UserProfileClient {
     private val url = BuildConfig.SUPABASE_URL.trimEnd('/')
     private val key = BuildConfig.SUPABASE_ANON_KEY
 
-    private fun normalize(value: String) = value.trim().lowercase().replace(" ", "_")
+    private fun normalize(value: String) = canonicalizeUsername(value)
 
     fun fetch(username: String, onResult: (PublicProfile?) -> Unit) {
-        val normalized = normalize(username)
-        if (normalized.isBlank()) { main.post { onResult(null) }; return }
-        val encoded = URLEncoder.encode(normalized, "UTF-8")
-        val path = "/rest/v1/profiles?username=eq.$encoded&select=username,nickname,avatar,status,status_message,is_online,last_seen&limit=1"
+        val wanted = username.trim()
+        if (wanted.isBlank()) { main.post { onResult(null) }; return }
+        // profiles.username keeps registration case: ilike lookup, then exact
+        // canonical match (ilike wildcards can over-match).
+        val normalized = normalize(wanted)
+        val encoded = URLEncoder.encode(wanted, "UTF-8")
+        val path = "/rest/v1/profiles?username=ilike.$encoded&select=username,nickname,avatar,status,status_message,is_online,last_seen&limit=10"
         val request = Request.Builder()
             .url("$url$path")
             .header("apikey", key)
@@ -44,7 +47,10 @@ object UserProfileClient {
                 response.use {
                     if (!it.isSuccessful) { main.post { onResult(null) }; return }
                     val profile = runCatching {
-                        val o = JSONArray(it.body?.string().orEmpty()).optJSONObject(0) ?: return@runCatching null
+                        val arr = JSONArray(it.body?.string().orEmpty())
+                        val o = (0 until arr.length()).mapNotNull { i -> arr.optJSONObject(i) }
+                            .firstOrNull { c -> matchesHandle(c.optString("username"), wanted) }
+                            ?: return@runCatching null
                         PublicProfile(
                             username = o.optString("username", normalized),
                             nickname = o.optString("nickname", o.optString("username", normalized)),
@@ -62,11 +68,12 @@ object UserProfileClient {
     }
     /** Fetches multiple public profiles in one request to avoid inbox N+1 traffic. */
     fun fetchMultiple(usernames: List<String>, onResult: (Map<String, PublicProfile>) -> Unit) {
-        val normalized = usernames.map(::normalize).filter { it.isNotBlank() }.distinct()
-        if (normalized.isEmpty()) { main.post { onResult(emptyMap()) }; return }
-        val values = normalized.joinToString(",") { "\"${it.replace("\\", "\\\\").replace("\"", "\\\"")}\"" }
-        val encoded = URLEncoder.encode("($values)", "UTF-8")
-        val path = "/rest/v1/profiles?username=in.$encoded&select=username,nickname,avatar,status,status_message,is_online,last_seen"
+        // Batch case-insensitively (stored names keep registration case);
+        // result keys stay canonicalized exactly as before.
+        val orFilter = ilikeOrFilter("username", usernames)
+        if (orFilter.isBlank()) { main.post { onResult(emptyMap()) }; return }
+        val encoded = URLEncoder.encode(orFilter, "UTF-8")
+        val path = "/rest/v1/profiles?$encoded&select=username,nickname,avatar,status,status_message,is_online,last_seen"
         val request = Request.Builder().url("$url$path").header("apikey", key).header("Authorization", SupabaseClient.authHeader()).get().build()
         http.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) { main.post { onResult(emptyMap()) } }

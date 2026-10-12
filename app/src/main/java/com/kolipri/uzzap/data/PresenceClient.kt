@@ -55,14 +55,24 @@ object PresenceClient {
     }
 
     fun fetch(username: String, onResult: (BuddyPresence?) -> Unit) {
-        val u = URLEncoder.encode(username.trim().lowercase().replace(" ", "_"), "UTF-8")
-        val path = "/rest/v1/profiles?username=eq.$u&select=username,is_online,last_seen,status&limit=1"
+        val wanted = username.trim()
+        if (wanted.isBlank()) { main.post { onResult(null) }; return }
+        // profiles.username keeps registration case: ilike for the lookup,
+        // then exact canonical match (ilike wildcards can over-match).
+        val u = URLEncoder.encode(wanted, "UTF-8")
+        val path = "/rest/v1/profiles?username=ilike.$u&select=username,is_online,last_seen,status&limit=10"
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { main.post { onResult(null) } }
             override fun onResponse(call: Call, response: Response) { response.use {
                 if (!it.isSuccessful) { main.post { onResult(null) }; return }
                 runCatching {
-                    val obj = JSONArray(it.body?.string().orEmpty()).optJSONObject(0) ?: return@runCatching null
+                    val arr = JSONArray(it.body?.string().orEmpty())
+                    var obj: JSONObject? = null
+                    for (i in 0 until arr.length()) {
+                        val candidate = arr.optJSONObject(i) ?: continue
+                        if (matchesHandle(candidate.optString("username"), wanted)) { obj = candidate; break }
+                    }
+                    obj ?: return@runCatching null
                     val last = obj.optString("last_seen")
                     val recent = TimeUtils.isWithinWindow(last, ONLINE_WINDOW_SECONDS)
                     BuddyPresence(obj.optString("username"), obj.optBoolean("is_online") && recent, last, obj.optString("status", "offline"))
@@ -73,17 +83,16 @@ object PresenceClient {
 
     /** Fetches buddy presence in one PostgREST request instead of one HTTP request per buddy. */
     fun fetchMultiple(usernames: List<String>, onResult: (Map<String, BuddyPresence>) -> Unit) {
-        val normalized = usernames
-            .map { it.trim().lowercase().replace(" ", "_") }
-            .filter { it.isNotBlank() }
-            .distinct()
-        if (normalized.isEmpty()) {
+        // Buddy handles may differ in case from profiles.username: match the
+        // batch case-insensitively, keep result keys exactly as before.
+        val orFilter = ilikeOrFilter("username", usernames)
+        if (orFilter.isBlank()) {
             main.post { onResult(emptyMap()) }
             return
         }
 
-        val filter = URLEncoder.encode("(${normalized.joinToString(",")})", "UTF-8")
-        val path = "/rest/v1/profiles?username=in.$filter&select=username,is_online,last_seen,status"
+        val filter = URLEncoder.encode(orFilter, "UTF-8")
+        val path = "/rest/v1/profiles?$filter&select=username,is_online,last_seen,status"
 
         http.newCall(req(path).get().build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {

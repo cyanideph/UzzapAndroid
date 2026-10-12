@@ -15,7 +15,7 @@ object NicknameResolver {
     private val anonKey = BuildConfig.SUPABASE_ANON_KEY
 
     fun resolve(username: String, onResult: (String?, String?) -> Unit) {
-        val normalized = username.trim().lowercase().replace(" ", "_")
+        val normalized = canonicalizeUsername(username)
         if (normalized.isBlank()) {
             onResult(null, "Nickname is required")
             return
