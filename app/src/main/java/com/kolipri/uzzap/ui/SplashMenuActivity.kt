@@ -39,7 +39,6 @@ import com.kolipri.uzzap.data.PasswordRecoveryClient
 import com.kolipri.uzzap.data.SessionStore
 import com.kolipri.uzzap.data.SupabaseClient
 import com.kolipri.uzzap.data.signInWithEmail
-import com.kolipri.uzzap.data.signOut
 import com.kolipri.uzzap.data.signUpWithEmail
 import com.kolipri.uzzap.data.verifySession
 
