@@ -212,49 +212,9 @@ class SplashMenuActivity : BaseChromeActivity() {
             positive = "OK")
     }
     private fun openHelp() = startActivity(SimpleTextActivity.intentForAsset(this, "Help", "help.txt"))
-    private fun openAbout() {
-        val red = UzzapDialogs.GREEN
-        val text = ThemeManager.resolve(this, R.attr.uzzapColorText)
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(4), dp(2), dp(4), dp(2))
-        }
-
-        addAboutHeading(root, "UZZAP", red)
-        addAboutText(root, "Modern Recreation by CY", text, 16, true)
-        addAboutText(root, "A modern Android/Kotlin recreation of the classic Nokia/J2ME Uzzap mobile chat experience.", text, 15, false)
-        addAboutText(root, "Developed by CY using Android/Kotlin and a modern cloud backend.", text, 15, false)
-        addAboutText(root, "This is an independent, unofficial recreation. The original Nokia/J2ME Uzzap application, its decompiled source, historical assets and trademarks are separate materials and are not claimed as original CY work. See NOTICE.md for attribution and licensing details.", text, 15, false)
-        addAboutText(root, "Animated icons courtesy of Flaticon, Lordicon and IconScout.", text, 13, false)
-        addAboutText(root, "2026 CY", text, 14, true)
-
-        val scroll = ScrollView(this).apply {
-            addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        }
-
-        UzzapDialogs.custom(this, iconAsset = "anim-icons/menu_about.gif", title = "About Uzzap", content = scroll, positive = "Close")
-    }
-
-    private fun addAboutHeading(parent: LinearLayout, value: String, color: Int) {
-        parent.addView(TextView(this).apply {
-            text = value
-            textSize = 22f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(color)
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(0, dp(8), 0, dp(10))
-        })
-    }
-
-    private fun addAboutText(parent: LinearLayout, value: String, color: Int, size: Int, bold: Boolean) {
-        parent.addView(TextView(this).apply {
-            text = value
-            textSize = size.toFloat()
-            if (bold) typeface = Typeface.DEFAULT_BOLD
-            setTextColor(color)
-            setPadding(0, dp(3), 0, dp(9))
-        })
-    }
+    // Single About surface: the splash menu used to host a second,
+    // version-less credits dialog that drifted from AboutUzzapActivity.
+    private fun openAbout() = startActivity(Intent(this, AboutUzzapActivity::class.java))
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
