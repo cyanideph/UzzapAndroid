@@ -22,7 +22,17 @@ Supabase Realtime delivers room and private-message changes to connected clients
 
 ## Edge Functions
 
-Edge Functions provide trusted server-side operations that should not expose privileged credentials to Android. The uzzapbot Edge Function provides AI/game orchestration. The push sender Edge Function handles notification delivery workflows.
+Edge Functions provide trusted server-side operations that should not expose privileged credentials to Android. Sources are vendored under `supabase/functions/` from production for repo completeness.
+
+| Function | Purpose | Auth |
+|---|---|---|
+| `uzzapbot` (v183) | AI/game orchestration, dispatch, memory | Internal token (`x-uzzapbot-internal-token`) |
+| `tencent-uzzap-ai-chatbot` | Per-user AI chat with memory recall/write | User JWT |
+| `send-push` | FCM delivery workflows | Webhook secret (see `supabase/config.toml`) |
+| `uzzap-privacy` | Public privacy page + deletion-request form | Public (form-encoded POST) |
+| `uzzap-delete-account` | Authenticated self-deletion via `delete_my_account` | User JWT |
+
+The uzzapbot Edge Function provides AI/game orchestration. The push sender Edge Function handles notification delivery workflows.
 
 ## Notifications
 

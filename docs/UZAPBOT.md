@@ -18,9 +18,11 @@ Supabase is the authoritative application backend and database. UzzapBot-related
 
 ### UzzapBot Edge Function
 The uzzapbot Edge Function handles event dispatch, duplicate protection, participation decisions, deterministic game commands, state loading, conversational AI calls, language/style cleanup, bot-message insertion, and processing/error records.
-
 ### Conversational AI
-The production conversational path uses the server-side UZZAPBOT_AI_URL configuration. The current primary service is a Cloudflare Worker AI endpoint using the configured Gemma 4 model. A configured backup AI endpoint may be used when the primary service fails.
+
+The production conversational path uses server-side AI configuration. Historically this was a Cloudflare Worker AI endpoint using the configured Gemma 4 model, with a backup endpoint on primary failure.
+
+Live production also contains the `tencent-uzzap-ai-chatbot` Edge Function (per-user JWT, memory recall/write) and the deployed privacy policy names Groq as the AI provider for UzzapBot responses. The exact live-primary routing across these providers should be confirmed against deployment configuration before changing AI-related code or docs.
 
 The Worker provides /health and /ai endpoints, validates request/message sizes, runs the configured model, disables thinking output, and returns a normalized response.
 
