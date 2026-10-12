@@ -1,52 +1,66 @@
-# Uzzap for Android
+<div align="center">
 
-<p align="center">
-  <strong>A modern Android revival of the classic Uzzap chat experience.</strong><br>
-  Philippine community rooms • Private chat • Buddies • Realtime messaging • Push notifications • Moderation
-</p>
+# 📱 Uzzap for Android
 
-<p align="center">
-  <img src="https://img.shields.io/badge/release-1.0--beta.8-informational" alt="Release">
-  <img src="https://img.shields.io/badge/platform-Android-brightgreen" alt="Android">
-  <img src="https://img.shields.io/badge/language-Kotlin-purple" alt="Kotlin">
-  <img src="https://img.shields.io/badge/backend-Supabase-3ECF8E" alt="Supabase">
-  <img src="https://img.shields.io/badge/push-Firebase-orange" alt="Firebase">
-</p>
+**A modern Android revival of the classic Uzzap chat experience.**
 
-<p align="center">
-  <a href="https://github.com/cyanideph/UzzapAndroid/actions">CI</a> •
-  <a href="docs/ARCHITECTURE.md">Architecture</a> •
-  <a href="#architecture">Architecture diagram</a> •
-  <a href="#current-feature-set">Features</a> •
-  <a href="#security-model">Security</a> •
-  <a href="#build">Build</a>
-</p>
+*Philippine community rooms • Private chat • Buddies • Realtime messaging • Push notifications • Moderation*
+
+[![Release](https://img.shields.io/badge/release-1.0--beta.8-informational)](https://github.com/cyanideph/UzzapAndroid/releases)
+[![Platform](https://img.shields.io/badge/platform-Android-brightgreen)](https://developer.android.com)
+[![Language](https://img.shields.io/badge/language-Kotlin-purple)](https://kotlinlang.org)
+[![Backend](https://img.shields.io/badge/backend-Supabase-3ECF8E)](https://supabase.com)
+[![Push](https://img.shields.io/badge/push-Firebase-orange)](https://firebase.google.com)
+[![Android CI](https://github.com/cyanideph/UzzapAndroid/actions/workflows/android-apk.yml/badge.svg)](https://github.com/cyanideph/UzzapAndroid/actions/workflows/android-apk.yml)
+[![Security](https://github.com/cyanideph/UzzapAndroid/actions/workflows/security.yml/badge.svg)](https://github.com/cyanideph/UzzapAndroid/actions/workflows/security.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue)](NOTICE.md)
+
+[⬇️ Download debug APK](https://github.com/cyanideph/UzzapAndroid/releases/download/debug-latest/app-debug.apk)
+·
+[🌐 Public site](https://github.com/cyanideph/uzzap-site)
+·
+[📖 Documentation](#-documentation)
+
+</div>
 
 ---
 
-## 🌐 Overview
+## 📑 Contents
 
-**Uzzap** is a from-scratch Android/Kotlin modernization of the classic Uzzap mobile chat experience, created by **CY**.
+- [✨ Features](#-features)
+- [🏗️ Architecture](#️-architecture)
+- [🛠️ Tech stack](#️-tech-stack)
+- [🚀 Getting started](#-getting-started)
+- [🔐 Security model](#-security-model)
+- [🔄 CI/CD](#-cicd)
+- [📖 Documentation](#-documentation)
+- [🗺️ Roadmap](#️-roadmap)
+- [📜 Version history](#-version-history)
+- [⚖️ License](#️-license)
 
-The project preserves the recognizable Uzzap community-room experience while rebuilding it around a modern Android client and a Supabase-powered backend.
+---
 
-> **Status:** Beta — the current `main` branch contains the Phase 1–4 implementation plus the beta.8 security, messaging, profile, welcome-system and moderation fixes.
+## ✨ Features
 
-### At a glance
+| 💬 Community | ⚡ Messaging | 👥 Social |
+|---|---|---|
+| Philippine regions as room categories | Live room messaging + history pagination | Buddy requests, list & groups |
+| Provinces as chat rooms | Retry / reconnect recovery | Private one-to-one chat |
+| Room browsing, joining & leaving | Duplicate-message protection | Delivery + read receipts |
+| `uzzapbot` system & welcome messages | Room message deletion (role-aware) | Unread sync, room invitations |
+| Pure centered system-style welcome rendering | 30 color codes (`c01`–`c30`), multi-segment | Block & report controls |
 
-| Area | What it provides |
-|---|---|
-| 💬 Community | Philippine regions and province-based chat rooms |
-| ⚡ Realtime | Live room messaging and private conversations |
-| 👥 Social | Buddies, requests, invitations and unread state |
-| 🔔 Notifications | Firebase Cloud Messaging and tap-to-chat navigation |
-| 🛡️ Safety | Reports, blocks, moderation, sanctions and audit history |
-| 🎨 Classic feel | Uzzap colors, emoticons, menus and room-flow concepts |
-| 🔐 Backend | Supabase Auth, PostgreSQL/RLS and server-side authorization |
+| 🔔 Notifications | 🛡️ Moderation | 👤 Account |
+|---|---|---|
+| Firebase (FCM) data-only delivery | Report queue + audit history | Login, signup & password recovery |
+| Private-message / buddy / invitation alerts | Warn, mute, kick & ban (+ expiry/revoke) | Persistent sessions, silent token refresh |
+| Tap-to-chat navigation | Moderator-only room | Editable nicknames, avatars, presence |
+| Duplicate suppression, dead-token cleanup | Role hierarchy + self-sanction guards | Online/offline presence |
+| | Server-side sanctions, message rate limits | Uzzap emoticons (`11`–`20`, `47`, `:)` `:D` `<3`…) |
+
+---
 
 ## 🏗️ Architecture
-
-The README uses a native **Mermaid** diagram so GitHub can render the architecture directly without requiring a generated image file.
 
 ```mermaid
 flowchart TD
@@ -140,114 +154,42 @@ class node_safety_data,node_moderation,node_audit toneRose
 class node_auth,node_backend,node_push_service,node_fcm,node_push_receiver,node_notification,node_state toneIndigo
 ```
 
-> **Tip:** Mermaid is rendered by GitHub from the fenced `mermaid` block above. No external diagram service or image asset is required.
-
-## 📚 Documentation
-
-- **[Architecture](docs/ARCHITECTURE.md)** — Android components, backend boundaries, notification flow and source mapping
-- **[Backend](docs/BACKEND.md)** — Supabase, Auth, RLS, Realtime, Edge Functions and notifications
-- **[UzzapBot](docs/UZAPBOT.md)** — production bot dispatch, AI routing, games, memory and reliability
-- **[Supabase schema](supabase_schema.sql)** — base database schema
-- **[Database migrations](supabase/migrations/)** — incremental backend changes
-- **[Schema reconciliation](docs/SCHEMA_RECONCILIATION.md)** — checked-in schema vs. verified production baseline
-- **[Third-party notices](NOTICE.md)** — original and third-party material notices
+> Mermaid renders natively on GitHub — no external diagram service needed. Full component→source mapping lives in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 
-## Current feature set
+## 🛠️ Tech stack
 
-### Account and profile
-- Login and signup
-- Logout and password recovery
-- Persistent Supabase sessions
-- Token refresh and expired-session recovery
-- Profile creation/editing and avatar support
-- Text-only editable nicknames with nickname color-markup sanitization
-- Online/offline presence
+| Layer | Technology |
+|---|---|
+| App | Kotlin, Android SDK 36 (min 23), Java 17, Gradle 9.3.1 / AGP 9.1.1 |
+| Backend | Supabase Auth, PostgreSQL + RLS, Realtime, Edge Functions |
+| Push | Firebase Cloud Messaging (data-only) |
+| Networking | OkHttp REST + WebSocket realtime (retry, reconnect, dedup) |
+| UI | Material, RecyclerView, Coil, classic Uzzap visual language |
 
-### Philippine community rooms
-- Philippine regions used as room categories
-- Provinces used as chat rooms
-- Room browsing, joining and leaving
-- Realtime room messages
-- Message history pagination
-- Retry/reconnect recovery
-- Duplicate-message protection
-- Room message deletion
-- `uzzapbot` system/welcome messages
-- Pure centered system-style welcome rendering
+**Current app identity:** `com.cy.uzzap` · `1.0-beta.8` (code 8) · Beta channel
 
-### Messaging and emoticons
-- 30 Uzzap message color codes (`c01` through `c30`)
-- Multiple color segments in a single message
-- Color codes are for messages only; nicknames remain text-only
-- Uzzap emoticon/emoji picker
-- Numbered Uzzap emoticons `11`-`20` and `47`
-- Legacy text emoticon rendering such as `:)`, `:D`, `:(`, `;)`, `:P` and `<3`
-- Color codes and emoticons can be combined in messages
-- Raw message markup remains compatible with Supabase storage
+---
 
-### Buddies and private chat
-- Buddy requests
-- Add/remove buddies
-- Buddy list
-- Private one-to-one chat
-- Delivery receipts
-- Read receipts
-- Unread synchronization
-- Room invitations
-- Block and report controls
+## 🚀 Getting started
 
-### Notifications
-- Firebase Cloud Messaging data-only delivery
-- Private-message notifications
-- Buddy-request notifications
-- Room-invitation notifications
-- Tap-to-chat navigation
-- Duplicate notification suppression
-- Invalid/unregistered FCM token cleanup
+### 1. Backend
 
-### Moderation
-- Moderator report queue
-- Moderator assignment/removal
-- Moderator-only room
-- Warn, mute, kick and ban
-- Sanction expiry and revoke
-- Moderator audit history
-- Role hierarchy safeguards
-- Self-sanction and moderator-to-admin protections
-- Role-aware message deletion
-- Secure room message deletion
-- Server-side sanction materialization
-- Message rate limiting
+`supabase_schema.sql` is the base schema; `supabase/migrations/` holds the incremental changes (push tokens, invitations, presence, RLS hardening, rate limits, moderation). Apply every migration in filename order — via `supabase db push` if linked, otherwise the SQL Editor.
 
-## Security model
+Enable **Email auth** in Supabase Auth.
 
-- Email/password authentication is handled by Supabase Auth.
-- Profiles are owned by `auth.users.id`.
-- Room messages are writable only by authenticated users; database-side controls enforce sender identity.
-- Presence and buddy rows are writable only by their owner.
-- Direct messages are readable only by sender/recipient.
-- Categories and rooms are publicly readable for the classic room-browsing experience; room message history requires authenticated room membership or moderator role (`room_messages_read`).
-- Moderation actions are protected by authenticated authorization and role hierarchy checks.
-- RLS policies use authenticated ownership checks and optimized `select auth.uid()` patterns.
-- Trigger-only push functions are not exposed as public APIs.
-- The Android client must contain only the Supabase publishable/anon key.
-- **Never put a Supabase service-role/secret key in this repository, Gradle, Docker, GitHub Actions, or an APK.**
+### 2. Configure
 
-The publishable/anon key is not a privilege boundary; PostgreSQL RLS and authenticated ownership are the security boundary.
+| Variable | Required | Purpose |
+|---|---|---|
+| `SUPABASE_URL` | ✅ | e.g. `https://YOUR_PROJECT_REF.supabase.co` |
+| `SUPABASE_PUBLISHABLE_KEY` | ✅ | Publishable/anon key (**never** the service-role key) |
 
-## Supabase setup
+Pass as environment variables or Gradle properties. The client must only ever contain the publishable key.
 
-`supabase_schema.sql` is the base schema. The app also depends on the migrations in `supabase/migrations/` for push tokens, invitations, presence/unread state, realtime direct messages, authentication/RLS hardening, rate limiting and moderation.
-
-Apply every migration in filename order. If the repository is linked to the project, `supabase db push` can be used; otherwise apply the SQL files through the Supabase SQL Editor.
-
-Enable Email authentication in Supabase Auth and configure the Android build with `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (or the legacy anon-key equivalent).
-
-## Build
-
-The repository contains the Gradle wrapper. From the project root:
+### 3. Build
 
 ```bash
 chmod +x gradlew
@@ -256,112 +198,112 @@ export SUPABASE_PUBLISHABLE_KEY="YOUR_SUPABASE_PUBLISHABLE_KEY"
 ./gradlew assembleDebug
 ```
 
-The checked-in project targets **Gradle 9.3.1**, Android Gradle Plugin **9.1.1**, compile/target SDK **36**, Java **17**, and Android minimum SDK **23**.
+> **Status:** Beta. `main` holds Phases 1–4 plus the beta.8 fixes. Every `main` push runs CI → fresh `debug-latest` APK on [Releases](https://github.com/cyanideph/UzzapAndroid/releases).
 
-### Current app identity
+---
 
-- Application ID: `com.cy.uzzap`
-- Version name: `1.0-beta.8`
-- Version code: `8`
-- Release channel: Beta
-- Backend: Supabase Auth + PostgreSQL/RLS
-- Push: Firebase Cloud Messaging
+## 🔐 Security model
 
-## GitHub Actions
+- Auth via Supabase Auth; profiles owned by `auth.users.id`
+- Sender identity enforced database-side; DMs visible to participants only
+- Room history requires membership or moderator role — categories/rooms stay publicly browsable
+- Moderation behind role-hierarchy checks; RLS uses optimized `select auth.uid()` patterns
+- **Service-role keys never belong in the repo, Gradle, Actions, or APKs** — RLS is the boundary, not the anon key
 
-The repository is configured as a Free-tier-friendly CI/CD system:
+See [`SECURITY.md`](SECURITY.md) for vulnerability reporting.
 
-- **Android CI** runs unit tests and builds the debug APK on `main` pushes and manual dispatch.
-- Successful debug builds replace the **`debug-latest` GitHub Release** with the newest APK; APK distribution does not depend on Actions artifact retention.
-- **Signed release AABs** are published as assets on versioned GitHub Releases when a `v*` tag is pushed.
-- **Security checks** scan tracked files for high-risk credential patterns and validate the Gradle wrapper.
-- **Dependabot** checks Gradle and GitHub Actions dependencies weekly.
-- The public site lives in the separate `cyanideph/uzzap-site` repository; `docs/` here holds in-repo documentation only.
+---
 
-Required Actions configuration:
+## 🔄 CI/CD
 
-- `SUPABASE_URL`
-- `SUPABASE_PUBLISHABLE_KEY`
-- Production signing variables only for signed release builds
+| Workflow | Trigger | Does |
+|---|---|---|
+| Android CI | `main` push / PR / manual | Unit tests + debug APK → refreshes `debug-latest` release |
+| Signed release | `v*` tag | Release unit tests + signed AAB → versioned release |
+| Security checks | `main` push / PR | Secret-pattern scan of tracked files |
+| Dependabot | Weekly | Gradle + Actions updates |
 
-Workflows must never contain or print a Supabase service-role/secret key.
+---
 
-## Docker
+## 📖 Documentation
 
-The Docker build accepts client-safe Supabase configuration only. It does not accept or inject a service-role key.
+| Doc | Covers |
+|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Components, flows, source mapping |
+| [`docs/BACKEND.md`](docs/BACKEND.md) | Supabase, Auth, RLS, Realtime, Functions |
+| [`docs/UZAPBOT.md`](docs/UZAPBOT.md) | Bot dispatch, AI routing, games, reliability |
+| [`docs/DATABASE.md`](docs/DATABASE.md) | Verified live-schema inventory |
+| [`docs/SCHEMA_RECONCILIATION.md`](docs/SCHEMA_RECONCILIATION.md) | Snapshot vs. production baseline |
+| [`docs/MODERATOR_ROOM.md`](docs/MODERATOR_ROOM.md) | Moderator authorization |
+| [`docs/ACCOUNT_DELETION.md`](docs/ACCOUNT_DELETION.md) | Account deletion paths |
+| [`docs/PRIVACY_POLICY.md`](docs/PRIVACY_POLICY.md) | Privacy policy |
+| [`TEST_COVERAGE_MATRIX.md`](TEST_COVERAGE_MATRIX.md) | Release test contract |
+| [`NOTICE.md`](NOTICE.md) | Attribution & third-party notices |
 
-## UI
+🌐 The public website lives separately at [`cyanideph/uzzap-site`](https://github.com/cyanideph/uzzap-site).
 
-The classic Uzzap visual language is intentionally retained while the Android implementation provides modern scrolling, dialogs, realtime updates, buddy/private-chat navigation, notification handling, moderation screens and diagnostics.
+---
 
-The **About Uzzap** screen reports the live application version/build and documents the current feature set and beta history.
+## 🗺️ Roadmap
 
-## Version history
+- [ ] Enable Supabase Auth leaked-password protection
+- [ ] Instrumented/UI testing on physical devices
+- [ ] Verify Realtime, FCM and Edge Function production paths end-to-end
+- [ ] Production signing key setup
+- [ ] Final security/RLS audit against production
+
+---
+
+## 📜 Version history
 
 ### Unreleased (post-beta.8)
+
 - Unified `SupabaseClient.signOut` as the single logout path (session + realtime/presence + `AppState` reset)
-- FCM registration now uses the server-side `upsert_fcm_token` RPC instead of direct table writes
-- Notification permission asks at most twice per install, then stops nagging after denial
-- Removed Sentry leftovers (crash reporting stays on in-house diagnostics)
+- FCM registration via server-side `upsert_fcm_token` RPC instead of direct table writes
+- Notification permission asks at most twice per install, then stops nagging
+- Removed Sentry leftovers (in-house diagnostics retained)
 - Health check probes the public categories endpoint; corrected room-history readability wording
-- Workflows: CI + secret scan run on `main` pushes, shared Android setup action, release publish gated on `v*` tags, nightly/optimizer/Pages workflows removed (public site lives in `uzzap-site`)
+- Workflows: CI + secret scan on `main` pushes, shared Android setup action, release publish gated on `v*` tags
 
-### v1.0-beta.8 — September 2026
-- Security audit fixes verified against the live database: anon email enumeration closed via nickname-login RPC; leaked API key rotated, legacy JWT keys disabled
-- Canonical live-schema baseline documentation updated to reflect the current production schema; see `docs/DATABASE.md` for the verified inventory and current object counts.
-- Fixed room/buddy leave silently failing after nickname changes (delete by owner_id)
-- Whisper is now a true private message (previously broadcast to the whole room)
-- Fixed moderators being unable to delete/moderate their own messages
-- Unified encrypted session storage; removed plaintext JWT; startup blocks navigation on missing/invalid Supabase key
-- Async profile loading; centralized auth headers; moderator role re-check on long-press; buddy-list network throttling
-- Fixed FCM token ownership conflicts on multi-account devices (upsert_fcm_token RPC)
-- Fixed publish-site version/size substitution; release workflow aligned to publishable key
-- Version code increased to 8
+<details>
+<summary><strong>v1.0-beta.8 — September 2026</strong></summary>
 
-### v1.0-beta.7 — September 2026
-- Added 30 Uzzap message color codes (`c01`-`c30`)
-- Added multi-color message rendering while keeping nicknames text-only
-- Added Uzzap emoticon/emoji picker
-- Added numbered emoticons `11`-`20` and `47`
-- Added legacy text emoticon rendering
-- Added pure system-style `uzzapbot` welcome messages
-- Hardened nickname sanitization and room sender identity
-- Added secure moderator/admin room message deletion
-- Fixed password recovery HTTP 405 update failure
-- Updated About Uzzap What's New and version history
-- Version code increased to 7
+- Anon email enumeration closed via nickname-login RPC; leaked API key rotated, legacy JWT keys disabled
+- Live-schema baseline docs updated ([`docs/DATABASE.md`](docs/DATABASE.md))
+- Room/buddy leave fixed after nickname changes (delete by `owner_id`)
+- Whisper is now truly private (was broadcast to the room)
+- Moderators can delete/moderate their own messages
+- Unified encrypted session storage, no plaintext JWT, startup blocks on missing/invalid key
+- Async profile loading, centralized auth headers, moderator re-check on long-press, buddy-list throttling
+- FCM token ownership conflicts on multi-account devices fixed (`upsert_fcm_token` RPC)
 
-### v1.0-beta.6 — September 2026
-- Consolidated Phase 1 core chat reliability
-- Consolidated Phase 2 authentication, sync and security hardening
-- Consolidated Phase 3 notification delivery and push-token cleanup
-- Consolidated Phase 4 moderation hardening
-- Updated About Uzzap with the current feature inventory
-- Version code increased to 6
+</details>
 
-### v1.0-beta.5 — September 2026
-- Expanded moderation, invitations and message receipt features
-- Added moderator audit history
-- Added security and rate-limit hardening
-- Added Philippine region/province room structure
+<details>
+<summary><strong>v1.0-beta.7 — September 2026</strong></summary>
 
-### v1.0-beta.4 — September 2026
-- Added buddy/private chat workflows
-- Added reporting and moderation UI
-- Improved Supabase integration
+- 30 message color codes (`c01`–`c30`), multi-color rendering, text-only nicknames
+- Emoticon/emoji picker, numbered emoticons `11`–`20` + `47`, legacy `:)` `:D` `<3` rendering
+- Pure system-style `uzzapbot` welcome messages
+- Nickname sanitization hardening, secure moderator/admin message deletion
+- Password-recovery HTTP 405 fix
 
-### v1.0-beta.3 — September 2026
-- Android/Kotlin Uzzap modernization
-- Initial profile and chatroom flows
+</details>
 
-## Project status
+<details>
+<summary><strong>v1.0-beta.6 and earlier</strong></summary>
 
-The current `main` branch contains the Phase 1–4 work plus the beta.8 security-audit, messaging, profile, welcome-system and moderation fixes. The app is still a **Beta** release. Every push to `main` starts the debug Android CI workflow, which runs unit tests, assembles the debug APK and replaces the `debug-latest` GitHub Release for device testing.
+- **beta.6** — Phase 1 chat reliability, Phase 2 auth/sync/security, Phase 3 push delivery, Phase 4 moderation hardening
+- **beta.5** — Moderation expansion, invitations, receipts, audit history, rate limits, PH region/province rooms
+- **beta.4** — Buddy/private chat, reporting + moderation UI
+- **beta.3** — Initial Kotlin modernization, profiles, chatrooms
 
-## Before public release
+</details>
 
-- Enable and verify Supabase Auth leaked-password protection in the project settings.
-- Complete broader instrumented/UI testing on physical Android devices.
-- Verify all Realtime, FCM and Edge Function production paths.
-- Configure and protect the production signing key.
-- Run a final security/RLS audit against the production Supabase project.
+---
+
+## ⚖️ License
+
+Original CY-authored code is MIT-licensed; historical Uzzap material belongs to its respective owners — this is an unofficial recreation, not affiliated with the original Uzzap. See [`NOTICE.md`](NOTICE.md) for full attribution.
+
+*Made with 💚 by **CY** — classic Uzzap soul, modern Android heart.*
