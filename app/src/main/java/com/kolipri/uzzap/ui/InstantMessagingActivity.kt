@@ -1,7 +1,6 @@
 package com.kolipri.uzzap.ui
 
 import android.content.Intent
-import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
@@ -90,7 +89,7 @@ class InstantMessagingActivity : BaseChromeActivity() {
             setOnClickListener { startActivity(android.content.Intent(this@InstantMessagingActivity, PrivateChatActivity::class.java).apply { putExtra("buddy", buddy); addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP) }) }
         }
         val avatar = ImageView(this).apply {
-            scaleType = ImageView.ScaleType.CENTER_CROP; background = rounded(Color.WHITE, 24)
+            scaleType = ImageView.ScaleType.CENTER_CROP; background = rounded(ThemeManager.card(this@InstantMessagingActivity), 24)
             load(AvatarManager.url(profile?.avatar, buddy)); contentDescription = buddy + " avatar"
         }
         row.addView(avatar, LinearLayout.LayoutParams(dp(48), dp(48)))
@@ -106,7 +105,7 @@ class InstantMessagingActivity : BaseChromeActivity() {
         row.addView(textCol, LinearLayout.LayoutParams(0, -2, 1f))
         if (unread > 0) row.addView(TextView(this).apply {
             text = if (unread > 99) "99+" else unread.toString(); gravity = Gravity.CENTER; typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE); background = rounded(ThemeManager.resolve(this@InstantMessagingActivity, R.attr.uzzapColorHeader), 16)
+            setTextColor(ThemeManager.card(this@InstantMessagingActivity)); background = rounded(ThemeManager.resolve(this@InstantMessagingActivity, R.attr.uzzapColorHeader), 16)
             minWidth = dp(30); setPadding(dp(7), dp(4), dp(7), dp(4))
         })
         return row

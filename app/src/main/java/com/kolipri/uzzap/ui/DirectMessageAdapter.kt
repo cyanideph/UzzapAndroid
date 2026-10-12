@@ -1,7 +1,6 @@
 package com.kolipri.uzzap.ui
 
 import android.content.Context
-import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.ViewGroup
@@ -9,6 +8,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.TimeUtils
 import com.kolipri.uzzap.model.DirectMessage
@@ -65,11 +65,11 @@ class DirectMessageAdapter(private val context: Context) : RecyclerView.Adapter<
         val message = items[position]
         val mine = message.sender.equals(AppState.username, true)
         holder.row.gravity = if (mine) Gravity.END else Gravity.START
-        holder.bubble.setTextColor(if (mine) Color.WHITE else Color.rgb(35, 37, 41))
+        holder.bubble.setTextColor(if (mine) ThemeManager.card(context) else ThemeManager.resolve(context, R.attr.uzzapColorText))
         holder.bubble.background = GradientDrawable().apply {
             cornerRadius = dp(18).toFloat()
-            setColor(if (mine) Color.rgb(47, 116, 78) else Color.WHITE)
-            if (!mine) setStroke(dp(1), Color.rgb(229, 231, 235))
+            setColor(if (mine) ThemeManager.success(context) else ThemeManager.card(context))
+            if (!mine) setStroke(dp(1), ThemeManager.resolve(context, R.attr.uzzapColorDivider))
         }
         holder.bubble.text = message.body
         val time = TimeUtils.parseIsoToEpochMillis(message.createdAt)?.let {
@@ -77,7 +77,7 @@ class DirectMessageAdapter(private val context: Context) : RecyclerView.Adapter<
         } ?: if (message.createdAt.isNotBlank()) message.createdAt
         else SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
         holder.time.text = if (mine) "$time  ✓" else time
-        holder.time.setTextColor(Color.rgb(125, 130, 138))
+        holder.time.setTextColor(ThemeManager.resolve(context, R.attr.uzzapColorMuted))
     }
 
     override fun getItemCount(): Int = items.size
