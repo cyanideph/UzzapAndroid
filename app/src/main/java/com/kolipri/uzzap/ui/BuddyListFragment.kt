@@ -1,7 +1,6 @@
 package com.kolipri.uzzap.ui
 
 import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -17,8 +16,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import com.kolipri.uzzap.data.NotificationPermission
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
 import com.kolipri.uzzap.data.BuddyRequest
@@ -45,7 +44,12 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
     private var lastBadgePollMs = 0L
     private val badgePollThrottleMs = 8000L
     private var pendingRequests: List<BuddyRequest> = emptyList()
-    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!isAdded) return@registerForActivityResult
+        // Read AFTER the result: false means "don't ask again" / double-denied.
+        val canAskAgain = shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)
+        NotificationPermission.onResult(requireContext(), granted, canAskAgain)
+    }
     private val monitor = object : Runnable {
         override fun run() {
             if (!monitoring || !isAdded) return
@@ -106,7 +110,8 @@ class BuddyListFragment : Fragment(R.layout.fragment_buddy_list) {
     }
 
     private fun requestNotificationPermissionIfNeeded() {
-        if (android.os.Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        if (!isAdded) return
+        if (NotificationPermission.shouldRequest(requireContext())) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }

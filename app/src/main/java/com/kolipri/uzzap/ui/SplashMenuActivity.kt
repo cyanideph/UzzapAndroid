@@ -28,6 +28,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
+import com.kolipri.uzzap.data.NotificationPermission
 import coil.load
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
@@ -59,19 +60,33 @@ class SplashMenuActivity : BaseChromeActivity() {
     }
 
     private fun requestNotificationPermissionAtStartup() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            window.decorView.post {
-                if (!isFinishing && !isDestroyed) {
-                    ActivityCompat.requestPermissions(
-                        this,
-                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                        NOTIFICATION_PERMISSION_REQUEST
-                    )
-                }
+        if (!NotificationPermission.shouldRequest(this)) return
+        window.decorView.post {
+            if (!isFinishing && !isDestroyed && NotificationPermission.shouldRequest(this)) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    NOTIFICATION_PERMISSION_REQUEST
+                )
             }
         }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != NOTIFICATION_PERMISSION_REQUEST) return
+        val index = permissions.indexOf(Manifest.permission.POST_NOTIFICATIONS)
+        if (index < 0) return
+        val granted = grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED
+        // Read AFTER the result: false means "don't ask again" / double-denied.
+        val canAskAgain = ActivityCompat.shouldShowRequestPermissionRationale(
+            this, Manifest.permission.POST_NOTIFICATIONS
+        )
+        NotificationPermission.onResult(this, granted, canAskAgain)
     }
 
     private fun showCrashReportIfPresent() {
