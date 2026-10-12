@@ -7,7 +7,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.kolipri.uzzap.R
 import com.kolipri.uzzap.data.AppState
@@ -36,7 +35,7 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
     override fun getItemViewType(position:Int)=if(items[position].isSystem)TYPE_SYSTEM else TYPE_NORMAL
 
     override fun onCreateViewHolder(parent:ViewGroup,viewType:Int):RecyclerView.ViewHolder=if(viewType==TYPE_SYSTEM){
-        SystemHolder(TextView(context).apply{layoutParams=RecyclerView.LayoutParams(-1,-2);gravity=Gravity.CENTER;textAlignment=View.TEXT_ALIGNMENT_CENTER;setPadding(12,8,12,8);textSize=15f;setTextColor(ContextCompat.getColor(context,R.color.uzzap_special_blue))})
+        SystemHolder(TextView(context).apply{layoutParams=RecyclerView.LayoutParams(-1,-2);gravity=Gravity.CENTER;textAlignment=View.TEXT_ALIGNMENT_CENTER;setPadding(12,8,12,8);textSize=15f;setTextColor(ThemeManager.resolve(context,R.attr.uzzapColorHeader))})
     }else{
         val row=LinearLayout(context).apply{layoutParams=RecyclerView.LayoutParams(-1,-2);orientation=LinearLayout.HORIZONTAL;gravity=Gravity.TOP;setPadding(12,4,12,4)}
         val container=LinearLayout(context).apply{orientation=LinearLayout.VERTICAL;setPadding(10,0,0,0)}
@@ -50,8 +49,8 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
         if(holder is SystemHolder) holder.text.text=EmoticonParser.parse(context,message.body,16f)
         else if(holder is NormalHolder){
             holder.container.removeAllViews()
-            holder.container.addView(TextView(context).apply{text=renderFormatted(displaySender(message.sender)+":",R.color.uzzap_special_red);textSize=17f;setTypeface(typeface,Typeface.BOLD)})
-            holder.container.addView(TextView(context).apply{text=renderFormatted(message.body,R.color.uzzap_text);textSize=16f})
+            holder.container.addView(TextView(context).apply{text=renderFormatted(displaySender(message.sender)+":",R.attr.uzzapColorDanger);textSize=17f;setTypeface(typeface,Typeface.BOLD)})
+            holder.container.addView(TextView(context).apply{text=renderFormatted(message.body,R.attr.uzzapColorText);textSize=16f})
         }
     }
 
@@ -59,8 +58,8 @@ class RoomMessageAdapter(private val context: Context) : RecyclerView.Adapter<Re
         val u=AppState.username.trim();val n=AppState.nickname.trim()
         return if(u.isNotBlank()&&n.isNotBlank()&&sender.trim().equals(u,true))n else sender
     }
-    private fun renderFormatted(value:String,defaultColorRes:Int):CharSequence{
-        val defaultColor=ContextCompat.getColor(context,defaultColorRes)
+    private fun renderFormatted(value:String,colorAttr:Int):CharSequence{
+        val defaultColor=ThemeManager.resolve(context,colorAttr)
         return EmoticonParser.parse(context,UzzapColorCodeParser.parse(value,defaultColor),16f)
     }
     class SystemHolder(val text:TextView):RecyclerView.ViewHolder(text)
