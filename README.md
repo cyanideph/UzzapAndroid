@@ -276,8 +276,7 @@ The repository is configured as a Free-tier-friendly CI/CD system:
 - **Signed release AABs** are published as assets on versioned GitHub Releases when a `v*` tag is pushed.
 - **Security checks** scan tracked files for high-risk credential patterns and validate the Gradle wrapper.
 - **Dependabot** checks Gradle and GitHub Actions dependencies weekly.
-- **Nightly health check** runs unit tests without rebuilding the APK, conserving Free-tier Actions usage.
-- **GitHub Pages** publishes the `docs/` directory as the Uzzap documentation/download site from this same repository.
+- The public site lives in the separate `cyanideph/uzzap-site` repository; `docs/` here holds in-repo documentation only.
 
 Required Actions configuration:
 
