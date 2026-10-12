@@ -1,0 +1,37 @@
+name: Android setup
+description: Shared JDK 17, Gradle, wrapper permission and Supabase publishable-key validation for Uzzap Android workflows.
+
+inputs:
+  supabase-publishable-key:
+    description: Supabase publishable (anon) key used for BuildConfig. Dependabot callers may pass the sb_publishable_ci_placeholder value.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up JDK 17
+      uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: '17'
+
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v6
+
+    - name: Make Gradle wrapper executable
+      shell: bash
+      run: chmod +x ./gradlew
+
+    - name: Validate Supabase client key
+      shell: bash
+      env:
+        SUPABASE_PUBLISHABLE_KEY: ${{ inputs.supabase-publishable-key }}
+      run: |
+        if [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+          echo "SUPABASE_PUBLISHABLE_KEY GitHub Actions secret is missing."
+          exit 1
+        fi
+        case "$SUPABASE_PUBLISHABLE_KEY" in
+          sb_publishable_*) echo "Supabase publishable key is configured." ;;
+          *) echo "Invalid Supabase publishable key format."; exit 1 ;;
+        esac

@@ -27,15 +27,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Set up JDK 17
-        uses: actions/setup-java@v6
+      - name: Android setup (JDK, Gradle, Supabase key)
+        uses: ./.github/actions/android-setup
         with:
-          distribution: temurin
-          java-version: '17'
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-      - name: Make Gradle wrapper executable
-        run: chmod +x ./gradlew
+          supabase-publishable-key: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
       - name: Validate release signing secrets
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -66,7 +61,10 @@ jobs:
             -PSUPABASE_URL="$SUPABASE_URL" \
             -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
             --stacktrace
+      # Tags only: a manual dispatch builds and tests but must never cut a
+      # release named after a branch (previously created "Uzzap Android main").
       - name: Publish signed AAB to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

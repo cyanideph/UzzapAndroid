@@ -4,20 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       target_branch:
-        description: "Branch to optimize"
+        description: "Base branch for the optimization PR"
         required: true
         default: "main"
         type: string
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   convert-gifs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ inputs.target_branch }}
@@ -79,7 +80,7 @@ jobs:
 
           print(f"Converted: {converted} GIF assets")
           print(f"Total GIF bytes:  {total_before:,}")
-          print(f"Total WebP bytes: {total_after:,}")
+          print(f"Total WebP bytes:  {total_after:,}")
           print(f"Raw asset reduction: {total_before-total_after:,} bytes ({(1-total_after/total_before):.1%})")
 
           if total_after >= total_before:
@@ -137,15 +138,38 @@ jobs:
           print(f"Verified {len(webps)} WebP assets.")
           PY
 
-      - name: Commit optimized assets
+      - name: Android setup (JDK, Gradle, Supabase key)
+        uses: ./.github/actions/android-setup
+        with:
+          supabase-publishable-key: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+
+      - name: Verify rewritten references compile
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: ./gradlew :app:assembleDebug -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
+
+      # Opens a PR for human review instead of pushing to the base branch.
+      # Reviewer note: animated WebP renders animated only on API 28+; on
+      # minSdk 23-27 devices these icons show their first frame statically.
+      - name: Open optimization pull request
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          BRANCH="chore/webp-assets-$GITHUB_RUN_ID"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git checkout -b "$BRANCH"
+          git add app
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "No changes to propose."
             exit 0
           fi
           git commit -m "perf: convert animated GIF assets to WebP"
-          git push origin HEAD:${{ inputs.target_branch }}
+          git push origin "$BRANCH"
+          gh pr create \
+            --base "${{ inputs.target_branch }}" \
+            --head "$BRANCH" \
+            --title "perf: convert animated GIF assets to WebP" \
+            --body "Automated GIF to animated-WebP conversion. Reviewer note: animated WebP animates only on API 28+; on API 23-27 devices these icons render statically. Verify the debug APK on a pre-28 emulator before merging."

@@ -1,6 +1,9 @@
 name: Android CI
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -21,30 +24,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v6
+      - name: Android setup (JDK, Gradle, Supabase key)
+        uses: ./.github/actions/android-setup
         with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Make Gradle wrapper executable
-        run: chmod +x ./gradlew
-
-      - name: Validate Supabase client key
-        env:
-          SUPABASE_PUBLISHABLE_KEY: ${{ github.actor == 'dependabot[bot]' && 'sb_publishable_ci_placeholder' || secrets.SUPABASE_PUBLISHABLE_KEY }}
-        run: |
-          if [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
-            echo "SUPABASE_PUBLISHABLE_KEY GitHub Actions secret is missing."
-            exit 1
-          fi
-          case "$SUPABASE_PUBLISHABLE_KEY" in
-            sb_publishable_*) echo "Supabase publishable key is configured." ;;
-            *) echo "Invalid Supabase publishable key format."; exit 1 ;;
-          esac
+          supabase-publishable-key: ${{ github.actor == 'dependabot[bot]' && 'sb_publishable_ci_placeholder' || secrets.SUPABASE_PUBLISHABLE_KEY }}
 
       - name: Run unit tests
         env:
@@ -52,15 +35,17 @@ jobs:
           SUPABASE_PUBLISHABLE_KEY: ${{ github.actor == 'dependabot[bot]' && 'sb_publishable_ci_placeholder' || secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: ./gradlew :app:testDebugUnitTest -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
 
+      # PRs run tests only; pushes to main and manual dispatches also
+      # refresh the debug-latest release (see README "GitHub Actions").
       - name: Build debug APK
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ github.actor == 'dependabot[bot]' && 'sb_publishable_ci_placeholder' || secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: ./gradlew :app:assembleDebug -PSUPABASE_URL="$SUPABASE_URL" -PSUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" --stacktrace
 
       - name: Publish debug APK to GitHub Release
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
