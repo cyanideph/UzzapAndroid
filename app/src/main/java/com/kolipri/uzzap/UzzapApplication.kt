@@ -49,7 +49,6 @@ class UzzapApplication : Application(), DefaultLifecycleObserver {
         super<Application>.onCreate()
         AppDiagnostics.init(this)
         CrashDiagnostics.install(this)
-        AppDiagnostics.info(this, "Sentry.initialize", "Disabled: Sentry removed from Uzzap")
         AppDiagnostics.info(this, "Application", "UzzapApplication started; whole-app monitor enabled")
         AppDiagnostics.register(
             "Auth.Login", "Auth.Signup", "Auth.Logout", "Auth.RestoreSession", "Auth.verifySession",
