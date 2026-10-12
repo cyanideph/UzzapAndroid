@@ -24,7 +24,7 @@ android {
             if (envFile.exists()) envFile.inputStream().use { load(it) }
         }
 
-        val defaultSupabaseUrl = "https://mauhdrdnlrvjkekxencu.supabase.co"
+        val defaultSupabaseUrl = "https://hrjgblvxhtbopuyzyasu.supabase.co"
         val defaultSupabaseAnonKey = ""
         val projectSupabaseUrl = providers.gradleProperty("SUPABASE_URL").orNull
         val projectSupabasePublishableKey = providers.gradleProperty("SUPABASE_PUBLISHABLE_KEY").orNull
