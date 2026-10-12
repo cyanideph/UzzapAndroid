@@ -30,10 +30,32 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:gravity="center"
-            android:text="Welcome to Uzzap"
+            android:text="Welcome to Uzzap!"
             android:textColor="?attr/uzzapColorAccent"
             android:textSize="22sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:gravity="center"
+            android:text="Your quick introduction and help guide"
+            android:textColor="?attr/uzzapColorText"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/tv_welcome_intro"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:layout_marginBottom="12dp"
+            android:padding="12dp"
+            android:background="@drawable/bg_welcome_card"
+            android:text="@string/welcome_intro"
+            android:textColor="?attr/uzzapColorText"
+            android:textSize="15sp"
+            android:lineSpacingExtra="3dp" />
 
         <TextView
             android:layout_width="match_parent"

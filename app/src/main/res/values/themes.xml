@@ -84,7 +84,7 @@
         <item name="uzzapColorCard">#FFFFFF</item>
         <item name="uzzapColorDivider">#C8C8C8</item>
         <item name="android:windowBackground">@color/uzzap_white</item>
-        <item name="colorAccent">#AF0C0D</item>
+        <item name="colorAccent">#8EEF04</item>
     </style>
     <style name="UzzapTheme.Dark" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="uzzapColorBg">#101510</item>
@@ -111,7 +111,7 @@
         <item name="uzzapColorCard">#0D0D0D</item>
         <item name="uzzapColorDivider">#2A2A2A</item>
         <item name="android:windowBackground">@color/uzzap_black</item>
-        <item name="colorAccent">#AF0C0D</item>
+        <item name="colorAccent">#8EEF04</item>
     </style>
     <style name="UzzapTheme.Blue" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="uzzapColorBg">#0C1524</item>
