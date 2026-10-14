@@ -24,8 +24,10 @@ android {
             if (envFile.exists()) envFile.inputStream().use { load(it) }
         }
 
-        val defaultSupabaseUrl = "https://hrjgblvxhtbopuyzyasu.supabase.co"
+        val defaultSupabaseUrl = "https://YOUR_PROJECT_REF.supabase.co"
         val defaultSupabaseAnonKey = ""
+        val defaultSupabasePublishableKey = ""
+
         val projectSupabaseUrl = providers.gradleProperty("SUPABASE_URL").orNull
         val projectSupabasePublishableKey = providers.gradleProperty("SUPABASE_PUBLISHABLE_KEY").orNull
         val projectSupabaseAnonKey = providers.gradleProperty("SUPABASE_ANON_KEY").orNull
@@ -38,11 +40,12 @@ android {
 
         val supabaseUrl = (projectSupabaseUrl ?: envSupabaseUrl ?: fileSupabaseUrl ?: defaultSupabaseUrl).trim().trimEnd('/').ifBlank { defaultSupabaseUrl }
         val supabaseKey = (projectSupabasePublishableKey ?: envSupabasePublishableKey ?: fileSupabasePublishableKey ?: projectSupabaseAnonKey ?: envSupabaseAnonKey ?: fileSupabaseAnonKey ?: defaultSupabaseAnonKey).trim()
+        val supabasePublishableKey = (projectSupabasePublishableKey ?: envSupabasePublishableKey ?: fileSupabasePublishableKey ?: projectSupabaseAnonKey ?: envSupabaseAnonKey ?: fileSupabaseAnonKey ?: defaultSupabasePublishableKey).trim()
 
         fun quoteBuildConfig(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
         buildConfigField("String", "SUPABASE_URL", quoteBuildConfig(supabaseUrl))
         buildConfigField("String", "SUPABASE_ANON_KEY", quoteBuildConfig(supabaseKey))
-        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoteBuildConfig(supabaseKey))
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoteBuildConfig(supabasePublishableKey))
     }
 
     val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")

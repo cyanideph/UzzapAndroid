@@ -20,7 +20,7 @@ data class UnreadPrivateMessage(
 )
 
 object PrivateMessageStateClient {
-    private const val UNREAD_CACHE_MAX_AGE_MS = 5_000L
+    private const val UNREAD_CACHE_MAX_AGE_MS = 30_000L
 
     private val main = Handler(Looper.getMainLooper())
     private val http = OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).writeTimeout(12, TimeUnit.SECONDS).build()
